@@ -64,7 +64,7 @@ def main() -> None:
     class CustomHelpFormatter(argparse.HelpFormatter):
         def _format_usage(self, usage, actions, groups, prefix):
             return super()._format_usage(usage, actions, groups, prefix) + \
-                "\nexample: python3 password_generator.py --length 24 --upper --lower --digits --symbols --min-chars 2 --no-save\n\n\n"
+                "\nexample: python password_generator.py --length 24 --upper --lower --digits --symbols --min 2 --no-save\n\n\n"
 
     parser = argparse.ArgumentParser(
         description='Generate a strong random password.',
@@ -81,39 +81,39 @@ def main() -> None:
     
     # Other arguments
     parser.add_argument(
-        '-l', '--length',
+        '-L', '--length',
         type=int,
         default=DEFAULT_PASSWORD_LENGTH,
         help=f'Length of the password (minimum: {MIN_PASSWORD_LENGTH})'
     )
     parser.add_argument(
-        '--upper',
+        '-u', '--upper',
         action='store_true',
         help='Include uppercase letters'
     )
     parser.add_argument(
-        '--lower',
+        '-l', '--lower',
         action='store_true',
         help='Include lowercase letters'
     )
     parser.add_argument(
-        '--digits',
+        '-d', '--digits',
         action='store_true',
         help='Include digits'
     )
     parser.add_argument(
-        '--symbols',
+        '-s', '--symbols',
         action='store_true',
         help='Include symbols'
     )
     parser.add_argument(
-        '--min-chars',
+        '-m', '--min',
         type=int,
         default=1,
         help='Minimum characters from each selected type'
     )
     parser.add_argument(
-        '--no-save',
+        '-n', '--no-save',
         action='store_true',
         help='Do not save the password to file'
     )
@@ -132,7 +132,7 @@ def main() -> None:
             args.lower,
             args.digits,
             args.symbols,
-            args.min_chars
+            args.min
         )
         print(f'Generated Password: {password}')
 

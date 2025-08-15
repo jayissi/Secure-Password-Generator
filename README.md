@@ -63,14 +63,14 @@ python password_generator.py --help
 
 | Argument       | Short Form | Description                                 | Default |
 | :------------: | :--------: | :------------------------------------------ | :-----: |
-| `--length`     |    `-l`    | Sets the length of the password             | `12`    |
-| `--upper`      |            | Includes uppercase letters (A-Z)            | `False` |
-| `--lower`      |            | Includes lowercase letters (a-z)            | `False` |
-| `--digits`     |            | Includes digits (0-9)                       | `False` |
-| `--symbols`    |            | Includes symbols (e.g., !@#$%^&*)           | `False` |
-| `--min-chars`  |            | Minimum characters from each selected type  | `1`     |
-| `--no-save`    |            | Prevents password from being saved to file  | `False` |
-| `--help`       |    `-h`    | Shows the help message and exits            | N/A     |
+| `--length`     |    `-L`    | Sets the length of the password             | `12`    |
+| `--upper`      |    `-u`    | Includes uppercase letters (A-Z)            | `False` |
+| `--lower`      |    `-l`    | Includes lowercase letters (a-z)            | `False` |
+| `--digits`     |    `-d`    | Includes digits (0-9)                       | `False` |
+| `--symbols`    |    `-s`    | Includes symbols (e.g., !@#$%^&*)           | `False` |
+| `--min`        |  `--min`   | Minimum characters from each selected type  | `1`     |
+| `--no-save`    |    `-n`    | Prevents password from being saved to file  | `False` |
+| `--help`       |    `-h`    | Shows the help message and exits            |  N/A    |
 
 ##  📝 Examples
 
@@ -78,7 +78,7 @@ python password_generator.py --help
 This will create a 12-character password using all character types and save it to `.passwordlist.txt`.
 
 ```bash
-python password_generator.py --upper --lower --digits --symbols
+python password_generator.py -u -l -d -s
 ```
 **Output:**
 ```
@@ -90,7 +90,7 @@ Password securely saved to .passwordlist.txt
 This creates a 24-character password for one-time use.
 
 ```bash
-python password_generator.py -l 24 --upper --lower --digits --symbols --no-save
+python password_generator.py -L 24 --upper --lower --digits --symbols --no-save
 ```
 **Output:**
 ```
@@ -101,14 +101,14 @@ Generated Password: V3ry-L0ng&S3cur3!P@ssw0rd#
 Create a 16-character password with at least 2 of each selected character type.
 
 ```bash
-python password_generator.py -l 16 --upper --lower --digits --min-chars 2 --no-save
+python password_generator.py -L 16 --upper --lower --digits --min 2 --no-save
 ```
 
 **4. Generate a simple 8-digit PIN**
 Create a password using only digits.
 
 ```bash
-python password_generator.py -l 8 --digits --no-save
+python password_generator.py -L 8 --digits --no-save
 ```
 
 ---
