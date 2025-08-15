@@ -34,7 +34,7 @@ You just need **Python 3.7+** installed on your system.
 
 1.  Clone this repository to your local machine:
     ```bash
-    git clone [https://github.com/jayissi/Secure-Password-Generator.git](https://github.com/jayissi/Secure-Password-Generator.git)
+    git clone https://github.com/jayissi/Secure-Password-Generator.git
     ```
 2.  Navigate into the project directory:
     ```bash
