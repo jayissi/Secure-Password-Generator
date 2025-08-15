@@ -82,7 +82,7 @@ python3 password_generator.py --upper --lower --digits --symbols
 ```
 **Output:**
 ```
-Generated Password: "p@55W0rD_Ex&mpl3"
+Generated Password: p@55W0rD_Ex&mpl3
 Password securely saved to .passwordlist.txt
 ```
 
@@ -94,7 +94,7 @@ python3 password_generator.py -l 24 --upper --lower --digits --symbols --no-save
 ```
 **Output:**
 ```
-Generated Password: "V3ry-L0ng&S3cur3!P@ssw0rd#"
+Generated Password: V3ry-L0ng&S3cur3!P@ssw0rd#
 ```
 
 **3. Generate a password that meets strict requirements**

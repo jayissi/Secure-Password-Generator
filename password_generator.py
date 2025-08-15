@@ -132,7 +132,7 @@ def main() -> None:
             args.symbols,
             args.min_chars
         )
-        print(f'Generated Password: "{password}"')
+        print(f'Generated Password: {password}')
 
         if not args.no_save:
             save_password(password)
