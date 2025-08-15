@@ -34,11 +34,11 @@ You just need **Python 3.7+** installed on your system.
 
 1.  Clone this repository to your local machine:
     ```bash
-    git clone [https://github.com/your-username/your-repository-name.git](https://github.com/your-username/your-repository-name.git)
+    git clone [https://github.com/jayissi/Secure-Password-Generator.git](https://github.com/jayissi/Secure-Password-Generator.git)
     ```
 2.  Navigate into the project directory:
     ```bash
-    cd your-repository-name
+    cd Secure-Password-Generator
     ```
 
 That's it! You're ready to generate passwords.
@@ -57,16 +57,16 @@ python3 password_generator.py --help
 
 ### Command-Line Arguments
 
-| Argument      | Short Form | Description                                  | Default |
-| :------------ | :--------: | :------------------------------------------- | :------ |
-| `--length`    |     `-l`     | Sets the length of the password.             | `12`    |
-| `--upper`     |            | Includes uppercase letters (A-Z).            | `False` |
-| `--lower`     |            | Includes lowercase letters (a-z).            | `False` |
-| `--digits`    |            | Includes digits (0-9).                       | `False` |
-| `--symbols`   |            | Includes symbols (e.g., !@#$%^&*).           | `False` |
-| `--min-chars` |            | Minimum characters from each selected type.  | `1`     |
-| `--no-save`   |            | Prevents the password from being saved to the file. | `False` |
-| `--help`      |     `-h`     | Shows the help message and exits.            | N/A     |
+| Argument       | Short Form | Description                                 | Default |
+| :------------: | :--------: | :------------------------------------------ | :-----: |
+| `--length`     |    `-l`    | Sets the length of the password             | `12`    |
+| `--upper`      |            | Includes uppercase letters (A-Z)            | `False` |
+| `--lower`      |            | Includes lowercase letters (a-z)            | `False` |
+| `--digits`     |            | Includes digits (0-9)                       | `False` |
+| `--symbols`    |            | Includes symbols (e.g., !@#$%^&*)           | `False` |
+| `--min-chars`  |            | Minimum characters from each selected type  | `1`     |
+| `--no-save`    |            | Prevents password from being saved to file  | `False` |
+| `--help`       |    `-h`    | Shows the help message and exits            | N/A     |
 
 ##  📝 Examples
 
@@ -129,5 +129,5 @@ Contributions are welcome! Please open an issue or pull request for any improvem
 
 ## 📜 License
 
-This project is licensed under the MIT License. See the `LICENSE` file for more details.
+This project is licensed under the MIT License. See the [LICENSE](https://github.com/jayissi/Secure-Password-Generator/blob/main/LICENSE) file for more details.
 
