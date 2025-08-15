@@ -1,10 +1,14 @@
 # 🔐 Secure Password Generator
 
-A robust, powerful, and secure command-line tool for generating cryptographically strong passwords. This script uses Python's `secrets` module to create strong random passwords with customizable character sets and minimum character requirements.
-
 ![Python Version](https://img.shields.io/badge/python-3.7+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Security](https://img.shields.io/badge/security-cryptographically_secure-red.svg)
+
+A robust, powerful, and secure command-line tool for generating cryptographically strong passwords. This script uses Python's `secrets` module to create strong random passwords with customizable character sets and minimum character requirements.
+
+<p align="center">
+<img alt="Python" src="https://www.python.org/static/community_logos/python-logo-master-v3-TM.png">
+</p>
 
 ---
 
@@ -55,7 +59,7 @@ If you run the script with no arguments or with the `-h` flag, it will display t
 python3 password_generator.py --help
 ```
 
-### Command-Line Arguments
+### ⚙️ Command-Line Arguments
 
 | Argument       | Short Form | Description                                 | Default |
 | :------------: | :--------: | :------------------------------------------ | :-----: |
