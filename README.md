@@ -68,7 +68,7 @@ python password_generator.py --help
 | `--lower`      |    `-l`    | Includes lowercase letters (a-z)            | `False` |
 | `--digits`     |    `-d`    | Includes digits (0-9)                       | `False` |
 | `--symbols`    |    `-s`    | Includes symbols (e.g., !@#$%^&*)           | `False` |
-| `--min`        |  `--min`   | Minimum characters from each selected type  | `1`     |
+| `--min`        |    `-m`    | Minimum characters from each selected type  | `1`     |
 | `--no-save`    |    `-n`    | Prevents password from being saved to file  | `False` |
 | `--help`       |    `-h`    | Shows the help message and exits            |  N/A    |
 
