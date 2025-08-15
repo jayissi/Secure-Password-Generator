@@ -30,11 +30,11 @@ A robust, powerful, and secure command-line tool for generating cryptographicall
 
 ## 🚀 Getting Started
 
-### Prerequisites
+### 🔍 Prerequisites
 
 You just need **Python 3.7+** installed on your system.
 
-### Installation
+### 🛠️ Installation
 
 1.  Clone this repository to your local machine:
     ```bash
@@ -51,12 +51,12 @@ That's it! You're ready to generate passwords.
 
 ## 💻 Usage
 
-Run the script from your terminal using `python3 password_generator.py` with your desired options.
+Run the script from your terminal using `python password_generator.py` with your desired options.
 
 If you run the script with no arguments or with the `-h` flag, it will display the help menu.
 
 ```bash
-python3 password_generator.py --help
+python password_generator.py --help
 ```
 
 ### ⚙️ Command-Line Arguments
@@ -78,7 +78,7 @@ python3 password_generator.py --help
 This will create a 12-character password using all character types and save it to `.passwordlist.txt`.
 
 ```bash
-python3 password_generator.py --upper --lower --digits --symbols
+python password_generator.py --upper --lower --digits --symbols
 ```
 **Output:**
 ```
@@ -90,7 +90,7 @@ Password securely saved to .passwordlist.txt
 This creates a 24-character password for one-time use.
 
 ```bash
-python3 password_generator.py -l 24 --upper --lower --digits --symbols --no-save
+python password_generator.py -l 24 --upper --lower --digits --symbols --no-save
 ```
 **Output:**
 ```
@@ -101,14 +101,14 @@ Generated Password: V3ry-L0ng&S3cur3!P@ssw0rd#
 Create a 16-character password with at least 2 of each selected character type.
 
 ```bash
-python3 password_generator.py -l 16 --upper --lower --digits --min-chars 2 --no-save
+python password_generator.py -l 16 --upper --lower --digits --min-chars 2 --no-save
 ```
 
 **4. Generate a simple 8-digit PIN**
 Create a password using only digits.
 
 ```bash
-python3 password_generator.py -l 8 --digits --no-save
+python password_generator.py -l 8 --digits --no-save
 ```
 
 ---
