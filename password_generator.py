@@ -10,7 +10,7 @@ from typing import Optional, List
 DEFAULT_PASSWORD_LENGTH = 12
 MIN_PASSWORD_LENGTH = 8
 MAX_GENERATION_ATTEMPTS = 100
-PASSWORD_FILE = ".password_list.txt"
+PASSWORD_FILE = Path.home().joinpath( '.password_list.txt' )
 SIMILAR_CHARS = "il1Lo0O"  # Characters to exclude when --exclude-similar is used
 
 

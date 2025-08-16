@@ -29,7 +29,7 @@ A robust, powerful, and secure command-line tool for generating cryptographicall
 - **Bulk generation**: Generate multiple passwords at once
 - **Password history**: View previously generated passwords
 - **Complexity Guaranteed**: Enforce a minimum number of characters from each selected character set to meet strict password policies.
-- **Secure Local Storage**: Optionally saves the generated password to a local file (`.password_list.txt`) with restricted permissions (`0o600`) to prevent unauthorized access.
+- **Secure Local Storage**: Optionally saves the generated password to a local file (`${HOME}/.password_list.txt`) with restricted permissions (`0o600`) to prevent unauthorized access.
 - **User-Friendly CLI**: A clean and straightforward command-line interface built with `argparse`.
 - **Zero Dependencies**: Pure Python script. No external libraries are needed—just a standard Python 3 installation.
 
@@ -96,7 +96,7 @@ password_generator -h
 ## 📝 Examples
 
 **1. Generate a default password**
-Create a 16-character password using all character types and save it to `.password_list.txt`.
+Create a 16-character password using all character types and save it to `${HOME}/.password_list.txt`.
 
 ```bash
 password_generator -L 16 -u -l -d -s
@@ -106,7 +106,7 @@ password_generator -L 16 -u -l -d -s
 
 ```bash
 Generated Password: p@55W0rD_Ex&mpl3
-Password securely saved to .password_list.txt
+Password securely saved to ${HOME}/.password_list.txt
 ```
 
 **2. Generate a long, complex password without saving it**
@@ -157,10 +157,10 @@ This tool is designed with security as a top priority.
 
 - Uses `secrets` module instead of `random` for cryptographically secure random number generation
 - Automatically enforces minimum password length of 8 characters
-- By default when passwords are saved, the file permissions for `.password_list.txt` are set to `0o600`. This ensures that only the file's owner has read and write permissions, protecting it from other users on the system.
+- By default when passwords are saved, the file permissions for `${HOME}/.password_list.txt` are set to `0o600`. This ensures that only the file's owner has read and write permissions, protecting it from other users on the system.
 - Passwords are securely shuffled before being returned
 
-**Disclaimer:** You are responsible for the secure management of the `.password_list.txt` file. Ensure it is stored and secured properly.
+**Disclaimer:** You are responsible for the secure management of the `${HOME}/.password_list.txt` file. Ensure it is stored and secured properly.
 
 ---
 
