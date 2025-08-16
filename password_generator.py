@@ -222,8 +222,10 @@ def main() -> None:
     class CustomHelpFormatter(argparse.HelpFormatter):
         def _format_usage(self, usage, actions, groups, prefix):
             help_text = super()._format_usage(usage, actions, groups, prefix)
-            help_text += "\nExample: python password_generator.py --length 24 --upper --lower --digits --symbols "
-            help_text += "--allowed-symbols @#$%% --min 2 --count 5 --exclude-similar --no-repeats --no-save\n\n"
+            help_text += "\nExample:\n        python password_generator.py --length 24 \\\n          "
+            help_text += "--upper --lower --digits --symbols \\\n          "
+            help_text += "--allowed-symbols @#$%% --min 2 --count 5 \\\n          "
+            help_text += "--exclude-similar --no-repeats --no-save\n\n"
             return help_text
 
     parser = argparse.ArgumentParser(
