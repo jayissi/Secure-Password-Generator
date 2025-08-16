@@ -78,7 +78,7 @@ password_generator -h
 ### ⚙️ Command-Line Arguments
 
 | Argument               | Short | Description                                  | Default |
-|------------------------|-------|----------------------------------------------|---------|
+|:----------------------:|:-----:|----------------------------------------------|:-------:|
 | `--length`             | `-L`  | Password length (min: 8)                     | 12      |
 | `--upper`              | `-u`  | Include uppercase letters                    | False   |
 | `--lower`              | `-l`  | Include lowercase letters                    | False   |
