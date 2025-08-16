@@ -276,7 +276,7 @@ def main() -> None:
         "-e",
         "--exclude-similar",
         action="store_true",
-        help="Exclude similar-looking characters (i, l, 1, o, 0, O)",
+        help="Exclude similar-looking characters (i, l, 1, L, o, 0, O)",
     )
     parser.add_argument(
         "-r",

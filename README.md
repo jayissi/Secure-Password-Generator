@@ -23,7 +23,7 @@ A robust, powerful, and secure command-line tool for generating cryptographicall
   - Symbols (customizable or default punctuation)
 - **Advanced options**:
   - Minimum character requirements per character type
-  - Exclude similar-looking characters (`i`, `l`, `1`, `o`, `0`, `O`)
+  - Exclude similar-looking characters (`i`, `l`, `1`, `L`, `o`, `0`, `O`)
   - Prevent consecutive duplicate characters
   - Custom allowed symbols for specific requirements
 - **Bulk generation**: Generate multiple passwords at once
@@ -49,10 +49,16 @@ You just need **Python 3.7+** installed on your system.
     git clone https://github.com/jayissi/Secure-Password-Generator.git
     ```
 
-2. Navigate into the project directory:
+2. Make the script executable:
 
     ```bash
-    cd Secure-Password-Generator
+    chmod +x Secure-Password-Generator/password_generator.py
+    ```
+
+3. Move it to your local bin folder (on Linux/macOS):
+
+    ```bash
+    sudo mv Secure-Password-Generator/password_generator.py /usr/local/bin/password_generator
     ```
 
 That's it! You're ready to generate passwords.
@@ -61,12 +67,12 @@ That's it! You're ready to generate passwords.
 
 ## 💻 Usage
 
-Run the script from your terminal using `python password_generator.py` with your desired options.
+Run the script from your terminal using `password_generator` with your desired options.
 
 If you run the script with no arguments or with the `-h` flag, it will display the help menu.
 
 ```bash
-python password_generator.py -h
+password_generator -h
 ```
 
 ### ⚙️ Command-Line Arguments
@@ -93,7 +99,7 @@ python password_generator.py -h
 Create a 16-character password using all character types and save it to `.password_list.txt`.
 
 ```bash
-python password_generator.py -L 16 -u -l -d -s
+password_generator -L 16 -u -l -d -s
 ```
 
 **Output:**
@@ -107,7 +113,7 @@ Password securely saved to .password_list.txt
 This creates a 26-character password with no repetitive characters.
 
 ```bash
-python password_generator.py -L 26 --upper --lower --digits --symbols --no-repeats --no-save
+password_generator -L 26 --upper --lower --digits --symbols --no-repeats --no-save
 ```
 
 **Output:**
@@ -120,14 +126,14 @@ Generated Password: V3ry-L0ng&S3cur3!P@ssw0rd#
 Create a 16-character password with at least 2 of each selected character type.
 
 ```bash
-python password_generator.py -L 16 --upper --lower --digits --symbols --no-repeats --min 2 --no-save
+password_generator -L 16 --upper --lower --digits --symbols --no-repeats --min 2 --no-save
 ```
 
 **4. Custom symbol set**
 Create a password using only `@#$%` as symbols
 
 ```bash
-python password_generator.py -n -u -l -a '@#$%'
+password_generator -n -u -l -a '@#$%'
 ```
 
 **5. Advanced Requirements**
@@ -140,7 +146,7 @@ Create (5x) 20-character password with:
 - Output to stdout only
 
 ```bash
-python password_generator.py -c 5 -L 20 -u -l -d -m 3 -e -r -a '!@*#^ $&%\"' -n
+password_generator -c 5 -L 20 -u -l -d -m 3 -e -r -a '!@*#^ $&%\"' -n
 ```
 
 ---
