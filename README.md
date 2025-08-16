@@ -20,11 +20,18 @@ A robust, powerful, and secure command-line tool for generating cryptographicall
   - Uppercase letters (`A-Z`)
   - Lowercase letters (`a-z`)
   - Digits (`0-9`)
-  - Symbols (`!@#$%^&*`, etc.)
+  - Symbols (customizable or default punctuation)
+- **Advanced options**:
+  - Minimum character requirements per character type
+  - Exclude similar-looking characters (`i`, `l`, `1`, `o`, `0`, `O`)
+  - Prevent consecutive duplicate characters
+  - Custom allowed symbols for specific requirements
+- **Bulk generation**: Generate multiple passwords at once
+- **Password history**: View previously generated passwords
 - **Complexity Guaranteed**: Enforce a minimum number of characters from each selected character set to meet strict password policies.
-- **Secure Local Storage**: Optionally saves the generated password to a local file (`.passwordlist.txt`) with restricted permissions (`0o600`) to prevent unauthorized access.
-- **Zero Dependencies**: Pure Python script. No external libraries are needed—just a standard Python 3 installation.
+- **Secure Local Storage**: Optionally saves the generated password to a local file (`.password_list.txt`) with restricted permissions (`0o600`) to prevent unauthorized access.
 - **User-Friendly CLI**: A clean and straightforward command-line interface built with `argparse`.
+- **Zero Dependencies**: Pure Python script. No external libraries are needed—just a standard Python 3 installation.
 
 ---
 
@@ -36,11 +43,14 @@ You just need **Python 3.7+** installed on your system.
 
 ### 🛠️ Installation
 
-1.  Clone this repository to your local machine:
+1. Clone this repository to your local machine:
+
     ```bash
     git clone https://github.com/jayissi/Secure-Password-Generator.git
     ```
-2.  Navigate into the project directory:
+
+2. Navigate into the project directory:
+
     ```bash
     cd Secure-Password-Generator
     ```
@@ -56,44 +66,53 @@ Run the script from your terminal using `python password_generator.py` with your
 If you run the script with no arguments or with the `-h` flag, it will display the help menu.
 
 ```bash
-python password_generator.py --help
+python password_generator.py -h
 ```
 
 ### ⚙️ Command-Line Arguments
 
-| Argument       | Short Form | Description                                 | Default |
-| :------------: | :--------: | :------------------------------------------ | :-----: |
-| `--length`     |    `-L`    | Sets the length of the password             | `12`    |
-| `--upper`      |    `-u`    | Includes uppercase letters (A-Z)            | `False` |
-| `--lower`      |    `-l`    | Includes lowercase letters (a-z)            | `False` |
-| `--digits`     |    `-d`    | Includes digits (0-9)                       | `False` |
-| `--symbols`    |    `-s`    | Includes symbols (e.g., !@#$%^&*)           | `False` |
-| `--min`        |    `-m`    | Minimum characters from each selected type  | `1`     |
-| `--no-save`    |    `-n`    | Prevents password from being saved to file  | `False` |
-| `--help`       |    `-h`    | Shows the help message and exits            |  N/A    |
+| Argument               | Short | Description                                  | Default |
+|------------------------|-------|----------------------------------------------|---------|
+| `--length`             | `-L`  | Password length (min: 8)                     | 12      |
+| `--upper`              | `-u`  | Include uppercase letters                    | False   |
+| `--lower`              | `-l`  | Include lowercase letters                    | False   |
+| `--digits`             | `-d`  | Include digits                               | False   |
+| `--symbols`            | `-s`  | Include symbols                              | False   |
+| `--allowed-symbols`    | `-a`  | Custom allowed symbols (implies `--symbols`) | None    |
+| `--min`                | `-m`  | Min chars per selected type                  | 1       |
+| `--count`              | `-c`  | Number of passwords to generate              | 1       |
+| `--exclude-similar`    | `-e`  | Exclude similar-looking chars                | False   |
+| `--no-repeats`         | `-r`  | No consecutive duplicate chars               | False   |
+| `--no-save`            | `-n`  | Don't save to password file                  | False   |
+| `--show-history`       | `-H`  | Show password history                        | False   |
+| `--help`               | `-h`  | Show help message                            | N/A     |
 
-##  📝 Examples
+## 📝 Examples
 
 **1. Generate a default password**
-This will create a 12-character password using all character types and save it to `.passwordlist.txt`.
+Create a 16-character password using all character types and save it to `.password_list.txt`.
 
 ```bash
-python password_generator.py -u -l -d -s
+python password_generator.py -L 16 -u -l -d -s
 ```
+
 **Output:**
-```
+
+```bash
 Generated Password: p@55W0rD_Ex&mpl3
-Password securely saved to .passwordlist.txt
+Password securely saved to .password_list.txt
 ```
 
 **2. Generate a long, complex password without saving it**
-This creates a 24-character password for one-time use.
+This creates a 26-character password with no repetitive characters.
 
 ```bash
-python password_generator.py -L 24 --upper --lower --digits --symbols --no-save
+python password_generator.py -L 26 --upper --lower --digits --symbols --no-repeats --no-save
 ```
+
 **Output:**
-```
+
+```bash
 Generated Password: V3ry-L0ng&S3cur3!P@ssw0rd#
 ```
 
@@ -101,14 +120,27 @@ Generated Password: V3ry-L0ng&S3cur3!P@ssw0rd#
 Create a 16-character password with at least 2 of each selected character type.
 
 ```bash
-python password_generator.py -L 16 --upper --lower --digits --min 2 --no-save
+python password_generator.py -L 16 --upper --lower --digits --symbols --no-repeats --min 2 --no-save
 ```
 
-**4. Generate a simple 8-digit PIN**
-Create a password using only digits.
+**4. Custom symbol set**
+Create a password using only `@#$%` as symbols
 
 ```bash
-python password_generator.py -L 8 --digits --no-save
+python password_generator.py -n -u -l -a '@#$%'
+```
+
+**5. Advanced Requirements**
+Create (5x) 20-character password with:
+
+- At least 3 of each character type
+- No similar characters
+- No consecutive duplicates
+- Only use `!@*#^ $&%\"` as valid symbols
+- Output to stdout only
+
+```bash
+python password_generator.py -c 5 -L 20 -u -l -d -m 3 -e -r -a '!@*#^ $&%\"' -n
 ```
 
 ---
@@ -116,12 +148,13 @@ python password_generator.py -L 8 --digits --no-save
 ## 🛡️ Security Note
 
 This tool is designed with security as a top priority.
--   Uses `secrets` module instead of `random` for cryptographically secure random number generation
--   Automatically enforces minimum password length of 8 characters
--   By default when passwords are saved, the file permissions for `.passwordlist.txt` are set to `0o600`. This ensures that only the file's owner has read and write permissions, protecting it from other users on the system.
--   Passwords are securely shuffled before being returned
 
-**Disclaimer:** You are responsible for the secure management of the `.passwordlist.txt` file. Ensure it is stored and secured properly.
+- Uses `secrets` module instead of `random` for cryptographically secure random number generation
+- Automatically enforces minimum password length of 8 characters
+- By default when passwords are saved, the file permissions for `.password_list.txt` are set to `0o600`. This ensures that only the file's owner has read and write permissions, protecting it from other users on the system.
+- Passwords are securely shuffled before being returned
+
+**Disclaimer:** You are responsible for the secure management of the `.password_list.txt` file. Ensure it is stored and secured properly.
 
 ---
 
@@ -134,4 +167,3 @@ Contributions are welcome! Please open an issue or pull request for any improvem
 ## 📜 License
 
 This project is licensed under the MIT License. See the [LICENSE](https://github.com/jayissi/Secure-Password-Generator/blob/main/LICENSE) file for more details.
-
