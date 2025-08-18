@@ -424,6 +424,11 @@ def create_argument_parser() -> argparse.ArgumentParser:
         "-h", "--help", action="store_true", help="Show this help message and exit"
     )
     basic_group.add_argument(
+        "-P", "--passphrase",
+        type=str,
+        help="Use a custom passphrase instead of generating a secure password (supersedes other options)",
+    )
+    basic_group.add_argument(
         "-L", "--length",
         type=int,
         default=DEFAULT_PASSWORD_LENGTH,
@@ -531,6 +536,19 @@ def main() -> None:
         args.symbols = True
 
     try:
+        if args.passphrase:
+            # Passphrase mode - supersedes all other options
+            print("[ Custom Passphrase Mode ]")
+            print(f"Using provided passphrase: {args.passphrase}")
+            
+            if not args.no_save:
+                save_password(args.passphrase)
+                print(f"✓ Passphrase securely saved to {PASSWORD_FILE}")
+            else:
+                print("⚠ Passphrase not saved (--no-save flag was set)")
+            
+            sys.exit(0)
+
         for i in range(args.count):
             password = generate_password(
                 length=args.length,

@@ -19,7 +19,7 @@ A robust, powerful, and secure command-line utility for generating **cryptograph
 ## ✨ Features
 
 - **Cryptographically Secure**:
-  Utilizes Python's `secrets` module, which is designed to generate unpredictable random values suitable for cryptographic purposes.
+  Utilizes Python's `secrets` module, which is designed to generate unpredictable secure values suitable for cryptographic purposes.
 
 - **Flexible Password Policies**:
   - Minimum enforced length (8+ characters, configurable)
@@ -107,6 +107,7 @@ password_generator -h
 
 | Argument               | Short | Description                                  | Default |
 |:----------------------:|:-----:|----------------------------------------------|:-------:|
+| `--passphrase`         | `-P`  | Custom passphrase (highest priority)         | None    |
 | `--length`             | `-L`  | Password length (min: 8)                     | 12      |
 | `--upper`              | `-u`  | Include uppercase letters                    | False   |
 | `--lower`              | `-l`  | Include lowercase letters                    | False   |
@@ -186,6 +187,23 @@ Create (5x) 20-character password with:
 password_generator -c 5 -L 20 -u -l -d -m 3 -e -r -a '!@*#^ $&%\"' -n
 ```
 
+<br/>
+
+**6. User Provided Content**
+Create a secure password using user provided content:
+
+```bash
+password_generator -P "Philippians 4:13 - I can do all things through Christ who strengthens me."
+```
+
+**Output:**
+
+```bash
+[ Custom Passphrase Mode ]
+Using provided passphrase: Philippians 4:13 - I can do all things through Christ who strengthens me.
+✓ Passphrase securely saved to ${HOME}/.password_list.enc
+```
+
 ---
 
 ## 🛡️ Security Details
@@ -212,7 +230,7 @@ When protecting passwords, two important concepts are often combined: **salt** a
 
 #### 🧂 Salt
 
-- A **salt** is a unique, random value generated for each password.  
+- A **salt** is a unique, securely random value generated for each password.  
 - It ensures that even if two users choose the same password, their hashes will be different.  
 - Salts protect against **rainbow table** and precomputed dictionary attacks.  
 - **Not secret** — salts are usually stored alongside the password hash in the database.
@@ -261,7 +279,7 @@ sequenceDiagram
 ### 📝 Explanation
 
 1. **JSON Payload (P)** is the input secret (e.g., a password).  
-2. **Argon2id** takes the JSON Payload, adds a **random salt** and a secret **pepper**, and produces a strong, memory-hard **derived key**.  
+2. **Argon2id** takes the JSON Payload, adds a **securely random salt** and a secret **pepper**, and produces a strong, memory-hard **derived key**.  
 3. The **derived key (K)** `Key + Nonce + JSON Payload` is fed into **AES-GCM-SIV** as the encryption key.  
 4. AES-GCM-SIV produces both **Ciphertext (C)** and an **Authentication Tag (T)** for integrity.  
 5. The final secure output is stored as `{ salt, nonce, ciphertext, tag }` where only the **pepper** remains secret.
