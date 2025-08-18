@@ -549,7 +549,7 @@ def main() -> None:
                 save_password(password)
 
         if not args.no_save and args.count > 0:
-            print(f"\n[✓] Passwords securely saved to {PASSWORD_FILE}")
+            print(f"[✓] Passwords securely saved to {PASSWORD_FILE}")
     except Exception as e:
         print(f"[!] Error: {e}", file=sys.stderr)
         sys.exit(1)

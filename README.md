@@ -1,10 +1,12 @@
 # 🔐 Secure Password Generator
 
-![Python Version](https://img.shields.io/badge/python-3.7+-blue.svg)
+![Python Version](https://img.shields.io/badge/python-3.13+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Security](https://img.shields.io/badge/security-cryptographically_secure-red.svg)
 
 A robust, powerful, and secure command-line utility for generating **cryptographically strong passwords**. Built with Python’s `secrets` module, this tool supports Argon2id password hashing and Base64-encoded AES-GCM-SIV encryption with customizable character sets and minimum character requirements.
+
+<br/>
 
 <p align="center">
 <img alt="Python" src="https://www.python.org/static/community_logos/python-logo-master-v3-TM.png">
@@ -55,7 +57,7 @@ A robust, powerful, and secure command-line utility for generating **cryptograph
 
 ### 🔍 Prerequisites
 
-- Python **3.7+**
+- Python **3.13+**
 - No external dependencies required beyond `cryptography`
 
 ### 🛠️ Installation
@@ -84,14 +86,15 @@ A robust, powerful, and secure command-line utility for generating **cryptograph
     sudo mv Secure-Password-Generator/password_generator.py /usr/local/bin/password_generator
     ```
 
+<br/>
+
 That's it! You're ready to generate passwords.
 
 ---
 
 ## 💻 Usage
 
-Run the script from your terminal using `password_generator` with your desired options.
-
+Run the script from your terminal using `password_generator` with your desired options.  
 If you run the script with no arguments or with the `-h` flag, it will display the help menu.
 
 ```bash
@@ -130,8 +133,10 @@ password_generator -L 16 -u -l -d -s
 
 ```bash
 Generated Password 1: p@55W0rD_Ex&mpl3
-Password securely saved to ${HOME}/.password_list.enc
+[✓] Passwords securely saved to ${HOME}/.password_list.enc
 ```
+
+<br/>
 
 **2. Generate a 26-character password (no repeats, do not save)**
 This creates a 26-character password with no repetitive characters.
@@ -146,6 +151,8 @@ password_generator -L 26 --upper --lower --digits --symbols --no-repeats --no-sa
 Generated Password 1: V3ry-L0ng&S3cur3!P@ssw0rd#
 ```
 
+<br/>
+
 **3. Generate a password with strict requirements**
 Create a 16-character password with at least 2 of each selected character type.
 
@@ -153,12 +160,16 @@ Create a 16-character password with at least 2 of each selected character type.
 password_generator -L 16 --upper --lower --digits --symbols --no-repeats --min 2 --no-save
 ```
 
+<br/>
+
 **4. Use a custom symbol set**
 Create a password using only `@#$%` as symbols
 
 ```bash
 password_generator -n -u -l -a '@#$%'
 ```
+
+<br/>
 
 **5. Advanced Requirements**
 Create (5x) 20-character password with:
@@ -191,8 +202,11 @@ This tool is designed with security as a top priority.
 
 - **File Permissions**: The password history file is created with `0600` file permissions (read/write) restricted to the file’s owner.
 
-⚠️ **Disclaimer:** You are responsible for the secure management of the `${HOME}/.password_list.enc` file and the `${HOME}/.password_key.aes256` key file. Ensure it is stored and secured properly and ***do not share or back them up insecurely***.
+<br/>
 
+> [!CAUTION]
+> You are responsible for the secure management of the `${HOME}/.password_list.enc` file and the `${HOME}/.password_key.aes256` key file.  
+> Ensure it is stored and secured properly and ***do not share or back them up insecurely***.
 ---
 
 ## 🤝 Contributing
