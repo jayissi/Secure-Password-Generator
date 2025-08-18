@@ -202,6 +202,8 @@ This tool is designed with security as a top priority. `JSON Payload → Argon2i
 
 - **File Permissions**: The password history file is created with `0600` file permissions (read/write) restricted to the file’s owner.
 
+<br/>
+
 ### 🧂 Salt vs 🌶️ Pepper
 
 When protecting passwords, two important concepts are often combined: **salt** and **pepper**. Both strengthen security, but they serve very different purposes.
@@ -232,6 +234,8 @@ When protecting passwords, two important concepts are often combined: **salt** a
 
 - Salt = *public, unique, stored with the hash* (e.g. *public spice* per password.)
 - Pepper = *private, shared, stored separately* (e.g. *secret ingredient* known only to the chef.)
+
+<br/>
 
 Here is a simple flow chart:
 
