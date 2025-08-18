@@ -241,7 +241,6 @@ Here is a simple flow chart:
 
 ## 🔐 Argon2id + AES-GCM-SIV Encryption Flow
 
-
 ```mermaid
 sequenceDiagram
     participant P as JSON Payload (P)
@@ -258,6 +257,7 @@ sequenceDiagram
 ```
 
 ### 📝 Explanation
+
 1. **JSON Payload (P)** is the input secret (e.g., a password).  
 2. **Argon2id** takes the JSON Payload, adds a **random salt** and a secret **pepper**, and produces a strong, memory-hard **derived key**.  
 3. The **derived key (K)** `Key + Nonce + JSON Payload` is fed into **AES-GCM-SIV** as the encryption key.  
