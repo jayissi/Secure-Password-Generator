@@ -354,10 +354,10 @@ def show_password_history(filename: Path = PASSWORD_FILE) -> None:
                     
                     timestamp = rec.get("timestamp", "?")
                     password = rec.get("password", "?")
-                    salt_b64 = rec.get("argon2id", {}).get("salt_b64", "?")
+                    # salt_b64 = rec.get("argon2id", {}).get("salt_b64", "?")
                     
                     print(f"{idx}. Password: {password}")
-                    print(f"   Salt: {salt_b64}")
+                    # print(f"   Salt: {salt_b64}")
                     print(f"   Timestamp: {timestamp}\n")
                 except Exception as e:
                     print(f"{idx}. [INVALID ENTRY - {e}]")
