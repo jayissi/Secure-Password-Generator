@@ -1,1 +1,2 @@
-.password_list.txt
+*/.password_key.aes256
+*/.password_list.enc

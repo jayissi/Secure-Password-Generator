@@ -4,7 +4,7 @@
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Security](https://img.shields.io/badge/security-cryptographically_secure-red.svg)
 
-A robust, powerful, and secure command-line tool for generating cryptographically strong passwords. This script uses Python's `secrets` module to create strong random passwords with customizable character sets and minimum character requirements.
+A robust, powerful, and secure command-line utility for generating **cryptographically strong passwords**. Built with Python’s `secrets` module, this tool supports Argon2id password hashing and Base64-encoded AES-GCM-SIV encryption with customizable character sets and minimum character requirements.
 
 <p align="center">
 <img alt="Python" src="https://www.python.org/static/community_logos/python-logo-master-v3-TM.png">
@@ -14,24 +14,40 @@ A robust, powerful, and secure command-line tool for generating cryptographicall
 
 ## ✨ Features
 
-- **Cryptographically Secure**: Utilizes Python's `secrets` module, which is designed to generate unpredictable random numbers for cryptographic purposes.
-- **Customizable password length** (minimum 8 characters enforced)
-- **Flexible character sets**:
+- **Cryptographically Secure**:
+  Utilizes Python's `secrets` module, which is designed to generate unpredictable random values suitable for cryptographic purposes.
+
+- **Flexible Password Policies**:
+  - Minimum enforced length (8+ characters, configurable)
   - Uppercase letters (`A-Z`)
   - Lowercase letters (`a-z`)
   - Digits (`0-9`)
   - Symbols (customizable or default punctuation)
-- **Advanced options**:
   - Minimum character requirements per character type
-  - Exclude similar-looking characters (`i`, `l`, `1`, `L`, `o`, `0`, `O`)
   - Prevent consecutive duplicate characters
-  - Custom allowed symbols for specific requirements
-- **Bulk generation**: Generate multiple passwords at once
-- **Password history**: View previously generated passwords
-- **Complexity Guaranteed**: Enforce a minimum number of characters from each selected character set to meet strict password policies.
-- **Secure Local Storage**: Optionally saves the generated password to a local file (`${HOME}/.password_list.txt`) with restricted permissions (`0o600`) to prevent unauthorized access.
-- **User-Friendly CLI**: A clean and straightforward command-line interface built with `argparse`.
-- **Zero Dependencies**: Pure Python script. No external libraries are needed—just a standard Python 3 installation.
+  - Exclude similar-looking characters (`i`, `l`, `1`, `L`, `o`, `0`, `O`)
+
+- **Advanced options**:
+  - Generate multiple passwords at once
+  - View previously generated passwords
+
+- **Argon2id Salting & Timestamp**  
+  Each password is accompanied by:  
+  - A **unique Argon2id salt** (16 bytes, Base64-encoded)  
+  - A **derived Argon2id hash** (512-bit digest, Base64-encoded)  
+  - A **timestamp** recording when it was created
+
+- **Secure Encryption & Storage**  
+  - Password records (including salt + hash + timestamp) are serialized as JSON  
+  - Encrypted with **AES-GCM-SIV**, which provides nonce misuse resistance  
+  - Encoded safely in **Base64**, one entry per line, to prevent file corruption  
+  - Stored at `${HOME}/.password_list.enc` with owner-only permissions (`0600`)
+
+- **User-Friendly CLI**:
+  Clean interface powered by `argparse` with grouped options and helpful usage examples
+
+- **Zero Dependencies**:
+  Pure Python script. No external libraries are needed—just a standard Python 3 installation.
 
 ---
 
@@ -39,7 +55,8 @@ A robust, powerful, and secure command-line tool for generating cryptographicall
 
 ### 🔍 Prerequisites
 
-You just need **Python 3.7+** installed on your system.
+- Python **3.7+**
+- No external dependencies required beyond `cryptography`
 
 ### 🛠️ Installation
 
@@ -49,13 +66,19 @@ You just need **Python 3.7+** installed on your system.
     git clone https://github.com/jayissi/Secure-Password-Generator.git
     ```
 
-2. Make the script executable:
+2. Install python3-cryptography on your local machine:
+
+    ```bash
+    pip3 install -r requirements.txt
+    ```
+
+3. Make the script executable:
 
     ```bash
     chmod +x Secure-Password-Generator/password_generator.py
     ```
 
-3. Move it to your local bin folder (on Linux/macOS):
+4. Move it to your local bin folder (on Linux/macOS):
 
     ```bash
     sudo mv Secure-Password-Generator/password_generator.py /usr/local/bin/password_generator
@@ -91,12 +114,13 @@ password_generator -h
 | `--no-repeats`         | `-r`  | No consecutive duplicate chars               | False   |
 | `--no-save`            | `-n`  | Don't save to password file                  | False   |
 | `--show-history`       | `-H`  | Show password history                        | False   |
+| `--cleanup`            | `-C`  | Clean up password and key files              | False   |
 | `--help`               | `-h`  | Show help message                            | N/A     |
 
 ## 📝 Examples
 
-**1. Generate a default password**
-Create a 16-character password using all character types and save it to `${HOME}/.password_list.txt`.
+**1. Generate and save a password (16 chars, all types)**
+Create a 16-character password using all character types and save it to `${HOME}/.password_list.enc`.
 
 ```bash
 password_generator -L 16 -u -l -d -s
@@ -105,11 +129,11 @@ password_generator -L 16 -u -l -d -s
 **Output:**
 
 ```bash
-Generated Password: p@55W0rD_Ex&mpl3
-Password securely saved to ${HOME}/.password_list.txt
+Generated Password 1: p@55W0rD_Ex&mpl3
+Password securely saved to ${HOME}/.password_list.enc
 ```
 
-**2. Generate a long, complex password without saving it**
+**2. Generate a 26-character password (no repeats, do not save)**
 This creates a 26-character password with no repetitive characters.
 
 ```bash
@@ -119,17 +143,17 @@ password_generator -L 26 --upper --lower --digits --symbols --no-repeats --no-sa
 **Output:**
 
 ```bash
-Generated Password: V3ry-L0ng&S3cur3!P@ssw0rd#
+Generated Password 1: V3ry-L0ng&S3cur3!P@ssw0rd#
 ```
 
-**3. Generate a password that meets strict requirements**
+**3. Generate a password with strict requirements**
 Create a 16-character password with at least 2 of each selected character type.
 
 ```bash
 password_generator -L 16 --upper --lower --digits --symbols --no-repeats --min 2 --no-save
 ```
 
-**4. Custom symbol set**
+**4. Use a custom symbol set**
 Create a password using only `@#$%` as symbols
 
 ```bash
@@ -151,16 +175,23 @@ password_generator -c 5 -L 20 -u -l -d -m 3 -e -r -a '!@*#^ $&%\"' -n
 
 ---
 
-## 🛡️ Security Note
+## 🛡️ Security Details
 
 This tool is designed with security as a top priority.
 
-- Uses `secrets` module instead of `random` for cryptographically secure random number generation
-- Automatically enforces minimum password length of 8 characters
-- By default when passwords are saved, the file permissions for `${HOME}/.password_list.txt` are set to `0o600`. This ensures that only the file's owner has read and write permissions, protecting it from other users on the system.
-- Passwords are securely shuffled before being returned
+- **Randomness**: Uses Python’s `secrets` module, not `random`, ensuring cryptographic quality randomness.
 
-**Disclaimer:** You are responsible for the secure management of the `${HOME}/.password_list.txt` file. Ensure it is stored and secured properly.
+- **Minimum Length**: Enforces a minimum of 8 characters, with recommended defaults of 12+.
+
+- **AES-GCM-SIV Encryption**: Provides misuse-resistant authenticated encryption; records are Base64-encoded per line to prevent newline corruption.
+
+- **Argon2id Hashing**: Each password is hashed with Argon2id using a unique 16-byte salt. The AES key file also serves as a pepper, further protecting against offline brute force attacks.
+
+- **Timestamp**: Each password entry is stamped with creation time.
+
+- **File Permissions**: The password history file is created with `0600` file permissions (read/write) restricted to the file’s owner.
+
+⚠️ **Disclaimer:** You are responsible for the secure management of the `${HOME}/.password_list.enc` file and the `${HOME}/.password_key.aes256` key file. Ensure it is stored and secured properly and ***do not share or back them up insecurely***.
 
 ---
 

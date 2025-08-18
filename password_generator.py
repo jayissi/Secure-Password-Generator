@@ -1,19 +1,159 @@
 #!/usr/bin/env python3
 
+"""
+Secure Password Generator with Encryption Storage
+
+This script generates cryptographically secure random passwords with various
+configurations and securely stores them using AES-GCM-SIV encryption.
+Passwords are hashed with Argon2id for verification purposes then base64 encoded.
+"""
+
+import os
+import sys
+import json
+import base64
 import secrets
 import string
 import argparse
 from pathlib import Path
-import sys
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
+from datetime import datetime
 
-DEFAULT_PASSWORD_LENGTH = 12
+from cryptography.hazmat.primitives.kdf.argon2 import Argon2id
+from cryptography.hazmat.primitives.ciphers.aead import AESGCMSIV
+
+
+# =========================
+# Configuration Constants
+# =========================
 MIN_PASSWORD_LENGTH = 8
+DEFAULT_PASSWORD_LENGTH = 12
 MAX_GENERATION_ATTEMPTS = 100
-PASSWORD_FILE = Path.home().joinpath( '.password_list.txt' )
+
+DEFAULT_FILE_PERMISSIONS = 0o600
+PASSWORD_FILE = Path.home().joinpath(".password_list.enc")
+KEY_FILE = Path.home().joinpath(".password_key.aes256")
+
 SIMILAR_CHARS = "il1Lo0O"  # Characters to exclude when --exclude-similar is used
 
 
+# =========================
+# Security Utilities
+# =========================
+def initialize_security_files() -> None:
+    """Ensure the encryption key file exists with secure permissions."""
+    if not KEY_FILE.exists():
+        KEY_FILE.write_bytes(secrets.token_bytes(32)) # 256-bit AES key
+        KEY_FILE.chmod(DEFAULT_FILE_PERMISSIONS)
+
+
+def get_encryption_key() -> bytes:
+    """Retrieve or create the persistent AES key."""
+    initialize_security_files()
+    return KEY_FILE.read_bytes()
+
+
+def encrypt_data(data: str) -> bytes:
+    """Encrypt JSON Payload using AES-GCM-SIV."""
+    key = get_encryption_key()
+    nonce = secrets.token_bytes(12)
+    aesgcm = AESGCMSIV(key)
+    ciphertext = aesgcm.encrypt(nonce, data.encode(), None)
+    return nonce + ciphertext  # Store nonce with ciphertext
+
+
+def decrypt_data(encrypted: bytes) -> str:
+    """Decrypt AES-GCM-SIV ciphertext (nonce||ciphertext)."""
+    key = get_encryption_key()
+    nonce = encrypted[:12]
+    ciphertext = encrypted[12:]
+    aesgcm = AESGCMSIV(key)
+    return aesgcm.decrypt(nonce, ciphertext, None).decode()
+
+
+def argon2id_hash(password: str) -> Dict[str, Any]:
+    """
+    Derive an Argon2id digest for the given password using a unique salt.
+    We use KEY_FILE bytes as a pepper via the 'secret' parameter.
+    """
+    salt = secrets.token_bytes(16)  # 128-bit unique salt per password
+    
+    # Parameters chosen for a reasonable balance; tune to your environment
+    params = {
+        "length": 64,               # 512-bit digest
+        "iterations": 100,          # time cost
+        "lanes": 4,                 # parallelism
+        "memory_cost": 64 * 1024,   # 64 MiB
+    }
+
+    # Use local AES key material as a pepper (kept off-disk in entries)
+    try:
+        pepper = get_encryption_key()
+    except Exception:
+        pepper = None  # fallback if key is unavailable
+
+    kdf = Argon2id(
+        salt=salt,
+        length=params["length"],
+        iterations=params["iterations"],
+        lanes=params["lanes"],
+        memory_cost=params["memory_cost"],
+        secret=pepper,
+    )
+    digest = kdf.derive(password.encode("utf-8"))
+
+    return {
+        "salt_b64": base64.b64encode(salt).decode("ascii"),
+        "digest_b64": base64.b64encode(digest).decode("ascii"),
+        "params": params,
+    }
+
+
+def generate_symbol_only_password(length: int, symbols: str) -> str:
+    """
+    Generate password using only symbols with no consecutive repeats.
+    
+    Args:
+        length: Desired password length
+        symbols: Allowed symbols to use
+        
+    Returns:
+        Generated password string
+        
+    Raises:
+        ValueError: If unable to generate password with given constraints
+    """
+    unique_symbols = list(set(symbols))
+    num_symbols = len(unique_symbols)
+
+    if num_symbols == 1:
+        raise ValueError(
+            "Cannot generate password with --no-repeats using only 1 symbol. "
+            "Add more symbols or enable other character types."
+        )
+
+    password = []
+    last_char = None
+    symbol_counts = {s: 0 for s in unique_symbols}
+    target_count = length // num_symbols
+
+    while len(password) < length:
+        candidates = [s for s in unique_symbols if s != last_char]
+        underused = [s for s in candidates if symbol_counts[s] < target_count]
+        if underused:
+            candidates = underused
+
+        char = secrets.choice(candidates)
+        password.append(char)
+        symbol_counts[char] += 1
+        last_char = char
+
+    return "".join(password)
+
+
+# =========================
+# Password Generation
+# =========================
 def generate_password(
     length: int,
     use_upper: bool,
@@ -25,56 +165,39 @@ def generate_password(
     allowed_symbols: Optional[str] = None,
     no_repeats: bool = False,
 ) -> str:
-    """Generate a cryptographically secure random password."""
-    # Enforce minimum length
+    """
+    Generate a cryptographically secure random password.
+    
+    Args:
+        length: Desired password length
+        use_upper: Include uppercase letters
+        use_lower: Include lowercase letters
+        use_digits: Include digits
+        use_symbols: Include symbols
+        min_characters_per_type: Minimum characters from each selected type
+        exclude_similar: Exclude similar-looking characters
+        allowed_symbols: Specific symbols to allow
+        no_repeats: Prevent consecutive duplicate characters
+        
+    Returns:
+        Generated password string
+        
+    Raises:
+        ValueError: If unable to generate password with given constraints
+    """
     if length < MIN_PASSWORD_LENGTH:
         print(
-            f"Warning: Password length increased to minimum of {MIN_PASSWORD_LENGTH} characters"
+            f"[!] Password length increased to minimum of {MIN_PASSWORD_LENGTH} characters"
         )
         length = MIN_PASSWORD_LENGTH
 
-    # Determine effective symbol set
     effective_symbols = (
         allowed_symbols
         if allowed_symbols
         else (string.punctuation if use_symbols else "")
     )
 
-    def generate_symbol_only_password(length: int, symbols: str) -> str:
-        """Generate password using only symbols with no consecutive repeats."""
-        unique_symbols = list(set(symbols))  # Get unique symbols
-        num_symbols = len(unique_symbols)
-
-        if num_symbols == 1:
-            raise ValueError(
-                "Cannot generate password with --no-repeats using only 1 symbol. "
-                "Add more symbols or enable other character types."
-            )
-
-        # Generate password using random walk through symbols
-        password = []
-        last_char = None
-        symbol_counts = {s: 0 for s in unique_symbols}
-        target_count = length // num_symbols
-
-        while len(password) < length:
-            # Create candidate pool excluding last used character
-            candidates = [s for s in unique_symbols if s != last_char]
-
-            # Prioritize symbols that are underused
-            underused = [s for s in candidates if symbol_counts[s] < target_count]
-            if underused:
-                candidates = underused
-
-            # Select randomly from remaining candidates
-            char = secrets.choice(candidates)
-            password.append(char)
-            symbol_counts[char] += 1
-            last_char = char
-
-        return "".join(password)
-
-    # In the validate symbol-only scenarios section:
+    # Handle symbol-only case separately
     if effective_symbols and not (use_upper or use_lower or use_digits):
         if no_repeats:
             return generate_symbol_only_password(length, effective_symbols)
@@ -84,10 +207,10 @@ def generate_password(
                 "Add more symbols or enable other character types."
             )
 
-    # Generate character sets
     character_sets = []
     charset_info = []
 
+    # Build character sets based on parameters
     if use_upper:
         upper = string.ascii_uppercase
         if exclude_similar:
@@ -121,11 +244,12 @@ def generate_password(
     if not character_sets:
         raise ValueError("At least one character type must be selected.")
 
-    # Generation attempts
+    # Attempt password generation with retries
     for attempt in range(MAX_GENERATION_ATTEMPTS):
         try:
             all_chars = "".join(character_sets)
 
+            # Generate base password
             if no_repeats:
                 password = []
                 last_char = None
@@ -137,7 +261,7 @@ def generate_password(
             else:
                 password = [secrets.choice(all_chars) for _ in range(length)]
 
-            # Ensure minimum characters per type
+            # Ensure minimum characters per type if specified
             if min_characters_per_type:
                 for charset in character_sets:
                     filtered_charset = (
@@ -184,48 +308,103 @@ def generate_password(
             continue
 
 
-def save_password(password: str, filename: str = PASSWORD_FILE) -> None:
-    """Securely save password to file with restricted permissions."""
+# =========================
+# History Management
+# =========================
+def save_password(password: str, filename: Path = PASSWORD_FILE) -> None:
+    """Securely save encrypted password record to file."""
     try:
-        file_path = Path(filename)
-        with file_path.open("a") as f:
-            f.write(password + "\n")
-        file_path.chmod(0o600)
-    except IOError as e:
+        record = {
+            "timestamp": datetime.now().strftime("%a, %b %d, %Y %I:%M:%S:%f %p"),
+            "password": password,
+            "argon2id": argon2id_hash(password),
+        }
+        plaintext = json.dumps(record, separators=(",", ":"))
+        encrypted = encrypt_data(plaintext)
+        line = base64.b64encode(encrypted) + b"\n"
+        
+        with open(filename, "ab") as f:
+            f.write(line)
+        filename.chmod(DEFAULT_FILE_PERMISSIONS)
+    except Exception as e:
         print(f"Error saving password: {e}", file=sys.stderr)
         raise
 
 
-def show_password_history(filename: str = PASSWORD_FILE) -> None:
-    """Display password generation history."""
+def show_password_history(filename: Path = PASSWORD_FILE) -> None:
+    """Display decrypted password history."""
     try:
-        file_path = Path(filename)
-        if not file_path.exists():
+        if not filename.exists():
             print("No password history available")
             return
 
-        with file_path.open("r") as f:
-            passwords = f.read().splitlines()
-
         print("\nPassword History:")
-        print("-" * 50)
-        for idx, password in enumerate(reversed(passwords), 1):
-            print(f"{idx}. {password}")
-        print("-" * 50)
-
+        print("-" * 60)
+        with open(filename, "rb") as f:
+            for idx, line in enumerate(f, 1):
+                line = line.strip()
+                if not line:
+                    print(f"{idx}. [INVALID ENTRY - empty line]")
+                    continue
+                
+                try:
+                    blob = base64.b64decode(line, validate=True)
+                    rec_json = decrypt_data(blob)
+                    rec = json.loads(rec_json)
+                    
+                    timestamp = rec.get("timestamp", "?")
+                    password = rec.get("password", "?")
+                    salt_b64 = rec.get("argon2id", {}).get("salt_b64", "?")
+                    
+                    print(f"{idx}. Password: {password}")
+                    print(f"   Salt: {salt_b64}")
+                    print(f"   Timestamp: {timestamp}\n")
+                except Exception as e:
+                    print(f"{idx}. [INVALID ENTRY - {e}]")
+        print("-" * 60)
     except Exception as e:
         print(f"Error reading history: {e}", file=sys.stderr)
 
 
-def main() -> None:
-    # Custom formatter that shows example usage
+def cleanup_files() -> None:
+    """Clean up the password and key files."""
+    for file in (PASSWORD_FILE, KEY_FILE):
+        if file.exists():
+            try:
+                file.unlink()
+                print(f"[✓] Removed file: {file}")
+            except Exception as e:
+                print(f"[!] Failed to remove {file}: {e}", file=sys.stderr)
+                sys.exit(1)
+
+"""     try:
+        if PASSWORD_FILE.exists():
+            PASSWORD_FILE.unlink()
+            print(f"Removed password file: {PASSWORD_FILE}")
+        
+        if KEY_FILE.exists():
+            KEY_FILE.unlink()
+            print(f"Removed key file: {KEY_FILE}")
+    except Exception as e:
+        print(f"Error during cleanup: {e}", file=sys.stderr)
+        sys.exit(1) """
+
+# =========================
+# CLI Arguments
+# =========================
+def create_argument_parser() -> argparse.ArgumentParser:
+    """Create and configure the argument parser."""
     class CustomHelpFormatter(argparse.HelpFormatter):
         def _format_usage(self, usage, actions, groups, prefix):
             help_text = super()._format_usage(usage, actions, groups, prefix)
-            help_text += "\nExample:\n        python password_generator.py --length 24 \\\n          "
-            help_text += "--upper --lower --digits --symbols \\\n          "
-            help_text += "--allowed-symbols @#$%% --min 2 --count 5 \\\n          "
-            help_text += "--exclude-similar --no-repeats --no-save\n\n"
+            help_text += "\nExamples:\n"
+            help_text += "  Generate a password:\n"
+            help_text += "    python password_generator.py -L 24 -u -l -d -s\n\n"
+            help_text += "  Generate multiple passwords with specific requirements:\n"
+            help_text += "    python password_generator.py --length 24 \\\n"
+            help_text += "      --upper --lower --digits --symbols \\\n"
+            help_text += "      --allowed-symbols @#$%% --min 2 --count 5 \\\n"
+            help_text += "      --exclude-similar --no-repeats --no-save\n\n"
             return help_text
 
     parser = argparse.ArgumentParser(
@@ -234,67 +413,102 @@ def main() -> None:
         add_help=False,
     )
 
-    # Add help option
-    parser.add_argument(
+    # Argument groups for better organization
+    basic_group = parser.add_argument_group("Basic Options")
+    char_group = parser.add_argument_group("Character Type Options")
+    advanced_group = parser.add_argument_group("Advanced Options")
+    file_group = parser.add_argument_group("File Operations")
+
+    # Basic options
+    basic_group.add_argument(
         "-h", "--help", action="store_true", help="Show this help message and exit"
     )
-
-    # Password generation arguments
-    parser.add_argument(
-        "-L",
-        "--length",
+    basic_group.add_argument(
+        "-L", "--length",
         type=int,
         default=DEFAULT_PASSWORD_LENGTH,
-        help=f"Length of the password (minimum: {MIN_PASSWORD_LENGTH})",
+        help=f"Password length (minimum: {MIN_PASSWORD_LENGTH})",
     )
-    parser.add_argument(
-        "-u", "--upper", action="store_true", help="Include uppercase letters"
+    basic_group.add_argument(
+        "-c", "--count",
+        type=int,
+        default=1,
+        help="Number of passwords to generate",
     )
-    parser.add_argument(
-        "-l", "--lower", action="store_true", help="Include lowercase letters"
+
+    # Character type options
+    char_group.add_argument(
+        "-u", "--upper",
+        action="store_true",
+        help="Include uppercase letters",
     )
-    parser.add_argument("-d", "--digits", action="store_true", help="Include digits")
-    parser.add_argument("-s", "--symbols", action="store_true", help="Include symbols")
-    parser.add_argument(
-        "-a",
-        "--allowed-symbols",
+    char_group.add_argument(
+        "-l", "--lower",
+        action="store_true",
+        help="Include lowercase letters",
+    )
+    char_group.add_argument(
+        "-d", "--digits",
+        action="store_true",
+        help="Include digits",
+    )
+    char_group.add_argument(
+        "-s", "--symbols",
+        action="store_true",
+        help="Include symbols",
+    )
+    char_group.add_argument(
+        "-a", "--allowed-symbols",
         type=str,
-        help="Specify which symbols are allowed (implies --symbols, e.g., @#$%%)",
+        help="Specify allowed symbols (implies --symbols, e.g., @#$%%)",
     )
-    parser.add_argument(
-        "-m",
-        "--min",
+
+    # Advanced options
+    advanced_group.add_argument(
+        "-m", "--min",
         type=int,
         dest="min_chars",
         default=1,
         help="Minimum characters from each selected type",
     )
-    parser.add_argument(
-        "-c", "--count", type=int, default=1, help="Number of passwords to generate"
-    )
-    parser.add_argument(
-        "-e",
-        "--exclude-similar",
+    advanced_group.add_argument(
+        "-e", "--exclude-similar",
         action="store_true",
         help="Exclude similar-looking characters (i, l, 1, L, o, 0, O)",
     )
-    parser.add_argument(
-        "-r",
-        "--no-repeats",
+    advanced_group.add_argument(
+        "-r", "--no-repeats",
         action="store_true",
         help="Prevent consecutive duplicate characters",
     )
-    parser.add_argument(
-        "-n", "--no-save", action="store_true", help="Do not save the password to file"
+
+    # File operations
+    file_group.add_argument(
+        "-n", "--no-save",
+        action="store_true",
+        help="Do not save the password to file",
     )
-    parser.add_argument(
-        "-H",
-        "--show-history",
+    file_group.add_argument(
+        "-H", "--show-history",
         action="store_true",
         help="Show password generation history",
     )
+    file_group.add_argument(
+        "-C", "--cleanup",
+        action="store_true",
+        help="Clean up password and key files",
+    )
 
-    # If no arguments provided, show help
+    return parser
+
+
+# =========================
+# CLI Interface
+# =========================
+def main() -> None:
+    """Main entry point for the password generator."""
+    parser = create_argument_parser()
+    
     if len(sys.argv) == 1:
         parser.print_help()
         sys.exit(0)
@@ -305,26 +519,29 @@ def main() -> None:
         parser.print_help()
         sys.exit(0)
 
-    # Automatically enable symbols if allowed-symbols is specified
-    if args.allowed_symbols:
-        args.symbols = True
+    if args.cleanup:
+        cleanup_files()
+        sys.exit(0)
 
     if args.show_history:
         show_password_history()
         sys.exit(0)
 
+    if args.allowed_symbols:
+        args.symbols = True
+
     try:
         for i in range(args.count):
             password = generate_password(
-                args.length,
-                args.upper,
-                args.lower,
-                args.digits,
-                args.symbols,
-                args.min_chars,
-                args.exclude_similar,
-                args.allowed_symbols,
-                args.no_repeats,
+                length=args.length,
+                use_upper=args.upper,
+                use_lower=args.lower,
+                use_digits=args.digits,
+                use_symbols=args.symbols,
+                min_characters_per_type=args.min_chars,
+                exclude_similar=args.exclude_similar,
+                allowed_symbols=args.allowed_symbols,
+                no_repeats=args.no_repeats,
             )
             print(f"Generated Password {i+1}: {password}")
 
@@ -332,9 +549,9 @@ def main() -> None:
                 save_password(password)
 
         if not args.no_save and args.count > 0:
-            print(f"Passwords securely saved to {PASSWORD_FILE}")
+            print(f"\n[✓] Passwords securely saved to {PASSWORD_FILE}")
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        print(f"[!] Error: {e}", file=sys.stderr)
         sys.exit(1)
 
 
