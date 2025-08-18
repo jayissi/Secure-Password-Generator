@@ -33,6 +33,7 @@ MAX_GENERATION_ATTEMPTS = 100
 DEFAULT_FILE_PERMISSIONS = 0o600
 PASSWORD_FILE = Path.home().joinpath(".password_list.enc")
 KEY_FILE = Path.home().joinpath(".password_key.aes256")
+PEPPER_FILE = Path.home().joinpath(".password_pepper.key")
 
 SIMILAR_CHARS = "il1Lo0O"  # Characters to exclude when --exclude-similar is used
 
@@ -41,10 +42,14 @@ SIMILAR_CHARS = "il1Lo0O"  # Characters to exclude when --exclude-similar is use
 # Security Utilities
 # =========================
 def initialize_security_files() -> None:
-    """Ensure the encryption key file exists with secure permissions."""
+    """Ensure encryption and pepper key files exist with secure permissions."""
     if not KEY_FILE.exists():
-        KEY_FILE.write_bytes(secrets.token_bytes(32)) # 256-bit AES key
+        KEY_FILE.write_bytes(secrets.token_bytes(32))       # 256-bit AES key
         KEY_FILE.chmod(DEFAULT_FILE_PERMISSIONS)
+
+    if not PEPPER_FILE.exists():
+        PEPPER_FILE.write_bytes(secrets.token_bytes(32))    # 256-bit Pepper key
+        PEPPER_FILE.chmod(0o600)
 
 
 def get_encryption_key() -> bytes:
@@ -52,6 +57,10 @@ def get_encryption_key() -> bytes:
     initialize_security_files()
     return KEY_FILE.read_bytes()
 
+def get_pepper() -> bytes:
+    """Get the dedicated pepper key for Argon2id."""
+    initialize_security_files()
+    return PEPPER_FILE.read_bytes()
 
 def encrypt_data(data: str) -> bytes:
     """Encrypt JSON Payload using AES-GCM-SIV."""
@@ -73,8 +82,8 @@ def decrypt_data(encrypted: bytes) -> str:
 
 def argon2id_hash(password: str) -> Dict[str, Any]:
     """
-    Derive an Argon2id digest for the given password using a unique salt.
-    We use KEY_FILE bytes as a pepper via the 'secret' parameter.
+    Derive Argon2id digest with salt + pepper.
+    Salt is unique per password. Pepper is loaded from a separate secure file.
     """
     salt = secrets.token_bytes(16)  # 128-bit unique salt per password
     
@@ -368,7 +377,7 @@ def show_password_history(filename: Path = PASSWORD_FILE) -> None:
 
 def cleanup_files() -> None:
     """Clean up the password and key files."""
-    for file in (PASSWORD_FILE, KEY_FILE):
+    for file in (PASSWORD_FILE, KEY_FILE, PEPPER_FILE):
         if file.exists():
             try:
                 file.unlink()
