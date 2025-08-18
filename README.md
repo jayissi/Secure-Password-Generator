@@ -125,7 +125,7 @@ password_generator -h
 
 ## 📝 Examples
 
-**1. Generate and save a password (16 chars, all types)**
+**1. Generate and save a password (16 chars, all types)**  
 Create a 16-character password using all character types and save it to `${HOME}/.password_list.enc`.
 
 ```bash
@@ -141,7 +141,7 @@ Generated Password 1: p@55W0rD_Ex&mpl3
 
 <br/>
 
-**2. Generate a 26-character password (no repeats, do not save)**
+**2. Generate a 26-character password (no repeats, do not save)**  
 This creates a 26-character password with no repetitive characters.
 
 ```bash
@@ -156,7 +156,7 @@ Generated Password 1: V3ry-L0ng&S3cur3!P@ssw0rd#
 
 <br/>
 
-**3. Generate a password with strict requirements**
+**3. Generate a password with strict requirements**  
 Create a 16-character password with at least 2 of each selected character type.
 
 ```bash
@@ -165,7 +165,7 @@ password_generator -L 16 --upper --lower --digits --symbols --no-repeats --min 2
 
 <br/>
 
-**4. Use a custom symbol set**
+**4. Use a custom symbol set**  
 Create a password using only `@#$%` as symbols
 
 ```bash
@@ -174,7 +174,7 @@ password_generator -n -u -l -a '@#$%'
 
 <br/>
 
-**5. Advanced Requirements**
+**5. Advanced Requirements**  
 Create (5x) 20-character password with:
 
 - At least 3 of each character type
@@ -189,7 +189,7 @@ password_generator -c 5 -L 20 -u -l -d -m 3 -e -r -a '!@*#^ $&%\"' -n
 
 <br/>
 
-**6. User Provided Content**
+**6. User Provided Content**  
 Create a secure password using user provided content:
 
 ```bash
