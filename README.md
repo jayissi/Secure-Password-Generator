@@ -2,7 +2,7 @@
 
 [![RHEL 9+](https://img.shields.io/badge/RHEL-9+-ee0000?logo=redhat&logoColor=ee0000)](https://www.redhat.com/en/technologies/linux-platforms/enterprise-linux) <!-- https://www.redhat.com/en/about/brand/standards/color -->
 [![Fedora 41+](https://img.shields.io/badge/Fedora-41+-51a2da?logo=fedora&logoColor=51a2da)](https://fedoraproject.org/) <!-- https://docs.fedoraproject.org/en-US/project/brand/#_colors -->
-![Python Version](https://img.shields.io/badge/python-3.13+-306998?logo=python&logoColor=FFD43B) <!-- https://brandpalettes.com/python-logo-colors -->
+![Python Version](https://img.shields.io/badge/python-3.13+-306998?logo=python&logoColor=FFD43B&label=Python) <!-- https://brandpalettes.com/python-logo-colors -->
 ![License](https://img.shields.io/badge/license-MIT-750014?logo=open-source-initiative&logoColor=750014) <!-- https://brand.mit.edu/color -->
 ![Security](https://img.shields.io/badge/security-cryptographically_secure-008000?logo=lock&logoColor=008000)
 
@@ -35,9 +35,9 @@ A robust, powerful, and secure command-line utility for generating **cryptograph
   - Generate multiple passwords at once
   - View previously generated passwords
 
-- **Argon2id(Salt + Pepper) & Timestamp**  
+- **Argon2id (Salt + Pepper) & Timestamp**  
   Each password is accompanied by:  
-  - A **unique Argon2id(Salt + Pepper)** (16 bytes, Base64-encoded)  
+  - A **unique Argon2id (Salt + Pepper)** (16 bytes, Base64-encoded)  
   - A **derived Argon2id hash** (512-bit digest, Base64-encoded)  
   - A **timestamp** recording when it was created
 
@@ -208,7 +208,7 @@ Using provided passphrase: Philippians 4:13 - I can do all things through Christ
 
 ## 🛡️ Security Details
 
-This tool is designed with security as a top priority. `JSON Payload → Argon2id(Salt + Pepper) → Encrypt → Store`
+This tool is designed with security as a top priority. `JSON Payload → Argon2id (Salt + Pepper) → Encrypt → Store`
 
 - **Randomness**: Uses Python’s `secrets` module, not `random`, ensuring cryptographic quality randomness.
 
@@ -216,7 +216,7 @@ This tool is designed with security as a top priority. `JSON Payload → Argon2i
 
 - **AES-GCM-SIV Encryption**: Provides misuse-resistant authenticated encryption; records are Base64-encoded per line to prevent newline corruption.
 
-- **Argon2id(Salt + Pepper) Hashing**: Each password is hashed with Argon2id using a *128-bit unique* salt password. The *256-bit AES* key file also serves as a pepper, further protecting against offline brute force attacks.
+- **Argon2id (Salt + Pepper) Hashing**: Each password is hashed with Argon2id using a *128-bit unique* salt password. The *256-bit AES* key file also serves as a pepper, further protecting against offline brute force attacks.
 
 - **Timestamp**: Each password entry is stamped with creation time.
 
@@ -259,7 +259,7 @@ When protecting passwords, two important concepts are often combined: **salt** a
 
 Here is a simple flow chart:
 
-## 🔐 Argon2id(Salt + Pepper) + AES-GCM-SIV Encryption Flow
+## 🔐 Argon2id (Salt + Pepper) + AES-GCM-SIV Encryption Flow
 
 ```mermaid
 sequenceDiagram
