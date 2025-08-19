@@ -2,7 +2,7 @@
 
 [![RHEL 9+](https://img.shields.io/badge/RHEL-9+-ee0000?logo=redhat&logoColor=ee0000)](https://www.redhat.com/en/technologies/linux-platforms/enterprise-linux) <!-- https://www.redhat.com/en/about/brand/standards/color -->
 [![Fedora 41+](https://img.shields.io/badge/Fedora-41+-51a2da?logo=fedora&logoColor=51a2da)](https://fedoraproject.org/) <!-- https://docs.fedoraproject.org/en-US/project/brand/#_colors -->
-![Python Version](https://img.shields.io/badge/python-3.13+-FFD43B?logo=python&logoColor=FFD43B) <!-- https://brandpalettes.com/python-logo-colors -->
+![Python Version](https://img.shields.io/badge/python-3.13+-306998?logo=python&logoColor=FFD43B) <!-- https://brandpalettes.com/python-logo-colors -->
 ![License](https://img.shields.io/badge/license-MIT-750014?logo=open-source-initiative&logoColor=750014) <!-- https://brand.mit.edu/color -->
 ![Security](https://img.shields.io/badge/security-cryptographically_secure-008000?logo=lock&logoColor=008000)
 
