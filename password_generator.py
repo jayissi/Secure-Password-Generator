@@ -49,7 +49,7 @@ def initialize_security_files() -> None:
 
     if not PEPPER_FILE.exists():
         PEPPER_FILE.write_bytes(secrets.token_bytes(32))    # 256-bit Pepper key
-        PEPPER_FILE.chmod(0o600)
+        PEPPER_FILE.chmod(DEFAULT_FILE_PERMISSIONS)
 
 
 def get_encryption_key() -> bytes:
@@ -85,7 +85,8 @@ def argon2id_hash(password: str) -> Dict[str, Any]:
     Derive Argon2id digest with salt + pepper.
     Salt is unique per password. Pepper is loaded from a separate secure file.
     """
-    salt = secrets.token_bytes(16)  # 128-bit unique salt per password
+    salt = secrets.token_bytes(32)  # 256-bit unique salt per password
+    pepper = get_pepper()           # 🔐 the "pepper"
     
     # Parameters chosen for a reasonable balance; tune to your environment
     params = {
@@ -95,19 +96,13 @@ def argon2id_hash(password: str) -> Dict[str, Any]:
         "memory_cost": 64 * 1024,   # 64 MiB
     }
 
-    # Use local AES key material as a pepper (kept off-disk in entries)
-    try:
-        pepper = get_encryption_key()
-    except Exception:
-        pepper = None  # fallback if key is unavailable
-
     kdf = Argon2id(
         salt=salt,
         length=params["length"],
         iterations=params["iterations"],
         lanes=params["lanes"],
         memory_cost=params["memory_cost"],
-        secret=pepper,
+        secret=pepper,              # Dedicated pepper
     )
     digest = kdf.derive(password.encode("utf-8"))
 
