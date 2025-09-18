@@ -253,15 +253,21 @@ def generate_password(
         try:
             all_chars = "".join(character_sets)
 
-            # Generate base password
+            # Generate base password with no repeated characters if requested
             if no_repeats:
                 password = []
-                last_char = None
-                while len(password) < length:
-                    char = secrets.choice(all_chars)
-                    if char != last_char:
-                        password.append(char)
-                        last_char = char
+                for i in range(length):
+                    if i == 0:
+                        available_chars = all_chars
+                    else:
+                        # For subsequent characters, exclude the previous character
+                        available_chars = [c for c in all_chars if c != password[-1]]
+                    
+                    if not available_chars:
+                        raise ValueError("Cannot generate password with no repeats - not enough character variety")
+                    
+                    char = secrets.choice(available_chars)
+                    password.append(char)
             else:
                 password = [secrets.choice(all_chars) for _ in range(length)]
 
@@ -280,18 +286,18 @@ def generate_password(
                     needed = max(0, min_characters_per_type - existing_count)
 
                     for _ in range(needed):
-                        candidate_positions = [
-                            i
-                            for i in range(length)
-                            if (
-                                not no_repeats
-                                or (i == 0 or password[i - 1] not in filtered_charset)
-                                and (
-                                    i == length - 1
-                                    or password[i + 1] not in filtered_charset
-                                )
-                            )
-                        ]
+                        candidate_positions = []
+                        for i in range(length):
+                            # Check if we can place a character from this set at position i
+                            # without violating the no-repeats constraint (if enabled)
+                            if no_repeats:
+                                # Check neighbors to ensure no consecutive duplicates
+                                left_ok = (i == 0 or password[i-1] not in filtered_charset)
+                                right_ok = (i == length-1 or password[i+1] not in filtered_charset)
+                                if not (left_ok and right_ok):
+                                    continue
+                            
+                            candidate_positions.append(i)
 
                         if not candidate_positions:
                             raise ValueError(
@@ -301,7 +307,10 @@ def generate_password(
                         pos = secrets.choice(candidate_positions)
                         password[pos] = secrets.choice(filtered_charset)
 
-            secrets.SystemRandom().shuffle(password)
+            # Final shuffle to ensure randomness (but preserve no-repeats if enabled)
+            if not no_repeats:
+                secrets.SystemRandom().shuffle(password)
+                
             return "".join(password)
 
         except ValueError:
@@ -381,17 +390,6 @@ def cleanup_files() -> None:
                 print(f"[!] Failed to remove {file}: {e}", file=sys.stderr)
                 sys.exit(1)
 
-"""     try:
-        if PASSWORD_FILE.exists():
-            PASSWORD_FILE.unlink()
-            print(f"Removed password file: {PASSWORD_FILE}")
-        
-        if KEY_FILE.exists():
-            KEY_FILE.unlink()
-            print(f"Removed key file: {KEY_FILE}")
-    except Exception as e:
-        print(f"Error during cleanup: {e}", file=sys.stderr)
-        sys.exit(1) """
 
 # =========================
 # CLI Arguments
