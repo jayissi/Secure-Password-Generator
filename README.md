@@ -122,7 +122,7 @@ password_generator -h
 | `--no-repeats`         | `-r`  | No consecutive duplicate chars               | False   |
 | `--exclude-similar`    | `-e`  | Exclude similar-looking chars                | False   |
 | **File / history**     |       |                                              |         |
-| `--no-save`            | `-n`  | Don't save to password file                  | False   |
+| `--no-save`            | `-n`  | Don\'t save to password file                 | False   |
 | `--show-history`       | `-H`  | Show password history                        | False   |
 | `--cleanup`            | `-C`  | Clean up password and key files              | False   |
 | **Help / misc**        |       |                                              |         |
