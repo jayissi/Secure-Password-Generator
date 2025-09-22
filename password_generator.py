@@ -168,6 +168,7 @@ def generate_password(
     exclude_similar: bool = False,
     allowed_symbols: Optional[str] = None,
     no_repeats: bool = False,
+    blank: bool = False,
 ) -> str:
     """
     Generate a cryptographically secure random password.
@@ -182,6 +183,7 @@ def generate_password(
         exclude_similar: Exclude similar-looking characters
         allowed_symbols: Specific symbols to allow
         no_repeats: Prevent consecutive duplicate characters
+        blank: Include space character as an available character (never at ends)
         
     Returns:
         Generated password string
@@ -240,6 +242,11 @@ def generate_password(
         character_sets.append(effective_symbols)
         charset_info.append(("symbols", effective_symbols))
 
+    # Add blank (space) as its own character set if requested
+    if blank:
+        character_sets.append(" ")
+        charset_info.append(("blank", " "))
+
     # Validate character sets
     for name, chars in charset_info:
         if not chars:
@@ -253,23 +260,25 @@ def generate_password(
         try:
             all_chars = "".join(character_sets)
 
-            # Generate base password with no repeated characters if requested
-            if no_repeats:
-                password = []
-                for i in range(length):
-                    if i == 0:
-                        available_chars = all_chars
-                    else:
-                        # For subsequent characters, exclude the previous character
-                        available_chars = [c for c in all_chars if c != password[-1]]
-                    
-                    if not available_chars:
-                        raise ValueError("Cannot generate password with no repeats - not enough character variety")
-                    
-                    char = secrets.choice(available_chars)
-                    password.append(char)
-            else:
-                password = [secrets.choice(all_chars) for _ in range(length)]
+            # Generate base password with respect to no_repeats and blank-not-at-ends
+            password = []
+            for i in range(length):
+                # Start from full set and apply runtime filters per position
+                available_chars = list(all_chars)
+
+                # Enforce no consecutive repeats when requested
+                if no_repeats and i > 0:
+                    available_chars = [c for c in available_chars if c != password[-1]]
+
+                # Blank character is not allowed at first or last position
+                if blank and (i == 0 or i == length - 1):
+                    available_chars = [c for c in available_chars if c != ' ']
+
+                if not available_chars:
+                    raise ValueError("Cannot generate password with no repeats - not enough character variety")
+
+                char = secrets.choice(available_chars)
+                password.append(char)
 
             # Ensure minimum characters per type if specified
             if min_characters_per_type:
@@ -288,15 +297,19 @@ def generate_password(
                     for _ in range(needed):
                         candidate_positions = []
                         for i in range(length):
+                            # Do not place blank at first or last positions
+                            if charset == " ":
+                                if i == 0 or i == length - 1:
+                                    continue
+
                             # Check if we can place a character from this set at position i
                             # without violating the no-repeats constraint (if enabled)
                             if no_repeats:
-                                # Check neighbors to ensure no consecutive duplicates
                                 left_ok = (i == 0 or password[i-1] not in filtered_charset)
                                 right_ok = (i == length-1 or password[i+1] not in filtered_charset)
                                 if not (left_ok and right_ok):
                                     continue
-                            
+
                             candidate_positions.append(i)
 
                         if not candidate_positions:
@@ -310,7 +323,13 @@ def generate_password(
             # Final shuffle to ensure randomness (but preserve no-repeats if enabled)
             if not no_repeats:
                 secrets.SystemRandom().shuffle(password)
-                
+
+            # Final sanity: ensure first and last are not blanks (in case shuffle put them there)
+            if blank:
+                if password[0] == ' ' or password[-1] == ' ':
+                    # If this happens, fail this attempt and retry
+                    raise ValueError("Blank character landed at the ends - retrying")
+
             return "".join(password)
 
         except ValueError:
@@ -404,8 +423,8 @@ def create_argument_parser() -> argparse.ArgumentParser:
             help_text += "    python password_generator.py -L 24 -u -l -d -s\n\n"
             help_text += "  Generate multiple passwords with specific requirements:\n"
             help_text += "    python password_generator.py --length 24 \\\n"
-            help_text += "      --upper --lower --digits --symbols \\\n"
-            help_text += "      --allowed-symbols @#$%% --min 2 --count 5 \\\n"
+            help_text += "      --upper --lower --digits --symbols --blank \\\n"
+            help_text += "      --allowed-symbols '@#$%%' --min 2 --count 5 \\\n"
             help_text += "      --exclude-similar --no-repeats --no-save\n\n"
             return help_text
 
@@ -468,6 +487,11 @@ def create_argument_parser() -> argparse.ArgumentParser:
         "-a", "--allowed-symbols",
         type=str,
         help="Specify allowed symbols (implies --symbols, e.g., @#$%%)",
+    )
+    char_group.add_argument(
+        "-b", "--blank",
+        action="store_true",
+        help="Include blank (space) character — never placed as first or last character",
     )
 
     # Advanced options
@@ -562,6 +586,7 @@ def main() -> None:
                 exclude_similar=args.exclude_similar,
                 allowed_symbols=args.allowed_symbols,
                 no_repeats=args.no_repeats,
+                blank=args.blank,
             )
             print(f"Generated Password {i+1}: {password}")
 
