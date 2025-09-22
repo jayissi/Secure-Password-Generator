@@ -183,7 +183,7 @@ def generate_password(
         exclude_similar: Exclude similar-looking characters
         allowed_symbols: Specific symbols to allow
         no_repeats: Prevent consecutive duplicate characters
-        blank: Include space character as an available character (never at ends)
+        blank: Include space character as an available character (never first/last)
         
     Returns:
         Generated password string
@@ -260,7 +260,7 @@ def generate_password(
         try:
             all_chars = "".join(character_sets)
 
-            # Generate base password with respect to no_repeats and blank-not-at-ends
+            # Generate base password with respect to no_repeats and blank-not-at-first/last)
             password = []
             for i in range(length):
                 # Start from full set and apply runtime filters per position
@@ -328,7 +328,7 @@ def generate_password(
             if blank:
                 if password[0] == ' ' or password[-1] == ' ':
                     # If this happens, fail this attempt and retry
-                    raise ValueError("Blank character landed at the ends - retrying")
+                    raise ValueError("Blank character landed at the first and/or last - retrying")
 
             return "".join(password)
 

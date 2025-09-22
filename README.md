@@ -107,21 +107,27 @@ password_generator -h
 
 | Argument               | Short | Description                                  | Default |
 |:----------------------:|:-----:|----------------------------------------------|:-------:|
-| `--passphrase`         | `-P`  | Custom passphrase (highest priority)         | None    |
 | `--length`             | `-L`  | Password length (min: 8)                     | 12      |
+| `--count`              | `-c`  | Number of passwords to generate              | 1       |
+| `--passphrase`         | `-P`  | Custom passphrase (highest priority)         | None    |
+| **Character types**    |       |                                              |         |
 | `--upper`              | `-u`  | Include uppercase letters                    | False   |
 | `--lower`              | `-l`  | Include lowercase letters                    | False   |
 | `--digits`             | `-d`  | Include digits                               | False   |
 | `--symbols`            | `-s`  | Include symbols                              | False   |
-| `--allowed-symbols`    | `-a`  | Custom allowed symbols (implies `--symbols`) | None    |
+| `--allowed-symbols`    | `-a`  | Custom allowed symbols only                  | None    |
+| `--blank`              | `-b`  | Include space character (never first/last)   | False   |
+| **Behavior & constraints** |   |                                              |         |
 | `--min`                | `-m`  | Min chars per selected type                  | 1       |
-| `--count`              | `-c`  | Number of passwords to generate              | 1       |
-| `--exclude-similar`    | `-e`  | Exclude similar-looking chars                | False   |
 | `--no-repeats`         | `-r`  | No consecutive duplicate chars               | False   |
+| `--exclude-similar`    | `-e`  | Exclude similar-looking chars                | False   |
+| **File / history**     |       |                                              |         |
 | `--no-save`            | `-n`  | Don't save to password file                  | False   |
 | `--show-history`       | `-H`  | Show password history                        | False   |
 | `--cleanup`            | `-C`  | Clean up password and key files              | False   |
+| **Help / misc**        |       |                                              |         |
 | `--help`               | `-h`  | Show help message                            | N/A     |
+
 
 ## 📝 Examples
 
@@ -129,7 +135,7 @@ password_generator -h
 Create a 16-character password using all character types and save it to `${HOME}/.password_list.enc`.
 
 ```bash
-password_generator -L 16 -u -l -d -s
+password_generator -L 16 -u -l -d -s -b
 ```
 
 **Output:**
@@ -160,7 +166,7 @@ Generated Password 1: V3ry-L0ng&S3cur3!P@ssw0rd#
 Create a 16-character password with at least 2 of each selected character type.
 
 ```bash
-password_generator -L 16 --upper --lower --digits --symbols --no-repeats --min 2 --no-save
+password_generator -L 16 --upper --lower --digits --symbols --blank --no-repeats --min 2 --no-save
 ```
 
 <br/>
