@@ -128,7 +128,6 @@ password_generator -h
 | **Help / misc**        |       |                                              |         |
 | `--help`               | `-h`  | Show help message                            | N/A     |
 
-
 ## 📝 Examples
 
 **1. Generate and save a password (16 chars, all types)**  
@@ -141,7 +140,7 @@ password_generator -L 16 -u -l -d -s -b
 **Output:**
 
 ```bash
-Generated Password 1: p@55W0rD_Ex&mpl3
+Generated Password 1: p@55W0rD Ex&mpl3
 [✓] Passwords securely saved to ${HOME}/.password_list.enc
 ```
 
