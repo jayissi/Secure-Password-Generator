@@ -16,7 +16,7 @@ import secrets
 import string
 import argparse
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, cast
 from datetime import datetime
 
 from cryptography.hazmat.primitives.kdf.argon2 import Argon2id
@@ -350,7 +350,9 @@ def generate_password(
 
                 slots[i] = secrets.choice(choices)
 
-            password = "".join(slots)
+            if any(ch is None for ch in slots):
+                raise ValueError("Internal error: incomplete password construction")
+            password = "".join(cast(List[str], slots))
 
             # Verify minima were satisfied for each selected charset
             if min_characters_per_type:
@@ -390,6 +392,8 @@ def generate_password(
                     f"Failed to generate password after {MAX_GENERATION_ATTEMPTS} attempts"
                 )
             continue
+
+    raise ValueError(f"Failed to generate password after {MAX_GENERATION_ATTEMPTS} attempts")
 
 
 # =========================
@@ -473,7 +477,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
             help_text = super()._format_usage(usage, actions, groups, prefix)
             help_text += "\nExamples:\n"
             help_text += "  Generate a password:\n"
-            help_text += "    python password_generator.py -L 24 -u -l -d -s -n \n\n"
+            help_text += "    python password_generator.py -L 24 -blunders \n\n"
             help_text += "  Generate multiple passwords with specific requirements:\n"
             help_text += "    python password_generator.py --length 24 \\\n"
             help_text += "      --upper --lower --digits --symbols --blank \\\n"
