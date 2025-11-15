@@ -1,2 +1,2 @@
-*/.password_key.aes256
-*/.password_list.enc
+~/.secure_passwords
+__pycache__/

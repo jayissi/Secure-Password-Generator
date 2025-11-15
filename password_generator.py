@@ -15,8 +15,11 @@ import base64
 import secrets
 import string
 import argparse
+import math
+import subprocess
+from collections import Counter
 from pathlib import Path
-from typing import Optional, List, Dict, Any, cast
+from typing import Optional, List, Dict, Any, cast, Callable, Tuple
 from datetime import datetime
 
 from cryptography.hazmat.primitives.kdf.argon2 import Argon2id
@@ -31,18 +34,49 @@ DEFAULT_PASSWORD_LENGTH = 12
 MAX_GENERATION_ATTEMPTS = 100
 
 DEFAULT_FILE_PERMISSIONS = 0o600
-PASSWORD_FILE = Path.home().joinpath(".password_list.enc")
-KEY_FILE = Path.home().joinpath(".password_key.aes256")
-PEPPER_FILE = Path.home().joinpath(".password_pepper.key")
+DEFAULT_DIR_PERMISSIONS = 0o700
+
+# New secure directory structure
+PASSWORD_DIR = Path.home().joinpath(".secure_passwords")
+PASSWORD_FILE = PASSWORD_DIR.joinpath("vault.enc")
+KEY_FILE = PASSWORD_DIR.joinpath("encryption.key")
+PEPPER_FILE = PASSWORD_DIR.joinpath("pepper.key")
 
 SIMILAR_CHARS = "il1Lo0O"  # Characters to exclude when --exclude-similar is used
+
+# ANSI color codes for strength meter
+COLOR_RED = "\033[91m"
+COLOR_ORANGE = "\033[38;5;208m"
+COLOR_YELLOW = "\033[93m"
+COLOR_GREEN = "\033[92m"
+COLOR_RESET = "\033[0m"
+
+
+# =========================
+# Performance Optimization: Clipboard Caching
+# =========================
+_CLIPBOARD_METHOD: Optional[Callable[[str], bool]] = None
+
+
+# =========================
+# Performance Optimization: Encryption Key Caching
+# =========================
+_ENCRYPTION_KEY_CACHE: Optional[bytes] = None
+_PEPPER_CACHE: Optional[bytes] = None
+_KEY_FILE_MTIME: Optional[float] = None
+_PEPPER_FILE_MTIME: Optional[float] = None
 
 
 # =========================
 # Security Utilities
 # =========================
 def initialize_security_files() -> None:
-    """Ensure encryption and pepper key files exist with secure permissions."""
+    """Ensure secure directory and encryption/pepper key files exist with secure permissions."""
+    # Create secure directory if it doesn't exist
+    if not PASSWORD_DIR.exists():
+        PASSWORD_DIR.mkdir(mode=DEFAULT_DIR_PERMISSIONS)
+        PASSWORD_DIR.chmod(DEFAULT_DIR_PERMISSIONS)
+
     if not KEY_FILE.exists():
         KEY_FILE.write_bytes(secrets.token_bytes(32))  # 256-bit AES key
         KEY_FILE.chmod(DEFAULT_FILE_PERMISSIONS)
@@ -53,15 +87,58 @@ def initialize_security_files() -> None:
 
 
 def get_encryption_key() -> bytes:
-    """Retrieve or create the persistent AES key."""
+    """Retrieve or create the persistent AES key (cached)."""
+    global _ENCRYPTION_KEY_CACHE, _KEY_FILE_MTIME
+    
     initialize_security_files()
-    return KEY_FILE.read_bytes()
+    
+    # Check if file was modified
+    current_mtime = KEY_FILE.stat().st_mtime if KEY_FILE.exists() else 0
+    if _ENCRYPTION_KEY_CACHE is None or _KEY_FILE_MTIME != current_mtime:
+        _ENCRYPTION_KEY_CACHE = KEY_FILE.read_bytes()
+        _KEY_FILE_MTIME = current_mtime
+    
+    return _ENCRYPTION_KEY_CACHE
 
 
 def get_pepper() -> bytes:
-    """Get the dedicated pepper key for Argon2id."""
+    """Get the dedicated pepper key for Argon2id (cached)."""
+    global _PEPPER_CACHE, _PEPPER_FILE_MTIME
+    
     initialize_security_files()
-    return PEPPER_FILE.read_bytes()
+    
+    # Check if file was modified
+    current_mtime = PEPPER_FILE.stat().st_mtime if PEPPER_FILE.exists() else 0
+    if _PEPPER_CACHE is None or _PEPPER_FILE_MTIME != current_mtime:
+        _PEPPER_CACHE = PEPPER_FILE.read_bytes()
+        _PEPPER_FILE_MTIME = current_mtime
+    
+    return _PEPPER_CACHE
+
+
+def secure_delete_file(file_path: Path, passes: int = 3) -> None:
+    """
+    Securely delete a file by overwriting with random data multiple times.
+    
+    Args:
+        file_path: Path to file to securely delete
+        passes: Number of overwrite passes (default: 3)
+    """
+    if not file_path.exists():
+        return
+    
+    file_size = file_path.stat().st_size
+    
+    # Overwrite with random data multiple times
+    with open(file_path, "r+b") as f:
+        for _ in range(passes):
+            f.seek(0)
+            f.write(secrets.token_bytes(file_size))
+            f.flush()
+            os.fsync(f.fileno())
+    
+    # Delete the file
+    file_path.unlink()
 
 
 def encrypt_data(data: str) -> bytes:
@@ -115,6 +192,127 @@ def argon2id_hash(password: str) -> Dict[str, Any]:
     }
 
 
+def calculate_password_strength(password: str) -> int:
+    """
+    Calculate password strength based on length, character types, and uniqueness.
+    
+    Scoring factors:
+    - Length (PRIMARY): Longer passwords score higher
+    - Character type diversity (SECONDARY): More types = bonus
+    - Character uniqueness (TERTIARY): Repeated chars = penalty
+    
+    Args:
+        password: Password string to evaluate
+        
+    Returns:
+        Strength score from 1-10 (int)
+    """
+    if not password:
+        return 1
+    
+    length = len(password)
+    
+    # Count character types (complexity)
+    has_upper = any(c.isupper() for c in password)
+    has_lower = any(c.islower() for c in password)
+    has_digit = any(c.isdigit() for c in password)
+    has_symbol = any(not c.isalnum() and c != ' ' for c in password)
+    has_blank = ' ' in password
+    
+    char_types = sum([has_upper, has_lower, has_digit, has_symbol, has_blank])
+    
+    # PRIMARY: Base score from length
+    # Aggressive thresholds to encourage longer passwords
+    if length >= 24:
+        base_score = 8
+    elif length >= 20:
+        base_score = 7
+    elif length >= 16:
+        base_score = 6
+    elif length >= 14:
+        base_score = 5
+    elif length >= 12:
+        base_score = 4
+    elif length >= 10:
+        base_score = 3
+    elif length >= 8:
+        base_score = 2
+    else:
+        base_score = 1
+    
+    # SECONDARY: Character type diversity bonus
+    # Rewards using multiple character types
+    if char_types >= 5:
+        base_score = min(10, base_score + 2)  # All types + space
+    elif char_types >= 4:
+        base_score = min(10, base_score + 2)  # All types
+    elif char_types == 3:
+        base_score = min(10, base_score + 1)  # Three types
+    elif char_types == 2:
+        # No bonus for 2 types (encourage more)
+        pass
+    else:
+        # Penalty for single type (strongly encourage diversity)
+        base_score = max(1, base_score - 1)
+    
+    # TERTIARY: Character uniqueness penalty
+    # Penalize passwords with repeated characters
+    unique_chars = len(set(password))
+    uniqueness_ratio = unique_chars / length if length > 0 else 0
+    
+    # Penalty for low uniqueness (high repetition)
+    if uniqueness_ratio < 0.5:
+        # More than half the characters are repeats
+        base_score = max(1, base_score - 2)
+    elif uniqueness_ratio < 0.7:
+        # 30-50% repetition
+        base_score = max(1, base_score - 1)
+    # No penalty for uniqueness_ratio >= 0.7 (good diversity)
+    
+    # Additional penalty for consecutive repeated characters
+    consecutive_penalty = 0
+    consecutive_count = 1
+    for i in range(1, len(password)):
+        if password[i] == password[i-1]:
+            consecutive_count += 1
+            if consecutive_count >= 3:
+                consecutive_penalty += 1
+        else:
+            consecutive_count = 1
+    
+    base_score = max(1, base_score - consecutive_penalty)
+    
+    # Pattern penalty (catch weak patterns)
+    pattern_penalty = 0
+    simple_patterns = ['123', 'abc', 'qwe', 'asd', 'password', 'admin']
+    for pattern in simple_patterns:
+        if pattern in password.lower():
+            pattern_penalty += 2
+    
+    base_score = max(1, base_score - pattern_penalty)
+    
+    return max(1, min(10, base_score))
+
+
+def get_strength_color(score: int) -> str:
+    """Get color code based on password strength score."""
+    if score >= 8:
+        return COLOR_GREEN
+    elif score >= 6:
+        return COLOR_YELLOW
+    elif score >= 4:
+        return COLOR_ORANGE
+    else:
+        return COLOR_RED
+
+
+def format_strength_meter(score: int) -> str:
+    """Format strength score with color and visual meter."""
+    color = get_strength_color(score)
+    bars = "█" * score + "░" * (10 - score)
+    return f"{color}{bars} {score}/10{COLOR_RESET}"
+
+
 def generate_symbol_only_password(length: int, symbols: str) -> str:
     """
     Generate password using only symbols with no consecutive repeats.
@@ -157,6 +355,94 @@ def generate_symbol_only_password(length: int, symbols: str) -> str:
     return "".join(password)
 
 
+def generate_password_from_pattern(pattern: str, allowed_symbols: str = string.punctuation) -> str:
+    """
+    Generate password based on a pattern string.
+    
+    Pattern codes:
+    l = lowercase letter
+    u = uppercase letter  
+    d = digit
+    s = symbol
+    b = blank (space)
+    * = random character from all types
+    
+    Args:
+        pattern: Pattern string (e.g., "lluuddss" for 2 lower, 2 upper, 2 digits, 2 symbols)
+        allowed_symbols: Symbols to use for 's' pattern
+        
+    Returns:
+        Generated password string
+    """
+    char_sets = {
+        'l': string.ascii_lowercase,
+        'u': string.ascii_uppercase,
+        'd': string.digits,
+        's': allowed_symbols,
+        'b': ' ',
+        '*': string.ascii_letters + string.digits + allowed_symbols
+    }
+    
+    password = []
+    for code in pattern:
+        if code in char_sets:
+            chars = char_sets[code]
+            if not chars:
+                raise ValueError(f"No characters available for pattern code '{code}'")
+            password.append(secrets.choice(chars))
+        else:
+            # Use literal character
+            password.append(code)
+    
+    return ''.join(password)
+
+
+# =========================
+# Performance Optimization: Password Generation Helpers
+# =========================
+def _filter_similar_chars(chars: str, exclude_similar: bool) -> str:
+    """Filter similar characters if requested (cached operation)."""
+    if not exclude_similar:
+        return chars
+    return "".join(c for c in chars if c not in SIMILAR_CHARS)
+
+
+def _validate_generation_feasibility(
+    length: int,
+    charset_tuples: List[Tuple[str, str]],
+    min_chars: Optional[int],
+    no_repeats: bool,
+    blank: bool
+) -> None:
+    """Validate that password generation is feasible before attempting."""
+    if not charset_tuples:
+        raise ValueError("At least one character type must be selected.")
+    
+    if min_chars:
+        total_min_needed = sum(1 for name, _ in charset_tuples if name != "blank") * min_chars
+        if blank:
+            total_min_needed += min_chars
+        
+        # Account for blank not being at ends
+        available_positions = length - (2 if blank else 0)
+        
+        if total_min_needed > available_positions:
+            raise ValueError(
+                f"Not enough positions ({available_positions}) to satisfy "
+                f"minimum characters requirement ({total_min_needed})"
+            )
+    
+    # Check if no_repeats is feasible
+    if no_repeats:
+        unique_chars = set()
+        for _, chars in charset_tuples:
+            unique_chars.update(chars)
+        if len(unique_chars) < 2 and length > 1:
+            raise ValueError(
+                "Cannot generate password with --no-repeats using only 1 unique character"
+            )
+
+
 # =========================
 # Password Generation
 # =========================
@@ -171,6 +457,7 @@ def generate_password(
     allowed_symbols: Optional[str] = None,
     no_repeats: bool = False,
     blank: bool = False,
+    pattern: Optional[str] = None,
 ) -> str:
     """
     Generate a cryptographically secure random password.
@@ -190,6 +477,7 @@ def generate_password(
         allowed_symbols: Specific symbols to allow
         no_repeats: Prevent consecutive duplicate characters
         blank: Include space character as an available character (never first/last)
+        pattern: Generate password from pattern string
 
     Returns:
         Generated password string
@@ -197,6 +485,11 @@ def generate_password(
     Raises:
         ValueError: If unable to generate password with given constraints
     """
+    # Handle pattern-based generation
+    if pattern:
+        effective_symbols = allowed_symbols if allowed_symbols else string.punctuation
+        return generate_password_from_pattern(pattern, effective_symbols)
+
     if length < MIN_PASSWORD_LENGTH:
         print(
             f"[!] Password length increased to minimum of {MIN_PASSWORD_LENGTH} characters"
@@ -219,28 +512,25 @@ def generate_password(
                 "Add more symbols or enable other character types."
             )
 
-    # Build tuple-list of (name, chars) for selected character types
+    # Build and filter character sets ONCE (optimization)
     charset_tuples = []
     if use_upper:
-        up = string.ascii_uppercase
-        if exclude_similar:
-            up = "".join(c for c in up if c not in SIMILAR_CHARS)
-        charset_tuples.append(("upper", up))
+        up = _filter_similar_chars(string.ascii_uppercase, exclude_similar)
+        if up:
+            charset_tuples.append(("upper", up))
     if use_lower:
-        lo = string.ascii_lowercase
-        if exclude_similar:
-            lo = "".join(c for c in lo if c not in SIMILAR_CHARS)
-        charset_tuples.append(("lower", lo))
+        lo = _filter_similar_chars(string.ascii_lowercase, exclude_similar)
+        if lo:
+            charset_tuples.append(("lower", lo))
     if use_digits:
-        dg = string.digits
-        if exclude_similar:
-            dg = "".join(c for c in dg if c not in SIMILAR_CHARS)
-        charset_tuples.append(("digits", dg))
+        dg = _filter_similar_chars(string.digits, exclude_similar)
+        if dg:
+            charset_tuples.append(("digits", dg))
     if effective_symbols:
-        # May contain characters not affected by SIMILAR_CHARS filter (mostly letters/digits)
-        charset_tuples.append(("symbols", effective_symbols))
+        sym = _filter_similar_chars(effective_symbols, exclude_similar)
+        if sym:
+            charset_tuples.append(("symbols", sym))
     if blank:
-        # Add blank (space) as its own character set if requested
         charset_tuples.append(("blank", " "))
 
     # Validate character sets
@@ -248,11 +538,13 @@ def generate_password(
         if not chars:
             raise ValueError(f"No {name} characters available after filtering")
 
-    if not charset_tuples:
-        raise ValueError("At least one character type must be selected.")
+    # Validate BEFORE attempting generation (optimization)
+    _validate_generation_feasibility(
+        length, charset_tuples, min_characters_per_type, no_repeats, blank
+    )
 
-    # Concatenate all chars for filling non-reserved slots
-    all_chars = "".join(chars for _n, chars in charset_tuples)
+    # Pre-compute all_chars string (no list conversion needed)
+    all_chars = "".join(chars for _, chars in charset_tuples)
 
     # Attempt password generation with retries
     for attempt in range(MAX_GENERATION_ATTEMPTS):
@@ -279,12 +571,8 @@ def generate_password(
             if min_characters_per_type:
                 available_positions = set(range(length))
                 for name, chars in charset_tuples:
-                    filtered = (
-                        "".join(c for c in chars if c not in SIMILAR_CHARS)
-                        if exclude_similar
-                        else chars
-                    )
-                    if not filtered:
+                    # Use already-filtered chars (optimization: no redundant filtering)
+                    if not chars:
                         continue
 
                     # Determine how many of this charset we need to place
@@ -308,11 +596,11 @@ def generate_password(
 
                     chosen_positions = secrets.SystemRandom().sample(candidates, needed)
                     for pos in chosen_positions:
-                        # Try selecting a concrete character from filtered that doesn't break no_repeats
+                        # Try selecting a concrete character from chars that doesn't break no_repeats
                         placed = False
                         trials = 0
                         while trials < 200 and not placed:
-                            ch = secrets.choice(filtered)
+                            ch = secrets.choice(chars)
                             if violates_no_repeats(ch, pos):
                                 trials += 1
                                 continue
@@ -333,22 +621,23 @@ def generate_password(
                 if slots[i] is not None:
                     continue
 
-                choices = list(all_chars)
+                # Optimization: Use string operations instead of list conversion
+                choices_str = all_chars
 
                 # blank not allowed at first or last positions
                 if blank and (i == 0 or i == length - 1):
-                    choices = [c for c in choices if c != " "]
+                    choices_str = choices_str.replace(" ", "")
 
                 # enforce no_repeats against already filled left neighbor
                 if no_repeats and i > 0 and slots[i - 1] is not None:
-                    choices = [c for c in choices if c != slots[i - 1]]
+                    choices_str = choices_str.replace(slots[i - 1], "")
 
-                if not choices:
+                if not choices_str:
                     raise ValueError(
                         "No available characters to fill slot considering constraints"
                     )
 
-                slots[i] = secrets.choice(choices)
+                slots[i] = secrets.choice(choices_str)
 
             if any(ch is None for ch in slots):
                 raise ValueError("Internal error: incomplete password construction")
@@ -357,14 +646,9 @@ def generate_password(
             # Verify minima were satisfied for each selected charset
             if min_characters_per_type:
                 for name, chars in charset_tuples:
-                    filtered = (
-                        "".join(c for c in chars if c not in SIMILAR_CHARS)
-                        if exclude_similar
-                        else chars
-                    )
-                    if not filtered:
+                    if not chars:
                         continue
-                    count = sum(1 for c in password if c in filtered)
+                    count = sum(1 for c in password if c in chars)
                     if count < min_characters_per_type:
                         raise ValueError(
                             "Minima not satisfied after construction - retrying"
@@ -399,12 +683,90 @@ def generate_password(
 # =========================
 # History Management
 # =========================
-def save_password(password: str, filename: Path = PASSWORD_FILE) -> None:
-    """Securely save encrypted password record to file."""
+def format_history_table(entries: List[Dict[str, Any]]) -> str:
+    """
+    Format password history as a table.
+    
+    Args:
+        entries: List of password record dictionaries
+        
+    Returns:
+        Formatted table string
+    """
+    if not entries:
+        return "No entries to display."
+    
+    # Table headers
+    headers = ["#", "Label", "Password", "Strength", "Category", "Created"]
+    
+    # Calculate column widths
+    col_widths = {
+        "#": 3,
+        "Label": max(12, max(len(str(e.get("label", "N/A"))) for e in entries)),
+        "Password": max(20, max(len(str(e.get("password", ""))) for e in entries)),
+        "Strength": 12,
+        "Category": max(10, max(len(str(e.get("category", "N/A"))) for e in entries)),
+        "Created": 20
+    }
+    
+    # Build table
+    lines = []
+    
+    # Header row
+    header_row = "│ " + " │ ".join(h.ljust(col_widths[h]) for h in headers) + " │"
+    separator = "├" + "┼".join("─" * (w + 2) for w in col_widths.values()) + "┤"
+    top_border = "┌" + "┬".join("─" * (w + 2) for w in col_widths.values()) + "┐"
+    bottom_border = "└" + "┴".join("─" * (w + 2) for w in col_widths.values()) + "┘"
+    
+    lines.append(top_border)
+    lines.append(header_row)
+    lines.append(separator)
+    
+    # Data rows
+    for idx, entry in enumerate(entries, 1):
+        label = str(entry.get("label", "N/A"))
+        password = str(entry.get("password", "?"))
+        strength = entry.get("strength", 0)
+        strength_numeric = f"{strength}/10"
+        category = str(entry.get("category", "N/A"))
+        timestamp = entry.get("timestamp", "?")
+        # Format timestamp to shorter format
+        try:
+            dt = datetime.strptime(timestamp, "%a, %b %d, %Y %I:%M:%S:%f %p")
+            short_time = dt.strftime("%Y-%m-%d %H:%M")
+        except:
+            short_time = timestamp[:16] if len(timestamp) > 16 else timestamp
+        
+        row = f"│ {str(idx).ljust(col_widths['#'])} │ " + \
+              f"{label[:col_widths['Label']].ljust(col_widths['Label'])} │ " + \
+              f"{password[:col_widths['Password']].ljust(col_widths['Password'])} │ " + \
+              f"{strength_numeric.ljust(col_widths['Strength'])} │ " + \
+              f"{category[:col_widths['Category']].ljust(col_widths['Category'])} │ " + \
+              f"{short_time.ljust(col_widths['Created'])} │"
+        lines.append(row)
+    
+    lines.append(bottom_border)
+    
+    return "\n".join(lines)
+
+
+def save_password(
+    password: str,
+    filename: Path = PASSWORD_FILE,
+    label: Optional[str] = None,
+    category: Optional[str] = None,
+    tags: Optional[List[str]] = None
+) -> None:
+    """Securely save encrypted password record with metadata."""
     try:
+        strength = calculate_password_strength(password)
         record = {
             "timestamp": datetime.now().strftime("%a, %b %d, %Y %I:%M:%S:%f %p"),
             "password": password,
+            "strength": strength,
+            "label": label or "Unnamed",
+            "category": category or "General",
+            "tags": tags or [],
             "argon2id": argon2id_hash(password),
         }
         plaintext = json.dumps(record, separators=(",", ":"))
@@ -419,51 +781,216 @@ def save_password(password: str, filename: Path = PASSWORD_FILE) -> None:
         raise
 
 
-def show_password_history(filename: Path = PASSWORD_FILE) -> None:
-    """Display decrypted password history."""
+def show_password_history(
+    filename: Path = PASSWORD_FILE,
+    limit: Optional[int] = None,
+    search: Optional[str] = None,
+    filter_strength: Optional[int] = None,
+    filter_category: Optional[str] = None,
+    since: Optional[str] = None,
+    use_table: bool = True
+) -> None:
+    """Display password history with optional filtering and table format."""
     try:
         if not filename.exists():
             print("No password history available")
             return
 
-        print("\nPassword History:")
-        print("-" * 60)
+        # Read all entries
+        entries = []
         with open(filename, "rb") as f:
-            for idx, line in enumerate(f, 1):
+            for line in f:
                 line = line.strip()
                 if not line:
-                    print(f"{idx}. [INVALID ENTRY - empty line]")
                     continue
-
-                try:
-                    blob = base64.b64decode(line, validate=True)
-                    rec_json = decrypt_data(blob)
-                    rec = json.loads(rec_json)
-
-                    timestamp = rec.get("timestamp", "?")
-                    password = rec.get("password", "?")
-                    # salt_b64 = rec.get("argon2id", {}).get("salt_b64", "?")
-
-                    print(f"{idx}. Password: {password}")
-                    # print(f"   Salt: {salt_b64}")
-                    print(f"   Timestamp: {timestamp}\n")
-                except Exception as e:
-                    print(f"{idx}. [INVALID ENTRY - {e}]")
-        print("-" * 60)
+                entries.append(line)
+        
+        # Reverse to get chronological order (newest first)
+        entries.reverse()
+        
+        # Decrypt and filter entries
+        filtered_entries = []
+        for line in entries:
+            try:
+                blob = base64.b64decode(line, validate=True)
+                rec_json = decrypt_data(blob)
+                rec = json.loads(rec_json)
+                
+                # Apply filters
+                if search:
+                    search_lower = search.lower()
+                    if (search_lower not in rec.get("label", "").lower() and
+                        search_lower not in rec.get("category", "").lower() and
+                        search_lower not in " ".join(rec.get("tags", [])).lower()):
+                        continue
+                
+                if filter_strength is not None:
+                    if rec.get("strength", 0) < filter_strength:
+                        continue
+                
+                if filter_category:
+                    if rec.get("category", "").lower() != filter_category.lower():
+                        continue
+                
+                if since:
+                    try:
+                        since_dt = datetime.strptime(since, "%Y-%m-%d")
+                        entry_dt = datetime.strptime(rec.get("timestamp", ""), "%a, %b %d, %Y %I:%M:%S:%f %p")
+                        if entry_dt < since_dt:
+                            continue
+                    except:
+                        pass
+                
+                filtered_entries.append(rec)
+            except Exception as e:
+                continue  # Skip invalid entries
+        
+        # Apply limit
+        if limit:
+            filtered_entries = filtered_entries[:limit]
+        
+        # Display
+        if use_table:
+            print("\n" + format_history_table(filtered_entries))
+        else:
+            # Original format
+            print("\nPassword History:")
+            print("-" * 80)
+            for idx, entry in enumerate(filtered_entries, 1):
+                timestamp = entry.get("timestamp", "?")
+                password = entry.get("password", "?")
+                strength = entry.get("strength", 0)
+                strength_display = format_strength_meter(strength)
+                label = entry.get("label", "N/A")
+                category = entry.get("category", "N/A")
+                tags = entry.get("tags", [])
+                
+                print(f"{idx}. Label: {label}")
+                print(f"   Password: {password}")
+                print(f"   Strength: {strength_display}")
+                print(f"   Category: {category}")
+                if tags:
+                    print(f"   Tags: {', '.join(tags)}")
+                print(f"   Timestamp: {timestamp}\n")
+            print("-" * 80)
     except Exception as e:
         print(f"Error reading history: {e}", file=sys.stderr)
 
 
+def delete_entry_by_index(
+    index: int,
+    filename: Path = PASSWORD_FILE
+) -> None:
+    """Delete a specific entry by index with secure deletion."""
+    if not filename.exists():
+        print("No password history available")
+        return
+    
+    # Read all entries
+    entries = []
+    with open(filename, "rb") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                entries.append(line)
+    
+    # Reverse to get chronological order (newest first for display)
+    entries.reverse()
+    
+    if index < 1 or index > len(entries):
+        print(f"Invalid index. Valid range: 1-{len(entries)}")
+        return
+    
+    # Remove the entry
+    target_entry = entries[index - 1]
+    entries.remove(target_entry)
+    
+    # Securely delete old file
+    secure_delete_file(filename)
+    
+    # Write remaining entries (back to file order: oldest first)
+    entries.reverse()
+    with open(filename, "wb") as f:
+        for entry in entries:
+            f.write(entry + b"\n")
+    
+    filename.chmod(DEFAULT_FILE_PERMISSIONS)
+    print(f"[✓] Entry {index} securely deleted")
+
+
+def _initialize_clipboard() -> Optional[Callable[[str], bool]]:
+    """Initialize and cache clipboard method once (RHEL/Fedora Linux only)."""
+    global _CLIPBOARD_METHOD
+    if _CLIPBOARD_METHOD is not None:
+        return _CLIPBOARD_METHOD
+    
+    # Try pyperclip first (preferred for Linux)
+    try:
+        import pyperclip
+        def _pyperclip_copy(text: str) -> bool:
+            try:
+                pyperclip.copy(text)
+                return True
+            except Exception:
+                return False
+        _CLIPBOARD_METHOD = _pyperclip_copy
+        return _CLIPBOARD_METHOD
+    except ImportError:
+        pass
+    
+    # Try xclip for Linux (fallback)
+    try:
+        def _xclip_copy(text: str) -> bool:
+            try:
+                process = subprocess.Popen(
+                    ['xclip', '-selection', 'clipboard'],
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+                process.communicate(text.encode('utf-8'), timeout=2)
+                return process.returncode == 0
+            except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
+                return False
+        _CLIPBOARD_METHOD = _xclip_copy
+        return _CLIPBOARD_METHOD
+    except Exception:
+        pass
+    
+    _CLIPBOARD_METHOD = False  # No clipboard available
+    return None
+
+
+def copy_to_clipboard(password: str) -> bool:
+    """Copy password to system clipboard using cached method."""
+    method = _initialize_clipboard()
+    if method is False or method is None:
+        return False
+    try:
+        return method(password)
+    except Exception:
+        return False
+
+
 def cleanup_files() -> None:
-    """Clean up the password and key files."""
-    for file in (PASSWORD_FILE, KEY_FILE, PEPPER_FILE):
+    """Clean up password and key files with secure deletion."""
+    files_to_cleanup = [PASSWORD_FILE, KEY_FILE, PEPPER_FILE]
+    
+    for file in files_to_cleanup:
         if file.exists():
             try:
-                file.unlink()
-                print(f"[✓] Removed file: {file}")
+                secure_delete_file(file)
+                print(f"[✓] Securely removed: {file}")
             except Exception as e:
-                print(f"[!] Failed to remove {file}: {e}", file=sys.stderr)
-                sys.exit(1)
+                print(f"[!] Failed to securely remove {file}: {e}", file=sys.stderr)
+    
+    # Remove directory if empty
+    if PASSWORD_DIR.exists():
+        try:
+            PASSWORD_DIR.rmdir()
+            print(f"[✓] Removed directory: {PASSWORD_DIR}")
+        except OSError:
+            print(f"[!] Directory not empty, keeping: {PASSWORD_DIR}")
 
 
 # =========================
@@ -476,13 +1003,12 @@ def create_argument_parser() -> argparse.ArgumentParser:
         def _format_usage(self, usage, actions, groups, prefix):
             help_text = super()._format_usage(usage, actions, groups, prefix)
             help_text += "\nExamples:\n"
-            help_text += "  Generate a password:\n"
-            help_text += "    python password_generator.py -L 24 -blunders \n\n"
-            help_text += "  Generate multiple passwords with specific requirements:\n"
-            help_text += "    python password_generator.py --length 24 \\\n"
-            help_text += "      --upper --lower --digits --symbols --blank \\\n"
-            help_text += "      --allowed-symbols '@#$%%' --min 2 --count 5 \\\n"
-            help_text += "      --exclude-similar --no-repeats --no-save\n\n"
+            help_text += "  # Generate strong password with all character types\n"
+            help_text += "  python password_generator.py -F -L 24\n\n"
+            help_text += "  # Generate password from pattern and copy to clipboard\n"
+            help_text += "  python password_generator.py --pattern 'llbuubddbss' --no-save --clipboard\n\n"
+            help_text += "  # Generate multiple passwords with custom symbols w/o saving\n"
+            help_text += "  python password_generator.py -n -L 30 -r -e -u -l -d -b -a '!@#$' -c 3 -m 3\n\n\n"
             return help_text
 
     parser = argparse.ArgumentParser(
@@ -495,6 +1021,8 @@ def create_argument_parser() -> argparse.ArgumentParser:
     basic_group = parser.add_argument_group("Basic Options")
     char_group = parser.add_argument_group("Character Type Options")
     advanced_group = parser.add_argument_group("Advanced Options")
+    organizing_group = parser.add_argument_group("Password Organization Options")
+    filter_group = parser.add_argument_group("History Search & Filter Options")
     file_group = parser.add_argument_group("File Operations")
 
     # Basic options
@@ -524,8 +1052,20 @@ def create_argument_parser() -> argparse.ArgumentParser:
         default=1,
         help="Number of passwords to generate",
     )
+    basic_group.add_argument(
+        "-X",
+        "--clipboard",
+        action="store_true",
+        help="Copy password to clipboard",
+    )
 
     # Character type options
+    char_group.add_argument(
+        "-F",
+        "--full",
+        action="store_true",
+        help="Use all character types (upper, lower, digits, symbols) and enable no-repeats",
+    )
     char_group.add_argument(
         "-u",
         "--upper",
@@ -562,6 +1102,29 @@ def create_argument_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Include blank (space) character (never placed as first or last character)",
     )
+    char_group.add_argument(
+        "-p",
+        "--pattern",
+        type=str,
+        help="Generate password from pattern (l=lower, u=upper, d=digit, s=symbol, b=blank, *=any)",
+    )
+
+    # Password organization options
+    organizing_group.add_argument(
+        "--label",
+        type=str,
+        help="Label/name for this password (e.g., 'Gmail Account')",
+    )
+    organizing_group.add_argument(
+        "--category",
+        type=str,
+        help="Category for this password (e.g., 'Email', 'Banking', 'Social')",
+    )
+    organizing_group.add_argument(
+        "--tags",
+        type=str,
+        help="Comma-separated tags (e.g., 'work,important,2fa')",
+    )
 
     # Advanced options
     advanced_group.add_argument(
@@ -585,6 +1148,33 @@ def create_argument_parser() -> argparse.ArgumentParser:
         help="Prevent consecutive duplicate characters",
     )
 
+    # History search & filter options
+    filter_group.add_argument(
+        "--search",
+        type=str,
+        help="Search history by label, category, or tags",
+    )
+    filter_group.add_argument(
+        "--filter-strength",
+        type=int,
+        help="Show only passwords with strength >= this value",
+    )
+    filter_group.add_argument(
+        "--filter-category",
+        type=str,
+        help="Show only passwords in this category",
+    )
+    filter_group.add_argument(
+        "--since",
+        type=str,
+        help="Show passwords created since date (YYYY-MM-DD)",
+    )
+    filter_group.add_argument(
+        "--delete-entry",
+        type=int,
+        help="Delete specific entry by index number",
+    )
+
     # File operations
     file_group.add_argument(
         "-n",
@@ -603,6 +1193,11 @@ def create_argument_parser() -> argparse.ArgumentParser:
         "--cleanup",
         action="store_true",
         help="Clean up password and key files",
+    )
+    file_group.add_argument(
+        "--limit",
+        type=int,
+        help="Limit number of history entries to display",
     )
 
     return parser
@@ -630,11 +1225,35 @@ def main() -> None:
         sys.exit(0)
 
     if args.show_history:
-        show_password_history()
+        show_password_history(
+            limit=args.limit,
+            search=args.search,
+            filter_strength=args.filter_strength,
+            filter_category=args.filter_category,
+            since=args.since,
+            use_table=True
+        )
         sys.exit(0)
+
+    if args.delete_entry:
+        delete_entry_by_index(args.delete_entry)
+        sys.exit(0)
+
+    # Handle --full option
+    if args.full:
+        args.upper = True
+        args.lower = True
+        args.digits = True
+        args.symbols = True
+        args.no_repeats = True
 
     if args.allowed_symbols:
         args.symbols = True
+
+    # Parse tags if provided
+    tags = None
+    if args.tags:
+        tags = [tag.strip() for tag in args.tags.split(",")]
 
     try:
         if args.passphrase:
@@ -643,7 +1262,12 @@ def main() -> None:
             print(f"Using provided passphrase: {args.passphrase}")
 
             if not args.no_save:
-                save_password(args.passphrase)
+                save_password(
+                    args.passphrase,
+                    label=args.label,
+                    category=args.category,
+                    tags=tags
+                )
                 print(f"✓ Passphrase securely saved to {PASSWORD_FILE}")
             else:
                 print("⚠ Passphrase not saved (--no-save flag was set)")
@@ -662,11 +1286,30 @@ def main() -> None:
                 allowed_symbols=args.allowed_symbols,
                 no_repeats=args.no_repeats,
                 blank=args.blank,
+                pattern=args.pattern,
             )
+            
+            # Calculate and display strength
+            strength = calculate_password_strength(password)
+            strength_display = format_strength_meter(strength)
+            
             print(f"Generated Password {i+1}: {password}")
+            print(f"Strength: {strength_display}")
+
+            # Copy to clipboard if requested
+            if args.clipboard:
+                if copy_to_clipboard(password):
+                    print("✓ Password copied to clipboard")
+                else:
+                    print("⚠ Could not copy to clipboard (install pyperclip for better support)")
 
             if not args.no_save:
-                save_password(password)
+                save_password(
+                    password,
+                    label=args.label,
+                    category=args.category,
+                    tags=tags
+                )
 
         if not args.no_save and args.count > 0:
             print(f"[✓] Passwords securely saved to {PASSWORD_FILE}")
