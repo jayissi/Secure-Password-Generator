@@ -15,9 +15,7 @@ import base64
 import secrets
 import string
 import argparse
-import math
 import subprocess
-from collections import Counter
 from pathlib import Path
 from typing import Optional, List, Dict, Any, cast, Callable, Tuple
 from datetime import datetime
@@ -32,17 +30,24 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCMSIV
 MIN_PASSWORD_LENGTH = 8
 DEFAULT_PASSWORD_LENGTH = 12
 MAX_GENERATION_ATTEMPTS = 100
+SECURE_DELETE_PASSES = 3
 
 DEFAULT_FILE_PERMISSIONS = 0o600
 DEFAULT_DIR_PERMISSIONS = 0o700
 
-# New secure directory structure
+# Secure directory structure
 PASSWORD_DIR = Path.home().joinpath(".secure_passwords")
 PASSWORD_FILE = PASSWORD_DIR.joinpath("vault.enc")
 KEY_FILE = PASSWORD_DIR.joinpath("encryption.key")
 PEPPER_FILE = PASSWORD_DIR.joinpath("pepper.key")
 
 SIMILAR_CHARS = "il1Lo0O"  # Characters to exclude when --exclude-similar is used
+
+# Argon2id parameters (tune to your environment)
+ARGON2_DIGEST_LENGTH = 64      # 512-bit digest
+ARGON2_ITERATIONS = 100        # time cost
+ARGON2_LANES = 4               # parallelism
+ARGON2_MEMORY_COST = 64 * 1024 # 64 MiB
 
 # ANSI color codes for strength meter
 COLOR_RED = "\033[91m"
@@ -55,16 +60,14 @@ COLOR_RESET = "\033[0m"
 # =========================
 # Performance Optimization: Clipboard Caching
 # =========================
+_CLIPBOARD_INITIALIZED = False
 _CLIPBOARD_METHOD: Optional[Callable[[str], bool]] = None
 
 
 # =========================
 # Performance Optimization: Encryption Key Caching
 # =========================
-_ENCRYPTION_KEY_CACHE: Optional[bytes] = None
-_PEPPER_CACHE: Optional[bytes] = None
-_KEY_FILE_MTIME: Optional[float] = None
-_PEPPER_FILE_MTIME: Optional[float] = None
+_KEY_CACHE: Dict[str, Tuple[bytes, float]] = {}
 
 
 # =========================
@@ -72,7 +75,6 @@ _PEPPER_FILE_MTIME: Optional[float] = None
 # =========================
 def initialize_security_files() -> None:
     """Ensure secure directory and encryption/pepper key files exist with secure permissions."""
-    # Create secure directory if it doesn't exist
     if not PASSWORD_DIR.exists():
         PASSWORD_DIR.mkdir(mode=DEFAULT_DIR_PERMISSIONS)
         PASSWORD_DIR.chmod(DEFAULT_DIR_PERMISSIONS)
@@ -86,43 +88,38 @@ def initialize_security_files() -> None:
         PEPPER_FILE.chmod(DEFAULT_FILE_PERMISSIONS)
 
 
-def get_encryption_key() -> bytes:
-    """Retrieve or create the persistent AES key (cached)."""
-    global _ENCRYPTION_KEY_CACHE, _KEY_FILE_MTIME
-    
+def _get_cached_key(file_path: Path, cache_key: str) -> bytes:
+    """Helper to retrieve a cached key file, refreshing if file was modified."""
     initialize_security_files()
     
-    # Check if file was modified
-    current_mtime = KEY_FILE.stat().st_mtime if KEY_FILE.exists() else 0
-    if _ENCRYPTION_KEY_CACHE is None or _KEY_FILE_MTIME != current_mtime:
-        _ENCRYPTION_KEY_CACHE = KEY_FILE.read_bytes()
-        _KEY_FILE_MTIME = current_mtime
+    current_mtime = file_path.stat().st_mtime if file_path.exists() else 0.0
+    cached = _KEY_CACHE.get(cache_key)
     
-    return _ENCRYPTION_KEY_CACHE
+    if cached is None or cached[1] != current_mtime:
+        key_bytes = file_path.read_bytes()
+        _KEY_CACHE[cache_key] = (key_bytes, current_mtime)
+        return key_bytes
+    
+    return cached[0]
+
+
+def get_encryption_key() -> bytes:
+    """Retrieve or create the persistent AES key (cached)."""
+    return _get_cached_key(KEY_FILE, "encryption")
 
 
 def get_pepper() -> bytes:
     """Get the dedicated pepper key for Argon2id (cached)."""
-    global _PEPPER_CACHE, _PEPPER_FILE_MTIME
-    
-    initialize_security_files()
-    
-    # Check if file was modified
-    current_mtime = PEPPER_FILE.stat().st_mtime if PEPPER_FILE.exists() else 0
-    if _PEPPER_CACHE is None or _PEPPER_FILE_MTIME != current_mtime:
-        _PEPPER_CACHE = PEPPER_FILE.read_bytes()
-        _PEPPER_FILE_MTIME = current_mtime
-    
-    return _PEPPER_CACHE
+    return _get_cached_key(PEPPER_FILE, "pepper")
 
 
-def secure_delete_file(file_path: Path, passes: int = 3) -> None:
+def secure_delete_file(file_path: Path, passes: int = SECURE_DELETE_PASSES) -> None:
     """
     Securely delete a file by overwriting with random data multiple times.
     
     Args:
         file_path: Path to file to securely delete
-        passes: Number of overwrite passes (default: 3)
+        passes: Number of overwrite passes (default: SECURE_DELETE_PASSES)
     """
     if not file_path.exists():
         return
@@ -165,14 +162,13 @@ def argon2id_hash(password: str) -> Dict[str, Any]:
     Salt is unique per password. Pepper is loaded from a separate secure file.
     """
     salt = secrets.token_bytes(32)  # 256-bit unique salt per password
-    pepper = get_pepper()  # 🔐 the "pepper"
+    pepper = get_pepper()
 
-    # Parameters chosen for a reasonable balance; tune to your environment
     params = {
-        "length": 64,  # 512-bit digest
-        "iterations": 100,  # time cost
-        "lanes": 4,  # parallelism
-        "memory_cost": 64 * 1024,  # 64 MiB
+        "length": ARGON2_DIGEST_LENGTH,
+        "iterations": ARGON2_ITERATIONS,
+        "lanes": ARGON2_LANES,
+        "memory_cost": ARGON2_MEMORY_COST,
     }
 
     kdf = Argon2id(
@@ -181,7 +177,7 @@ def argon2id_hash(password: str) -> Dict[str, Any]:
         iterations=params["iterations"],
         lanes=params["lanes"],
         memory_cost=params["memory_cost"],
-        secret=pepper,  # Dedicated pepper
+        secret=pepper,
     )
     digest = kdf.derive(password.encode("utf-8"))
 
@@ -734,15 +730,17 @@ def format_history_table(entries: List[Dict[str, Any]]) -> str:
         try:
             dt = datetime.strptime(timestamp, "%a, %b %d, %Y %I:%M:%S:%f %p")
             short_time = dt.strftime("%Y-%m-%d %H:%M")
-        except:
+        except ValueError:
             short_time = timestamp[:16] if len(timestamp) > 16 else timestamp
         
-        row = f"│ {str(idx).ljust(col_widths['#'])} │ " + \
-              f"{label[:col_widths['Label']].ljust(col_widths['Label'])} │ " + \
-              f"{password[:col_widths['Password']].ljust(col_widths['Password'])} │ " + \
-              f"{strength_numeric.ljust(col_widths['Strength'])} │ " + \
-              f"{category[:col_widths['Category']].ljust(col_widths['Category'])} │ " + \
-              f"{short_time.ljust(col_widths['Created'])} │"
+        row = (
+            f"│ {str(idx).ljust(col_widths['#'])} │ "
+            f"{label[:col_widths['Label']].ljust(col_widths['Label'])} │ "
+            f"{password[:col_widths['Password']].ljust(col_widths['Password'])} │ "
+            f"{strength_numeric.ljust(col_widths['Strength'])} │ "
+            f"{category[:col_widths['Category']].ljust(col_widths['Category'])} │ "
+            f"{short_time.ljust(col_widths['Created'])} │"
+        )
         lines.append(row)
     
     lines.append(bottom_border)
@@ -796,16 +794,9 @@ def show_password_history(
             print("No password history available")
             return
 
-        # Read all entries
-        entries = []
+        # Read all entries (newest first)
         with open(filename, "rb") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                entries.append(line)
-        
-        # Reverse to get chronological order (newest first)
+            entries = [line.strip() for line in f if line.strip()]
         entries.reverse()
         
         # Decrypt and filter entries
@@ -838,7 +829,7 @@ def show_password_history(
                         entry_dt = datetime.strptime(rec.get("timestamp", ""), "%a, %b %d, %Y %I:%M:%S:%f %p")
                         if entry_dt < since_dt:
                             continue
-                    except:
+                    except ValueError:
                         pass
                 
                 filtered_entries.append(rec)
@@ -886,15 +877,9 @@ def delete_entry_by_index(
         print("No password history available")
         return
     
-    # Read all entries
-    entries = []
+    # Read all entries (newest first for display)
     with open(filename, "rb") as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                entries.append(line)
-    
-    # Reverse to get chronological order (newest first for display)
+        entries = [line.strip() for line in f if line.strip()]
     entries.reverse()
     
     if index < 1 or index > len(entries):
@@ -920,8 +905,8 @@ def delete_entry_by_index(
 
 def _initialize_clipboard() -> Optional[Callable[[str], bool]]:
     """Initialize and cache clipboard method once (RHEL/Fedora Linux only)."""
-    global _CLIPBOARD_METHOD
-    if _CLIPBOARD_METHOD is not None:
+    global _CLIPBOARD_INITIALIZED, _CLIPBOARD_METHOD
+    if _CLIPBOARD_INITIALIZED:
         return _CLIPBOARD_METHOD
     
     # Try pyperclip first (preferred for Linux)
@@ -934,6 +919,7 @@ def _initialize_clipboard() -> Optional[Callable[[str], bool]]:
             except Exception:
                 return False
         _CLIPBOARD_METHOD = _pyperclip_copy
+        _CLIPBOARD_INITIALIZED = True
         return _CLIPBOARD_METHOD
     except ImportError:
         pass
@@ -953,18 +939,19 @@ def _initialize_clipboard() -> Optional[Callable[[str], bool]]:
             except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
                 return False
         _CLIPBOARD_METHOD = _xclip_copy
+        _CLIPBOARD_INITIALIZED = True
         return _CLIPBOARD_METHOD
     except Exception:
         pass
     
-    _CLIPBOARD_METHOD = False  # No clipboard available
+    _CLIPBOARD_INITIALIZED = True
     return None
 
 
 def copy_to_clipboard(password: str) -> bool:
     """Copy password to system clipboard using cached method."""
     method = _initialize_clipboard()
-    if method is False or method is None:
+    if method is None:
         return False
     try:
         return method(password)

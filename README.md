@@ -241,10 +241,10 @@ password_generator -L 16 --upper --lower --digits --symbols --blank --no-repeats
 <br/>
 
 **4. Use a custom symbol set**  
-Create a password using only `@#$%` as symbols.
+Create a password using only `@#$%*` as symbols.
 
 ```bash
-password_generator -n -u -l -a '@#$%'
+password_generator -n -u -l -a '@#$%*'
 ```
 
 <br/>
@@ -253,7 +253,7 @@ password_generator -n -u -l -a '@#$%'
 Generate a password following a specific pattern.
 
 ```bash
-password_generator --pattern "lluuddss" --label "Pattern Test" --category "Testing"
+password_generator --pattern 'lluuddss' --label "Pattern Test" --category "Testing"
 ```
 
 Pattern codes:
@@ -263,6 +263,12 @@ Pattern codes:
 - `s` = symbol
 - `b` = blank (space)
 - `*` = random character from all types
+
+**Example with wildcards:**
+
+```bash
+password_generator --pattern '****lluu' -n
+```
 
 <br/>
 
@@ -468,7 +474,7 @@ sequenceDiagram
 
 ## 🧪 Testing
 
-The project includes a comprehensive integration test suite. Run tests in a Podman container:
+The project includes a comprehensive integration test suite (36 tests). Run tests directly:
 
 ```bash
 bash test_integration.sh
@@ -479,6 +485,8 @@ Or test in an isolated Podman container:
 ```bash
 podman run --rm -v $(pwd):/workspace:Z fedora:latest bash -c "cd /workspace && dnf install -y python3 python3-pip > /dev/null 2>&1 && pip3 install cryptography pyperclip > /dev/null 2>&1 && bash test_integration.sh"
 ```
+
+**Exit Codes:** On failure, the script exits with the test number that failed (e.g., exit code `15` means Test 15 failed). Exit code `0` indicates all tests passed.
 
 ---
 
