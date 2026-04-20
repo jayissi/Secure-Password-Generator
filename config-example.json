@@ -1,0 +1,12 @@
+{
+  "length": 24,
+  "upper": true,
+  "lower": true,
+  "digits": true,
+  "symbols": true,
+  "no_repeats": true,
+  "exclude_similar": false,
+  "min_chars": 2,
+  "allowed_symbols": "!@#$%^&*",
+  "blank_space": false
+}

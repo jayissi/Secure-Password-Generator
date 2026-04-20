@@ -1,0 +1,17 @@
+# Secure Password Generator - Example Config File
+# All fields are optional. Omitted fields fall back to CLI defaults.
+# CLI arguments always take precedence over config values.
+
+length: 24
+upper: true
+lower: true
+digits: true
+symbols: true
+no_repeats: true
+exclude_similar: false
+min_chars: 2
+allowed_symbols: "!@#$%^&*"
+blank_space: false
+# label: "My Default Label"
+# category: "General"
+# tags: "default,work"

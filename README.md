@@ -89,6 +89,7 @@ A robust, powerful, and secure command-line utility for generating **cryptograph
 
 - Python **3.13+**
 - `cryptography` library (for encryption)
+- `PyYAML` library (for YAML config file support)
 - `pyperclip` or `xclip` (optional, for clipboard support on RHEL/Fedora Linux)
 
 ### 🛠️ Installation
@@ -141,6 +142,7 @@ password_generator -h
 | `--length`             | `-L`  | Password length (min: 8)                     | 12      |
 | `--count`              | `-c`  | Number of passwords to generate              | 1       |
 | `--passphrase`         | `-P`  | Custom passphrase (supersedes other options) | None    |
+| `--config`             | `-f`  | Load defaults from YAML/JSON config file     | None    |
 | `--clipboard`          | `-X`  | Copy password to clipboard                   | False   |
 | `--help`               | `-h`  | Show help message                            | N/A     |
 
@@ -378,6 +380,88 @@ Securely delete all password and key files.
 password_generator -C
 ```
 
+<br/>
+
+### Config File
+
+**15. Generate password using a YAML config file**  
+Load default settings from a config file. All fields are optional.
+
+```bash
+password_generator -f config.yaml
+```
+
+**16. Config file with CLI override**  
+CLI arguments always take precedence over config file values.
+
+```bash
+password_generator -f config.yaml -L 32
+```
+
+<br/>
+
+**Example `config.yaml`:**
+
+```yaml
+length: 24
+upper: true
+lower: true
+digits: true
+symbols: true
+no_repeats: true
+exclude_similar: false
+min_chars: 2
+allowed_symbols: "!@#$%^&*"
+blank_space: false
+
+# Optional metadata defaults
+label: "My Default Label"
+category: "General"
+tags: "default,work"
+```
+
+**Equivalent `config.json`:**
+
+```json
+{
+  "length": 24,
+  "upper": true,
+  "lower": true,
+  "digits": true,
+  "symbols": true,
+  "no_repeats": true,
+  "exclude_similar": false,
+  "min_chars": 2,
+  "allowed_symbols": "!@#$%^&*",
+  "blank_space": false,
+  "label": "My Default Label",
+  "category": "General",
+  "tags": "default,work"
+}
+```
+
+**Config Field Reference:**
+
+| Field              | Type   | Description                                  | Default     |
+|:------------------:|:------:|----------------------------------------------|:-----------:|
+| `length`           | int    | Password length (minimum: 8)                 | 12          |
+| `upper`            | bool   | Include uppercase letters                    | false       |
+| `lower`            | bool   | Include lowercase letters                    | false       |
+| `digits`           | bool   | Include digits                               | false       |
+| `symbols`          | bool   | Include symbols                              | false       |
+| `no_repeats`       | bool   | Prevent consecutive duplicates               | false       |
+| `exclude_similar`  | bool   | Exclude similar-looking characters           | false       |
+| `min_chars`        | int    | Minimum characters per selected type         | 1           |
+| `allowed_symbols`  | string | Custom symbol set                            | All punctuation |
+| `blank_space`      | bool   | Include space character                      | false       |
+| `label`            | string | Default label for passwords                  | "Unnamed"   |
+| `category`         | string | Default category for passwords               | "General"   |
+| `tags`             | string | Comma-separated default tags                 | None        |
+
+> [!NOTE]
+> All config fields are optional. Omitted fields fall back to CLI defaults.
+> Supported formats: `.yaml`, `.yml`, `.json` (auto-detected by file extension).
+
 ---
 
 ## 🛡️ Security Details
@@ -474,7 +558,7 @@ sequenceDiagram
 
 ## 🧪 Testing
 
-The project includes a comprehensive integration test suite (36 tests). Run tests directly:
+The project includes a comprehensive integration test suite (41 tests). Run tests directly:
 
 ```bash
 bash test_integration.sh

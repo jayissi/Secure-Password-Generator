@@ -233,13 +233,80 @@ fi
 echo -e "\n[TEST 34] Help message"
 python3 password_generator.py -h > /dev/null || { echo "[FAIL] Test 34 failed"; script_exit 34; }
 
-# Test 35: Cleanup (secure deletion)
-echo -e "\n[TEST 35] Secure deletion (cleanup)"
-python3 password_generator.py -C || { echo "[FAIL] Test 35 failed"; script_exit 35; }
+# ============================================
+# CONFIG FILE TESTS
+# ============================================
 
-# Test 36: Verify cleanup worked
-echo -e "\n[TEST 36] Verify cleanup worked"
-python3 password_generator.py -H 2>&1 | grep -q "No password history available" || { echo "[FAIL] Test 36 failed - history still exists after cleanup"; script_exit 36; }
+# Test 35: Config file (YAML)
+echo -e "\n[TEST 35] Config file (YAML)"
+cat > /tmp/test_config.yaml <<'YAML_EOF'
+length: 20
+upper: true
+lower: true
+digits: true
+symbols: true
+no_repeats: true
+YAML_EOF
+python3 password_generator.py -f /tmp/test_config.yaml -n || { echo "[FAIL] Test 35 failed"; script_exit 35; }
+rm -f /tmp/test_config.yaml
+
+# Test 36: Config file (JSON)
+echo -e "\n[TEST 36] Config file (JSON)"
+cat > /tmp/test_config.json <<'JSON_EOF'
+{
+  "length": 18,
+  "upper": true,
+  "lower": true,
+  "digits": true
+}
+JSON_EOF
+python3 password_generator.py -f /tmp/test_config.json -n || { echo "[FAIL] Test 36 failed"; script_exit 36; }
+rm -f /tmp/test_config.json
+
+# Test 37: Config file missing (should error)
+echo -e "\n[TEST 37] Config file missing (expect error)"
+python3 password_generator.py -f /tmp/nonexistent_config.yaml -n 2>&1 | grep -q "Config file not found" || { echo "[FAIL] Test 37 failed - missing config should produce error"; script_exit 37; }
+
+# Test 38: CLI args override config values
+echo -e "\n[TEST 38] CLI args override config values"
+cat > /tmp/test_override.yaml <<'YAML_EOF'
+length: 10
+upper: true
+lower: true
+YAML_EOF
+OUTPUT=$(python3 password_generator.py -f /tmp/test_override.yaml -L 24 -n 2>&1)
+PASSWORD=$(echo "$OUTPUT" | grep "Generated Password" | sed 's/.*: //')
+PW_LEN=${#PASSWORD}
+if [ "$PW_LEN" -ne 24 ]; then
+    echo "[FAIL] Test 38 failed - expected length 24 (CLI override), got $PW_LEN"
+    rm -f /tmp/test_override.yaml
+    script_exit 38
+fi
+rm -f /tmp/test_override.yaml
+
+# Test 39: Config file with blank_space key
+echo -e "\n[TEST 39] Config file with blank_space key"
+cat > /tmp/test_blank.yaml <<'YAML_EOF'
+length: 16
+upper: true
+lower: true
+digits: true
+blank_space: true
+YAML_EOF
+python3 password_generator.py -f /tmp/test_blank.yaml -n || { echo "[FAIL] Test 39 failed"; script_exit 39; }
+rm -f /tmp/test_blank.yaml
+
+# ============================================
+# FILE OPERATIONS TESTS (continued)
+# ============================================
+
+# Test 40: Cleanup (secure deletion)
+echo -e "\n[TEST 40] Secure deletion (cleanup)"
+python3 password_generator.py -C || { echo "[FAIL] Test 40 failed"; script_exit 40; }
+
+# Test 41: Verify cleanup worked
+echo -e "\n[TEST 41] Verify cleanup worked"
+python3 password_generator.py -H 2>&1 | grep -q "No password history available" || { echo "[FAIL] Test 41 failed - history still exists after cleanup"; script_exit 41; }
 
 echo -e "\n=========================================="
 echo "All tests completed successfully!"

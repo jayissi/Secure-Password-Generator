@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any, cast, Callable, Tuple
 from datetime import datetime
 
+import yaml
 from cryptography.hazmat.primitives.kdf.argon2 import Argon2id
 from cryptography.hazmat.primitives.ciphers.aead import AESGCMSIV
 
@@ -981,6 +982,75 @@ def cleanup_files() -> None:
 
 
 # =========================
+# Config File Support
+# =========================
+VALID_CONFIG_KEYS = {
+    "length", "upper", "lower", "digits", "symbols",
+    "no_repeats", "exclude_similar", "min_chars",
+    "allowed_symbols", "blank_space", "label", "category", "tags",
+}
+
+CONFIG_KEY_MAP = {
+    "blank_space": "blank",
+}
+
+
+def load_config(config_path: str) -> Dict[str, Any]:
+    """
+    Load and validate a YAML or JSON config file.
+
+    Format is auto-detected by file extension (.yaml/.yml for YAML, .json for JSON).
+    All fields are optional; unknown keys cause an error.
+
+    Args:
+        config_path: Path to the config file
+
+    Returns:
+        Dictionary of config values with keys mapped to argparse dest names
+    """
+    path = Path(config_path)
+    if not path.exists():
+        print(f"[!] Config file not found: {config_path}", file=sys.stderr)
+        sys.exit(1)
+
+    suffix = path.suffix.lower()
+
+    try:
+        with open(path) as f:
+            if suffix in (".yaml", ".yml"):
+                config = yaml.safe_load(f) or {}
+            elif suffix == ".json":
+                config = json.load(f)
+            else:
+                print(
+                    f"[!] Unsupported config format '{suffix}'. Use .yaml, .yml, or .json",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+    except yaml.YAMLError as e:
+        print(f"[!] Invalid YAML in config file: {e}", file=sys.stderr)
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(f"[!] Invalid JSON in config file: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if not isinstance(config, dict):
+        print("[!] Config file must contain a YAML mapping or JSON object", file=sys.stderr)
+        sys.exit(1)
+
+    unknown = set(config.keys()) - VALID_CONFIG_KEYS
+    if unknown:
+        print(f"[!] Unknown config keys: {', '.join(sorted(unknown))}", file=sys.stderr)
+        sys.exit(1)
+
+    mapped: Dict[str, Any] = {}
+    for key, value in config.items():
+        mapped[CONFIG_KEY_MAP.get(key, key)] = value
+
+    return mapped
+
+
+# =========================
 # CLI Arguments
 # =========================
 def create_argument_parser() -> argparse.ArgumentParser:
@@ -995,7 +1065,11 @@ def create_argument_parser() -> argparse.ArgumentParser:
             help_text += "  # Generate password from pattern and copy to clipboard\n"
             help_text += "  python password_generator.py --pattern 'llbuubddbss' --no-save --clipboard\n\n"
             help_text += "  # Generate multiple passwords with custom symbols w/o saving\n"
-            help_text += "  python password_generator.py -n -L 30 -r -e -u -l -d -b -a '!@#$' -c 3 -m 3\n\n\n"
+            help_text += "  python password_generator.py -n -L 30 -r -e -u -l -d -b -a '!@#$' -c 3 -m 3\n\n"
+            help_text += "  # Generate password using config file defaults\n"
+            help_text += "  python password_generator.py -f config.yaml\n\n"
+            help_text += "  # Config file defaults with CLI override\n"
+            help_text += "  python password_generator.py -f config.json -L 32\n\n\n"
             return help_text
 
     parser = argparse.ArgumentParser(
@@ -1038,6 +1112,13 @@ def create_argument_parser() -> argparse.ArgumentParser:
         type=int,
         default=1,
         help="Number of passwords to generate",
+    )
+    basic_group.add_argument(
+        "-f",
+        "--config",
+        type=str,
+        metavar="FILE",
+        help="Load defaults from a YAML or JSON config file (CLI args override config values)",
     )
     basic_group.add_argument(
         "-X",
@@ -1202,6 +1283,14 @@ def main() -> None:
         sys.exit(0)
 
     args = parser.parse_args()
+
+    # Apply config file defaults (CLI args take precedence)
+    if args.config:
+        config = load_config(args.config)
+        defaults = parser.parse_args([])
+        for key, value in config.items():
+            if hasattr(args, key) and getattr(args, key) == getattr(defaults, key):
+                setattr(args, key, value)
 
     if args.help:
         parser.print_help()
