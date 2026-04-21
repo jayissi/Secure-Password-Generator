@@ -381,7 +381,7 @@ bash test_integration.sh
 Or test in an isolated Podman container:
 
 ```bash
-podman run --rm -v $(pwd):/workspace:Z fedora:latest bash -c "cd /workspace && dnf install -y python3 python3-pip > /dev/null 2>&1 && pip3 install cryptography pyperclip > /dev/null 2>&1 && bash test_integration.sh"
+podman run --rm -v $(pwd):/workspace:Z fedora:latest bash -c "cd /workspace && dnf install -y python3 python3-pip > /dev/null 2>&1 && pip3 install -r requirements.txt > /dev/null 2>&1 && bash test_integration.sh"
 ```
 
 **Exit Codes:** On failure, the script exits with the test number that failed (e.g., exit code `15` means Test 15 failed). Exit code `0` indicates all tests passed.
