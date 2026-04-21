@@ -10,8 +10,10 @@ symbols: true
 no_repeats: true
 exclude_similar: false
 min_chars: 2
-allowed_symbols: "!@#$%^&*"
+allowed_symbols: "!@#$%^&*?`"
 blank_space: false
-# label: "My Default Label"
-# category: "General"
-# tags: "default,work"
+
+# Optional metadata defaults
+label: "My Default Label"
+category: "General"
+tags: "default,work"

@@ -7,6 +7,9 @@
   "no_repeats": true,
   "exclude_similar": false,
   "min_chars": 2,
-  "allowed_symbols": "!@#$%^&*",
-  "blank_space": false
+  "allowed_symbols": "!@#$%^&*?`",
+  "blank_space": false,
+  "label": "My Default Label",
+  "category": "General",
+  "tags": "default,work"
 }

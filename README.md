@@ -18,68 +18,19 @@ A robust, powerful, and secure command-line utility for generating **cryptograph
 
 ## ✨ Features
 
-### 🔒 Security & Encryption
-
-- **Cryptographically Secure**: Utilizes Python's `secrets` module, which is designed to generate unpredictable secure values suitable for cryptographic purposes.
-- **AES-GCM-SIV Encryption**: Provides misuse-resistant authenticated encryption; records are Base64-encoded per line to prevent file corruption.
-- **Argon2id (Salt + Pepper) Hashing**: Each password is hashed with Argon2id using a unique 256-bit salt per password. A separate 256-bit pepper key file provides additional protection against offline brute force attacks.
-- **Secure File Deletion**: Files are securely overwritten with random data multiple times before deletion to prevent data recovery.
-- **File Permissions**: All files are created with `0600` file permissions (read/write) restricted to the file's owner.
-
-### 🎯 Password Generation
-
-- **Flexible Password Policies**:
-  - Minimum enforced length (8+ characters, configurable)
-  - Uppercase letters (`A-Z`)
-  - Lowercase letters (`a-z`)
-  - Digits (`0-9`)
-  - Symbols (customizable or default punctuation)
-  - Blank/space character support (never placed as first or last character)
-  - Minimum character requirements per character type
-  - Prevent consecutive duplicate characters
-  - Exclude similar-looking characters (`i`, `l`, `1`, `L`, `o`, `0`, `O`)
-  - Pattern-based generation (define exact character type positions)
-
-- **Password Strength Meter**: 
-  - Length-based scoring (primary factor)
-  - Character type diversity bonuses
-  - Uniqueness ratio penalties
-  - Pattern detection for weak passwords
-  - Visual strength meter with numeric score (1-10)
-
-### 📊 Password Metadata & Organization
-
-- **Labels**: Assign descriptive names to passwords (e.g., "Gmail Account")
-- **Categories**: Organize passwords by category (e.g., "Email", "Banking", "Social")
-- **Tags**: Add multiple tags for flexible organization (e.g., "work,important,2fa")
-- **Automatic Metadata**: Each password includes timestamp and strength score
-
-### 🔍 History Management & Search
-
-- **Table View**: Beautiful ASCII table format displaying password history with numeric strength scores
-- **Search**: Search passwords by label, category, or tags
-- **Filtering**: 
-  - Filter by minimum strength score
-  - Filter by category
-  - Filter by creation date
-  - Combine multiple filters
-- **Limit Results**: Display only the most recent N entries
-- **Entry Deletion**: Securely delete specific entries by index number
-
-### ⚡ Performance Optimizations
-
-- **Clipboard Caching**: Clipboard method is cached on first use (RHEL/Fedora Linux support via `pyperclip` or `xclip`)
-- **Encryption Key Caching**: Encryption keys are cached with file modification time checking
-- **Lazy Loading**: Efficient file I/O with optimized history reading
-- **Pre-validation**: Password generation constraints are validated before attempting generation
-
-### 🛠️ Advanced Options
-
-- Generate multiple passwords at once
-- Copy passwords to clipboard (RHEL/Fedora Linux)
-- Custom passphrase mode (store user-provided passwords)
-- Pattern-based generation for precise control
-- Secure cleanup of all password and key files
+- **Cryptographically Secure** randomness via Python's `secrets` module
+- **AES-GCM-SIV Encryption** with Base64-encoded storage for misuse-resistant authenticated encryption
+- **Argon2id Hashing** with unique 256-bit salt per password and a separate 256-bit pepper key
+- **Secure File Deletion** - files overwritten with random data multiple times before removal
+- **Restrictive Permissions** - all files created with `0600` (owner read/write only)
+- **Flexible Character Policies** - uppercase, lowercase, digits, symbols, blanks, custom symbol sets, exclude similar characters, prevent consecutive duplicates, minimum per-type requirements
+- **Pattern-Based Generation** - define exact character type positions (`l`=lower, `u`=upper, `d`=digit, `s`=symbol, `b`=blank, `*`=any)
+- **Password Strength Meter** - length-based scoring, character diversity bonuses, uniqueness penalties, pattern detection (1-10 scale)
+- **Metadata & Organization** - labels, categories, comma-separated tags, automatic timestamps
+- **History Management** - ASCII table view, search by label/category/tags, filter by strength/category/date, entry deletion
+- **Config File Support** - load defaults from YAML or JSON config files; CLI args always override
+- **Clipboard Support** - copy passwords via `pyperclip` or `xclip` (RHEL/Fedora Linux)
+- **Performance Optimized** - clipboard method caching, encryption key caching, pre-validation of generation constraints
 
 ---
 
@@ -198,18 +149,13 @@ password_generator -h
 
 ## 📝 Examples
 
-### Basic Password Generation
-
-**1. Generate and save a password (16 chars, all types)**  
-Create a 16-character password using all character types and save it with metadata.
+**1. Generate a strong password with all character types**
 
 ```bash
 password_generator -F -L 16 --label "Gmail Account" --category "Email" --tags "work,important"
 ```
 
-**Output:**
-
-```bash
+```
 Generated Password 1: p@55W0rD Ex&mpl3
 Strength: ████████░░ 8/10
 [✓] Passwords securely saved to /home/user/.secure_passwords/vault.enc
@@ -217,71 +163,8 @@ Strength: ████████░░ 8/10
 
 <br/>
 
-**2. Generate a 26-character password (no repeats, do not save)**  
-This creates a 26-character password with no repetitive characters.
-
-```bash
-password_generator -L 26 --upper --lower --digits --symbols --no-repeats --no-save
-```
-
-**Output:**
-
-```bash
-Generated Password 1: V3ry-L0ng&S3cur3!P@ssw0rd#
-Strength: ████████░░ 8/10
-```
-
-<br/>
-
-**3. Generate a password with strict requirements**  
-Create a 16-character password with at least 2 of each selected character type.
-
-```bash
-password_generator -L 16 --upper --lower --digits --symbols --blank --no-repeats --min 2 --no-save
-```
-
-<br/>
-
-**4. Use a custom symbol set**  
-Create a password using only `@#$%*` as symbols.
-
-```bash
-password_generator -n -u -l -a '@#$%*'
-```
-
-<br/>
-
-**5. Pattern-based generation**  
-Generate a password following a specific pattern.
-
-```bash
-password_generator --pattern 'lluuddss' --label "Pattern Test" --category "Testing"
-```
-
-Pattern codes:
-- `l` = lowercase letter
-- `u` = uppercase letter
-- `d` = digit
-- `s` = symbol
-- `b` = blank (space)
-- `*` = random character from all types
-
-**Example with wildcards:**
-
-```bash
-password_generator --pattern '****lluu' -n
-```
-
-<br/>
-
-**6. Advanced Requirements**  
-Create (5x) 20-character passwords with:
-
-- At least 3 of each character type
-- No similar characters
-- No consecutive duplicates
-- Only use `!@*#^ $&%\"` as valid symbols
-- Output to stdout only
+**2. Advanced requirements**  
+Create (5x) 20-character passwords with at least 3 of each type, no similar characters, no consecutive duplicates, and a custom symbol set.
 
 ```bash
 password_generator -c 5 -L 20 -u -l -d -m 3 -e -r -a '!@*#^ $&%\"' -n
@@ -289,33 +172,30 @@ password_generator -c 5 -L 20 -u -l -d -m 3 -e -r -a '!@*#^ $&%\"' -n
 
 <br/>
 
-**7. Custom Passphrase**  
+**3. Pattern-based generation**  
+Define exact character type positions: `l`=lower, `u`=upper, `d`=digit, `s`=symbol, `b`=blank, `*`=any.
+
+```bash
+password_generator --pattern 'lluuddss' --label "Pattern Test" --category "Testing"
+password_generator --pattern '****lluu' -n
+```
+
+<br/>
+
+**4. Custom passphrase**  
 Store a user-provided passphrase with metadata.
 
 ```bash
 password_generator -P "MySecurePass123!" --label "Custom Pass" --category "Personal" --tags "manual"
 ```
 
-**Output:**
-
-```bash
-[ Custom Passphrase Mode ]
-Using provided passphrase: MySecurePass123!
-✓ Passphrase securely saved to /home/user/.secure_passwords/vault.enc
-```
-
 <br/>
 
-### History Management
-
-**8. View password history (table format)**  
-Display all saved passwords in a formatted table.
+**5. View password history**
 
 ```bash
 password_generator -H
 ```
-
-**Output:**
 
 ```
 ┌─────┬───────────────┬──────────────────────┬──────────────┬────────────┬──────────────────────┐
@@ -328,77 +208,39 @@ password_generator -H
 
 <br/>
 
-**9. Search history**  
-Search for passwords by label, category, or tags.
+**6. Search and filter history**  
+Search, filter by category/strength, and combine filters.
 
 ```bash
 password_generator -H --search "Gmail"
-```
-
-<br/>
-
-**10. Filter by category**  
-Show only passwords in a specific category.
-
-```bash
-password_generator -H --filter-category "Email"
-```
-
-<br/>
-
-**11. Filter by strength**  
-Show only strong passwords (strength >= 8).
-
-```bash
-password_generator -H --filter-strength 8
-```
-
-<br/>
-
-**12. Combined filters**  
-Combine multiple filters for precise searching.
-
-```bash
 password_generator -H --filter-category "Email" --filter-strength 7 --limit 5
-```
-
-<br/>
-
-**13. Delete entry**  
-Securely delete a specific entry by its index number.
-
-```bash
 password_generator --delete-entry 1
 ```
 
 <br/>
 
-**14. Secure cleanup**  
+**7. Config file usage**  
+Load defaults from a YAML or JSON config file. CLI arguments always override config values.
+
+```bash
+password_generator -f config.yaml
+password_generator -f config.json -L 32
+```
+
+<br/>
+
+**8. Secure cleanup**  
 Securely delete all password and key files.
 
 ```bash
 password_generator -C
 ```
 
-<br/>
+---
 
-### Config File
+## 📁 Config File
 
-**15. Generate password using a YAML config file**  
-Load default settings from a config file. All fields are optional.
-
-```bash
-password_generator -f config.yaml
-```
-
-**16. Config file with CLI override**  
-CLI arguments always take precedence over config file values.
-
-```bash
-password_generator -f config.yaml -L 32
-```
-
-<br/>
+Load default settings from a YAML or JSON config file using `-f`. All fields are optional - omitted fields fall back to CLI defaults. Format is auto-detected by file extension (`.yaml`/`.yml`/`.json`).
 
 **Example `config.yaml`:**
 
@@ -411,7 +253,7 @@ symbols: true
 no_repeats: true
 exclude_similar: false
 min_chars: 2
-allowed_symbols: "!@#$%^&*"
+allowed_symbols: "!@#$%^&*?`"
 blank_space: false
 
 # Optional metadata defaults
@@ -432,7 +274,7 @@ tags: "default,work"
   "no_repeats": true,
   "exclude_similar": false,
   "min_chars": 2,
-  "allowed_symbols": "!@#$%^&*",
+  "allowed_symbols": "!@#$%^&*?`",
   "blank_space": false,
   "label": "My Default Label",
   "category": "General",
@@ -457,10 +299,6 @@ tags: "default,work"
 | `label`            | string | Default label for passwords                  | "Unnamed"   |
 | `category`         | string | Default category for passwords               | "General"   |
 | `tags`             | string | Comma-separated default tags                 | None        |
-
-> [!NOTE]
-> All config fields are optional. Omitted fields fall back to CLI defaults.
-> Supported formats: `.yaml`, `.yml`, `.json` (auto-detected by file extension).
 
 ---
 
@@ -488,65 +326,41 @@ This tool is designed with security as a top priority. `JSON Payload → Argon2i
 - **File Permissions**: All files are created with `0600` file permissions (read/write) restricted to the file's owner.
 - **Secure Deletion**: Files are overwritten with random data multiple times before deletion to prevent data recovery.
 
-<br/>
-
-### 🧂 Salt vs 🌶️ Pepper
-
-When protecting passwords, two important concepts are often combined: **salt** and **pepper**. Both strengthen security, but they serve very different purposes.
-
-#### 🧂 Salt
-
-- A **salt** is a unique, securely random value generated for each password.  
-- It ensures that even if two users choose the same password, their hashes will be different.  
-- Salts protect against **rainbow table** and precomputed dictionary attacks.  
-- **Not secret** — salts are usually stored alongside the password hash in the database.
-
-#### 🌶️ Pepper
-
-- A **pepper** is an additional **secret value** (like a hidden key) used during hashing.  
-- Unlike salts, peppers are **not stored with the hashes**. Instead, they're kept in a secure location such as:
-  - A configuration file with restricted access
-  - An environment variable
-  - A Hardware Security Module (HSM)
-- If an attacker steals the database, they cannot brute-force hashes without also knowing the pepper.
-
-#### 🔐 Why Both?
-
-- **Salt** defends against precomputation attacks and ensures uniqueness.  
-- **Pepper** adds an extra layer of defense — even if the database is leaked, the attacker still needs the hidden pepper to verify guesses.  
-- Together, salt and pepper provide **defense in depth**, making password cracking far more difficult.
-
-**Key Differences:**  
-
-- Salt = *public, unique, stored with the hash* (e.g. *public spice* per password.)  
-- Pepper = *private, shared, stored separately* (e.g. *secret ingredient* known only to the chef.)
-
-<br/>
-
 ### 🔐 Argon2id (Salt + Pepper) + AES-GCM-SIV Encryption Flow
 
 ```mermaid
-sequenceDiagram
-    participant P as JSON Payload (P)
-    participant A as Argon2id<br/>(Salt + Pepper)
-    participant K as Derived Key (K)
-    participant E as AES-GCM-SIV<br/>(Encryption)
-    participant O as Output
+flowchart TD
+    subgraph inputs [Inputs]
+        payload["JSON Payload<br/>(password + metadata)"]
+        salt["256-bit Salt<br/>(unique per password)"]
+        pepper["256-bit Pepper<br/>(secret key file)"]
+        aesKey["256-bit AES Key<br/>(encryption.key)"]
+        nonce["96-bit Nonce<br/>(random)"]
+    end
 
-    P->>A: Input secret
-    A->>K: Derive secure key
-    K->>E: Provide key
-    P->>E: Provide JSON Payload + nonce
-    E->>O: Ciphertext (C) + Auth Tag (T)
+    subgraph hashing [Argon2id Hashing]
+        argon2["Argon2id KDF"]
+    end
+
+    subgraph encryption [AES-GCM-SIV Encryption]
+        aesgcm["AES-GCM-SIV"]
+    end
+
+    subgraph output [Stored Output]
+        digest["512-bit Digest<br/>(Base64)"]
+        ciphertext["Ciphertext + Auth Tag<br/>(Base64)"]
+    end
+
+    payload --> argon2
+    salt --> argon2
+    pepper --> argon2
+    argon2 --> digest
+
+    payload --> aesgcm
+    aesKey --> aesgcm
+    nonce --> aesgcm
+    aesgcm --> ciphertext
 ```
-
-### 📝 Explanation
-
-1. **JSON Payload (P)** is the input secret (e.g., a password) along with metadata (label, category, tags, timestamp, strength).
-2. **Argon2id** takes the JSON Payload, adds a **securely random salt** (unique per password) and a secret **pepper** (from separate key file), and produces a strong, memory-hard **derived key**.
-3. The **derived key (K)** `Key + Nonce + JSON Payload` is fed into **AES-GCM-SIV** as the encryption key.
-4. AES-GCM-SIV produces both **Ciphertext (C)** and an **Authentication Tag (T)** for integrity.
-5. The final secure output is stored as `{ salt, nonce, ciphertext, tag }` where only the **pepper** remains secret.
 
 <br/>
 
