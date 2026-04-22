@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# PYTHON_ARGCOMPLETE_OK
 
 """
 Secure Password Generator with Encryption Storage
@@ -20,6 +21,8 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any, cast, Callable, Tuple
 from datetime import datetime
 
+import argcomplete
+from argcomplete.completers import FilesCompleter
 import yaml
 from cryptography.hazmat.primitives.kdf.argon2 import Argon2id
 from cryptography.hazmat.primitives.ciphers.aead import AESGCMSIV
@@ -1119,7 +1122,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
         type=str,
         metavar="FILE",
         help="Load defaults from a YAML or JSON config file (CLI args override config values)",
-    )
+    ).completer = FilesCompleter(["yaml", "yml", "json"])
     basic_group.add_argument(
         "-X",
         "--clipboard",
@@ -1277,6 +1280,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
 def main() -> None:
     """Main entry point for the password generator."""
     parser = create_argument_parser()
+    argcomplete.autocomplete(parser)
 
     if len(sys.argv) == 1:
         parser.print_help()
