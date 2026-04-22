@@ -9,6 +9,7 @@
   "min_chars": 2,
   "allowed_symbols": "!@#$%^&*?`",
   "blank_space": false,
+  "save_history": true,
   "label": "My Default Label",
   "category": "General",
   "tags": "default,work"

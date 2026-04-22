@@ -629,8 +629,10 @@ def generate_password(
                     choices_str = choices_str.replace(" ", "")
 
                 # enforce no_repeats against already filled left neighbor
-                if no_repeats and i > 0 and slots[i - 1] is not None:
-                    choices_str = choices_str.replace(slots[i - 1], "")
+                if no_repeats and i > 0:
+                    prev_char = slots[i - 1]
+                    if prev_char is not None:
+                        choices_str = choices_str.replace(prev_char, "")
 
                 if not choices_str:
                     raise ValueError(
@@ -991,6 +993,7 @@ VALID_CONFIG_KEYS = {
     "length", "upper", "lower", "digits", "symbols",
     "no_repeats", "exclude_similar", "min_chars",
     "allowed_symbols", "blank_space", "label", "category", "tags",
+    "save_history",
 }
 
 CONFIG_KEY_MAP = {
@@ -1048,7 +1051,8 @@ def load_config(config_path: str) -> Dict[str, Any]:
 
     mapped: Dict[str, Any] = {}
     for key, value in config.items():
-        mapped[CONFIG_KEY_MAP.get(key, key)] = value
+        dest = CONFIG_KEY_MAP.get(str(key), str(key))
+        mapped[dest] = value
 
     return mapped
 
@@ -1066,7 +1070,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
             help_text += "  # Generate strong password with all character types\n"
             help_text += "  python password_generator.py -F -L 24\n\n"
             help_text += "  # Generate password from pattern and copy to clipboard\n"
-            help_text += "  python password_generator.py --pattern 'llbuubddbss' --no-save --clipboard\n\n"
+            help_text += "  python password_generator.py --pattern 'llbuubddbss' --no-save-history --clipboard\n\n"
             help_text += "  # Generate multiple passwords with custom symbols w/o saving\n"
             help_text += "  python password_generator.py -n -L 30 -r -e -u -l -d -b -a '!@#$' -c 3 -m 3\n\n"
             help_text += "  # Generate password using config file defaults\n"
@@ -1116,13 +1120,14 @@ def create_argument_parser() -> argparse.ArgumentParser:
         default=1,
         help="Number of passwords to generate",
     )
-    basic_group.add_argument(
+    config_action = basic_group.add_argument(
         "-f",
         "--config",
         type=str,
         metavar="FILE",
         help="Load defaults from a YAML or JSON config file (CLI args override config values)",
-    ).completer = FilesCompleter(["yaml", "yml", "json"])
+    )
+    setattr(config_action, "completer", FilesCompleter(["yaml", "yml", "json"]))
     basic_group.add_argument(
         "-X",
         "--clipboard",
@@ -1249,9 +1254,11 @@ def create_argument_parser() -> argparse.ArgumentParser:
     # File operations
     file_group.add_argument(
         "-n",
-        "--no-save",
-        action="store_true",
-        help="Do not save the password to file",
+        "--no-save-history",
+        action="store_false",
+        dest="save_history",
+        default=True,
+        help="Do not save the password to history",
     )
     file_group.add_argument(
         "-H",
@@ -1341,7 +1348,7 @@ def main() -> None:
             print("[ Custom Passphrase Mode ]")
             print(f"Using provided passphrase: {args.passphrase}")
 
-            if not args.no_save:
+            if args.save_history:
                 save_password(
                     args.passphrase,
                     label=args.label,
@@ -1350,7 +1357,7 @@ def main() -> None:
                 )
                 print(f"✓ Passphrase securely saved to {PASSWORD_FILE}")
             else:
-                print("⚠ Passphrase not saved (--no-save flag was set)")
+                print("⚠ Passphrase not saved (--no-save-history flag was set)")
 
             sys.exit(0)
 
@@ -1383,7 +1390,7 @@ def main() -> None:
                 else:
                     print("⚠ Could not copy to clipboard (install pyperclip for better support)")
 
-            if not args.no_save:
+            if args.save_history:
                 save_password(
                     password,
                     label=args.label,
@@ -1391,7 +1398,7 @@ def main() -> None:
                     tags=tags
                 )
 
-        if not args.no_save and args.count > 0:
+        if args.save_history and args.count > 0:
             print(f"[✓] Passwords securely saved to {PASSWORD_FILE}")
     except Exception as e:
         print(f"[!] Error: {e}", file=sys.stderr)

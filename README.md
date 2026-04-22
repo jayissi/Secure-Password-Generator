@@ -108,7 +108,7 @@ password_generator -h
 | `--symbols`            | `-s`  | Include symbols                              | False   |
 | `--allowed-symbols`    | `-a`  | Custom allowed symbols (implies --symbols)   | None    |
 | `--blank`              | `-b`  | Include space (never first/last)             | False   |
-| `--pattern`            | `-p`  | Pattern: l=lower, u=upper, d=digit, s=symbol, b=blank, *=any | None |
+| `--pattern`            | `-p`  | Pattern string (l/u/d/s/b/* codes)           | None    |
 
 #### Advanced Options
 
@@ -122,8 +122,8 @@ password_generator -h
 
 | Argument               | Description                                  | Default |
 |:----------------------:|----------------------------------------------|:-------:|
-| `--label`              | Label/name for this password                 | "Unnamed" |
-| `--category`           | Category for this password                   | "General" |
+| `--label`              | Label/name for this password                 | Unnamed |
+| `--category`           | Category for this password                   | General |
 | `--tags`               | Comma-separated tags                         | []      |
 
 #### History Search & Filter Options
@@ -133,7 +133,7 @@ password_generator -h
 | `--search`             | Search history by label, category, or tags   |
 | `--filter-strength`    | Show only passwords with strength >= value   |
 | `--filter-category`    | Show only passwords in this category         |
-| `--since`              | Show passwords created since date (YYYY-MM-DD) |
+| `--since`              | Show passwords since date (YYYY-MM-DD)       |
 | `--delete-entry`       | Delete specific entry by index number        |
 | `--limit`              | Limit number of history entries to display   |
 
@@ -141,7 +141,7 @@ password_generator -h
 
 | Argument               | Short | Description                                  | Default |
 |:----------------------:|:-----:|----------------------------------------------|:-------:|
-| `--no-save`            | `-n`  | Don't save to password file                  | False   |
+| `--no-save-history`    | `-n`  | Don't save to password history               | False   |
 | `--show-history`       | `-H`  | Show password generation history             | False   |
 | `--cleanup`            | `-C`  | Clean up password and key files              | False   |
 
@@ -149,13 +149,14 @@ password_generator -h
 
 ## 📝 Examples
 
-**1. Generate a strong password with all character types**
+**1. Generate a strong password with all character types**  
+Organize with labels, categories, and tags.
 
 ```bash
 password_generator -F -L 16 --label "Gmail Account" --category "Email" --tags "work,important"
 ```
 
-```
+```text
 Generated Password 1: p@55W0rD Ex&mpl3
 Strength: ████████░░ 8/10
 [✓] Passwords securely saved to /home/user/.secure_passwords/vault.enc
@@ -191,13 +192,14 @@ password_generator -P "MySecurePass123!" --label "Custom Pass" --category "Perso
 
 <br/>
 
-**5. View password history**
+**5. View password history**  
+Display saved passwords in a formatted table.
 
 ```bash
 password_generator -H
 ```
 
-```
+```text
 ┌─────┬───────────────┬──────────────────────┬──────────────┬────────────┬──────────────────────┐
 │ #   │ Label         │ Password             │ Strength     │ Category   │ Created              │
 ├─────┼───────────────┼──────────────────────┼──────────────┼────────────┼──────────────────────┤
@@ -255,6 +257,7 @@ exclude_similar: false
 min_chars: 2
 allowed_symbols: "!@#$%^&*?`"
 blank_space: false
+save_history: true
 
 # Optional metadata defaults
 label: "My Default Label"
@@ -276,6 +279,7 @@ tags: "default,work"
   "min_chars": 2,
   "allowed_symbols": "!@#$%^&*?`",
   "blank_space": false,
+  "save_history": true,
   "label": "My Default Label",
   "category": "General",
   "tags": "default,work"
@@ -294,8 +298,9 @@ tags: "default,work"
 | `no_repeats`       | bool   | Prevent consecutive duplicates               | false       |
 | `exclude_similar`  | bool   | Exclude similar-looking characters           | false       |
 | `min_chars`        | int    | Minimum characters per selected type         | 1           |
-| `allowed_symbols`  | string | Custom symbol set                            | All punctuation |
+| `allowed_symbols`  | string | Custom symbol set                            | All symbols |
 | `blank_space`      | bool   | Include space character                      | false       |
+| `save_history`     | bool   | Save password to encrypted history           | true        |
 | `label`            | string | Default label for passwords                  | "Unnamed"   |
 | `category`         | string | Default category for passwords               | "General"   |
 | `tags`             | string | Comma-separated default tags                 | None        |
@@ -317,7 +322,7 @@ This tool is designed with security as a top priority. `JSON Payload → Argon2i
 - **Randomness**: Uses Python's `secrets` module, not `random`, ensuring cryptographic quality randomness.
 - **Minimum Length**: Enforces a minimum of 8 characters, with recommended defaults of 12+.
 - **AES-GCM-SIV Encryption**: Provides misuse-resistant authenticated encryption; records are Base64-encoded per line to prevent newline corruption.
-- **Argon2id (Salt + Pepper) Hashing**: 
+- **Argon2id (Salt + Pepper) Hashing**:
   - Each password uses a **unique 256-bit salt** per password
   - A **separate 256-bit pepper** key file provides additional protection
   - 512-bit digest output

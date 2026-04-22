@@ -12,6 +12,7 @@ exclude_similar: false
 min_chars: 2
 allowed_symbols: "!@#$%^&*?`"
 blank_space: false
+save_history: true
 
 # Optional metadata defaults
 label: "My Default Label"
