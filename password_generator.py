@@ -9,6 +9,7 @@ configurations and securely stores them using AES-GCM-SIV encryption.
 Passwords are hashed with Argon2id for verification purposes then base64 encoded.
 """
 
+import math
 import os
 import sys
 import json
@@ -192,105 +193,177 @@ def argon2id_hash(password: str) -> Dict[str, Any]:
     }
 
 
-def calculate_password_strength(password: str) -> int:
+def compute_charset_size(
+    use_upper: bool = False,
+    use_lower: bool = False,
+    use_digits: bool = False,
+    use_symbols: bool = False,
+    allowed_symbols: Optional[str] = None,
+    exclude_similar: bool = False,
+    blank: bool = False,
+) -> int:
     """
-    Calculate password strength based on length, character types, and uniqueness.
-    
+    Compute the effective character pool size from the same flags used by
+    generate_password. When charset_size is not explicitly provided to
+    calculate_password_strength, this mirrors the generator's charset
+    construction so entropy is computed against the actual pool.
+    """
+    size = 0
+    if use_upper:
+        up = _filter_similar_chars(string.ascii_uppercase, exclude_similar)
+        size += len(up)
+    if use_lower:
+        lo = _filter_similar_chars(string.ascii_lowercase, exclude_similar)
+        size += len(lo)
+    if use_digits:
+        dg = _filter_similar_chars(string.digits, exclude_similar)
+        size += len(dg)
+
+    effective_symbols = allowed_symbols if allowed_symbols else (
+        string.punctuation if use_symbols else ""
+    )
+    if effective_symbols:
+        sym = _filter_similar_chars(effective_symbols, exclude_similar)
+        size += len(set(sym))
+
+    if blank:
+        size += 1
+
+    return max(size, 1)
+
+
+def expected_unique_chars(pool_size: int, length: int) -> float:
+    """
+    Expected number of distinct characters when drawing `length` characters
+    uniformly at random from a pool of `pool_size` (birthday-problem formula).
+    """
+    if pool_size <= 0 or length <= 0:
+        return 0.0
+    return pool_size * (1 - ((pool_size - 1) / pool_size) ** length)
+
+
+def calculate_password_strength(
+    password: str,
+    charset_size: Optional[int] = None,
+) -> int:
+    """
+    Calculate password strength using pool-based entropy and expected
+    uniqueness comparison.
+
     Scoring factors:
-    - Length (PRIMARY): Longer passwords score higher
+    - Entropy bits (PRIMARY): length * log2(charset_size) mapped to 1-10
     - Character type diversity (SECONDARY): More types = bonus
-    - Character uniqueness (TERTIARY): Repeated chars = penalty
-    
+    - Expected uniqueness (TERTIARY): Penalize only when actual unique
+      chars fall significantly below the statistical expectation for the
+      given pool size and length
+    - Consecutive repeat penalty and pattern penalty are kept from v1
+
     Args:
-        password: Password string to evaluate
-        
+        password:      Password string to evaluate
+        charset_size:  Size of the character pool used to generate the
+                       password.  When None the pool is inferred from the
+                       characters actually present in the password (safe
+                       lower-bound estimate for ad-hoc / passphrase input).
+
     Returns:
         Strength score from 1-10 (int)
     """
     if not password:
         return 1
-    
+
     length = len(password)
-    
-    # Count character types (complexity)
+
+    # -- Infer charset_size when not provided (passphrase / manual input) --
+    if charset_size is None:
+        pool = 0
+        if any(c.isupper() for c in password):
+            pool += 26
+        if any(c.islower() for c in password):
+            pool += 26
+        if any(c.isdigit() for c in password):
+            pool += 10
+        if any(not c.isalnum() and c != ' ' for c in password):
+            pool += 32
+        if ' ' in password:
+            pool += 1
+        charset_size = max(pool, 1)
+
+    # -- Count character types (complexity) --
     has_upper = any(c.isupper() for c in password)
     has_lower = any(c.islower() for c in password)
     has_digit = any(c.isdigit() for c in password)
     has_symbol = any(not c.isalnum() and c != ' ' for c in password)
     has_blank = ' ' in password
-    
+
     char_types = sum([has_upper, has_lower, has_digit, has_symbol, has_blank])
-    
-    # PRIMARY: Base score from length
-    # Aggressive thresholds to encourage longer passwords
-    if length >= 24:
+
+    # -- PRIMARY: Entropy-based base score --
+    entropy_bits = length * math.log2(charset_size) if charset_size > 1 else 0
+
+    if entropy_bits >= 128:
         base_score = 8
-    elif length >= 20:
+    elif entropy_bits >= 100:
         base_score = 7
-    elif length >= 16:
+    elif entropy_bits >= 80:
         base_score = 6
-    elif length >= 14:
+    elif entropy_bits >= 64:
         base_score = 5
-    elif length >= 12:
+    elif entropy_bits >= 48:
         base_score = 4
-    elif length >= 10:
+    elif entropy_bits >= 36:
         base_score = 3
-    elif length >= 8:
+    elif entropy_bits >= 24:
         base_score = 2
     else:
         base_score = 1
-    
-    # SECONDARY: Character type diversity bonus
-    # Rewards using multiple character types
+
+    # -- SECONDARY: Character type diversity bonus (unchanged from v1) --
     if char_types >= 5:
-        base_score = min(10, base_score + 2)  # All types + space
+        base_score = min(10, base_score + 2)
     elif char_types >= 4:
-        base_score = min(10, base_score + 2)  # All types
+        base_score = min(10, base_score + 2)
     elif char_types == 3:
-        base_score = min(10, base_score + 1)  # Three types
+        base_score = min(10, base_score + 1)
     elif char_types == 2:
-        # No bonus for 2 types (encourage more)
         pass
     else:
-        # Penalty for single type (strongly encourage diversity)
         base_score = max(1, base_score - 1)
-    
-    # TERTIARY: Character uniqueness penalty
-    # Penalize passwords with repeated characters
+
+    # -- TERTIARY: Expected-uniqueness comparison --
     unique_chars = len(set(password))
-    uniqueness_ratio = unique_chars / length if length > 0 else 0
-    
-    # Penalty for low uniqueness (high repetition)
-    if uniqueness_ratio < 0.5:
-        # More than half the characters are repeats
-        base_score = max(1, base_score - 2)
-    elif uniqueness_ratio < 0.7:
-        # 30-50% repetition
-        base_score = max(1, base_score - 1)
-    # No penalty for uniqueness_ratio >= 0.7 (good diversity)
-    
-    # Additional penalty for consecutive repeated characters
-    consecutive_penalty = 0
+    expected = expected_unique_chars(charset_size, length)
+
+    if expected > 0:
+        ratio_of_expected = unique_chars / expected
+        if ratio_of_expected < 0.40:
+            base_score = max(1, base_score - 2)
+        elif ratio_of_expected < 0.60:
+            base_score = max(1, base_score - 1)
+
+    # -- Consecutive repeat penalty (capped at -1) --
+    has_consecutive_run = False
     consecutive_count = 1
     for i in range(1, len(password)):
         if password[i] == password[i-1]:
             consecutive_count += 1
             if consecutive_count >= 3:
-                consecutive_penalty += 1
+                has_consecutive_run = True
+                break
         else:
             consecutive_count = 1
-    
-    base_score = max(1, base_score - consecutive_penalty)
-    
-    # Pattern penalty (catch weak patterns)
+
+    if has_consecutive_run:
+        base_score = max(1, base_score - 1)
+
+    # -- Pattern penalty (-1 per match, capped at -2) --
     pattern_penalty = 0
     simple_patterns = ['123', 'abc', 'qwe', 'asd', 'password', 'admin']
-    for pattern in simple_patterns:
-        if pattern in password.lower():
-            pattern_penalty += 2
-    
-    base_score = max(1, base_score - pattern_penalty)
-    
+    for pat in simple_patterns:
+        if pat in password.lower():
+            pattern_penalty += 1
+
+    base_score = max(1, base_score - min(pattern_penalty, 2))
+
     return max(1, min(10, base_score))
 
 
@@ -759,11 +832,12 @@ def save_password(
     filename: Path = PASSWORD_FILE,
     label: Optional[str] = None,
     category: Optional[str] = None,
-    tags: Optional[List[str]] = None
+    tags: Optional[List[str]] = None,
+    charset_size: Optional[int] = None,
 ) -> None:
     """Securely save encrypted password record with metadata."""
     try:
-        strength = calculate_password_strength(password)
+        strength = calculate_password_strength(password, charset_size=charset_size)
         record = {
             "timestamp": datetime.now().strftime("%a, %b %d, %Y %I:%M:%S:%f %p"),
             "password": password,
@@ -1361,6 +1435,16 @@ def main() -> None:
 
             sys.exit(0)
 
+        pool_size = compute_charset_size(
+            use_upper=args.upper,
+            use_lower=args.lower,
+            use_digits=args.digits,
+            use_symbols=args.symbols,
+            allowed_symbols=args.allowed_symbols,
+            exclude_similar=args.exclude_similar,
+            blank=args.blank,
+        )
+
         for i in range(args.count):
             password = generate_password(
                 length=args.length,
@@ -1377,7 +1461,7 @@ def main() -> None:
             )
             
             # Calculate and display strength
-            strength = calculate_password_strength(password)
+            strength = calculate_password_strength(password, charset_size=pool_size)
             strength_display = format_strength_meter(strength)
             
             print(f"Generated Password {i+1}: {password}")
@@ -1395,7 +1479,8 @@ def main() -> None:
                     password,
                     label=args.label,
                     category=args.category,
-                    tags=tags
+                    tags=tags,
+                    charset_size=pool_size,
                 )
 
         if args.save_history and args.count > 0:

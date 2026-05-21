@@ -25,7 +25,7 @@ A robust, powerful, and secure command-line utility for generating **cryptograph
 - **Restrictive Permissions** - all files created with `0600` (owner read/write only)
 - **Flexible Character Policies** - uppercase, lowercase, digits, symbols, blanks, custom symbol sets, exclude similar characters, prevent consecutive duplicates, minimum per-type requirements
 - **Pattern-Based Generation** - define exact character type positions (`l`=lower, `u`=upper, `d`=digit, `s`=symbol, `b`=blank, `*`=any)
-- **Password Strength Meter** - length-based scoring, character diversity bonuses, uniqueness penalties, pattern detection (1-10 scale)
+- **Password Strength Meter** - entropy-based scoring, character diversity bonuses, expected-uniqueness penalties, pattern detection (1-10 scale)
 - **Metadata & Organization** - labels, categories, comma-separated tags, automatic timestamps
 - **History Management** - ASCII table view, search by label/category/tags, filter by strength/category/date, entry deletion
 - **Config File Support** - load defaults from YAML or JSON config files; CLI args always override
@@ -377,19 +377,37 @@ flowchart TD
 
 ## 🧪 Testing
 
+### Integration Tests
+
 The project includes a comprehensive integration test suite (41 tests). Run tests directly:
 
 ```bash
-bash test_integration.sh
+bash tests/test_integration.sh
 ```
 
 Or test in an isolated Podman container:
 
 ```bash
-podman run --rm -v $(pwd):/workspace:Z fedora:latest bash -c "cd /workspace && dnf install -y python3 python3-pip > /dev/null 2>&1 && pip3 install -r requirements.txt > /dev/null 2>&1 && bash test_integration.sh"
+podman run --rm -v $(pwd):/workspace:Z fedora:latest bash -c "cd /workspace && dnf install -y python3 python3-pip > /dev/null 2>&1 && pip3 install -r requirements.txt > /dev/null 2>&1 && bash tests/test_integration.sh"
 ```
 
 **Exit Codes:** On failure, the script exits with the test number that failed (e.g., exit code `15` means Test 15 failed). Exit code `0` indicates all tests passed.
+
+### Unit Tests
+
+Pytest suite covering entropy-based strength scoring, consistency, edge cases, and charset computation:
+
+```bash
+pytest tests/test_strength_pytest.py -v
+```
+
+### Benchmark / Diagnostic Tool
+
+A standalone CLI script for analyzing score distributions, standard deviation, and flicker across configurations:
+
+```bash
+python tests/benchmark_strength.py -n 200
+```
 
 ---
 

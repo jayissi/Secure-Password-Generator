@@ -1,2 +1,6 @@
-~/.secure_passwords
+.env
+*.pyc
+*.pyo
+.cursor/
 __pycache__/
+.pytest_cache/

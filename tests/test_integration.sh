@@ -53,6 +53,9 @@ set -e
 # This is a safety net in case script_exit is not called
 trap 'restore_shell_state' EXIT
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "${SCRIPT_DIR}/.." || { echo "[FAIL] Could not cd to project root"; script_exit 1; }
+
 echo "=========================================="
 echo "Testing Secure Password Generator"
 echo "=========================================="
