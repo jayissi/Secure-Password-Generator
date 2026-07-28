@@ -14,10 +14,14 @@ import os
 import sys
 import json
 import base64
+import hashlib
 import secrets
 import string
 import argparse
+import getpass
+import shutil
 import subprocess
+import threading
 from pathlib import Path
 from typing import Optional, List, Dict, Any, cast, Callable, Tuple
 from datetime import datetime
@@ -36,6 +40,8 @@ MIN_PASSWORD_LENGTH = 8
 DEFAULT_PASSWORD_LENGTH = 12
 MAX_GENERATION_ATTEMPTS = 100
 SECURE_DELETE_PASSES = 3
+CLIPBOARD_CLEAR_SECONDS = 60
+MIN_ENCRYPTED_LENGTH = 28  # 12-byte nonce + 16-byte GCM tag minimum
 
 DEFAULT_FILE_PERMISSIONS = 0o600
 DEFAULT_DIR_PERMISSIONS = 0o700
@@ -45,11 +51,13 @@ PASSWORD_DIR = Path.home().joinpath(".secure_passwords")
 PASSWORD_FILE = PASSWORD_DIR.joinpath("vault.enc")
 KEY_FILE = PASSWORD_DIR.joinpath("encryption.key")
 PEPPER_FILE = PASSWORD_DIR.joinpath("pepper.key")
+MASTER_SALT_FILE = PASSWORD_DIR.joinpath("master_salt.bin")
 
 SIMILAR_CHARS = "il1Lo0O"  # Characters to exclude when --exclude-similar is used
 
 # Argon2id parameters (tune to your environment)
-ARGON2_DIGEST_LENGTH = 64      # 512-bit digest
+ARGON2_DIGEST_LENGTH = 64      # 512-bit digest (per-password hashing)
+MASTER_KDF_LENGTH = 32         # 256-bit derived key (master password)
 ARGON2_ITERATIONS = 100        # time cost
 ARGON2_LANES = 4               # parallelism
 ARGON2_MEMORY_COST = 64 * 1024 # 64 MiB
@@ -73,6 +81,7 @@ _CLIPBOARD_METHOD: Optional[Callable[[str], bool]] = None
 # Performance Optimization: Encryption Key Caching
 # =========================
 _KEY_CACHE: Dict[str, Tuple[bytes, float]] = {}
+_FINAL_KEY_CACHE: Dict[str, bytes] = {}
 
 
 # =========================
@@ -93,24 +102,128 @@ def initialize_security_files() -> None:
         PEPPER_FILE.chmod(DEFAULT_FILE_PERMISSIONS)
 
 
+def _verify_file_permissions(file_path: Path) -> None:
+    """Warn if a security-sensitive file has permissions other than 0600."""
+    if not file_path.exists():
+        return
+    mode = file_path.stat().st_mode & 0o777
+    if mode != DEFAULT_FILE_PERMISSIONS:
+        print(
+            f"[!] WARNING: {file_path} has insecure permissions "
+            f"({oct(mode)}). Expected {oct(DEFAULT_FILE_PERMISSIONS)}. "
+            f"Run: chmod 600 {file_path}",
+            file=sys.stderr,
+        )
+
+
 def _get_cached_key(file_path: Path, cache_key: str) -> bytes:
     """Helper to retrieve a cached key file, refreshing if file was modified."""
     initialize_security_files()
-    
+    _verify_file_permissions(file_path)
+
     current_mtime = file_path.stat().st_mtime if file_path.exists() else 0.0
     cached = _KEY_CACHE.get(cache_key)
-    
+
     if cached is None or cached[1] != current_mtime:
         key_bytes = file_path.read_bytes()
         _KEY_CACHE[cache_key] = (key_bytes, current_mtime)
         return key_bytes
-    
+
     return cached[0]
 
 
-def get_encryption_key() -> bytes:
-    """Retrieve or create the persistent AES key (cached)."""
+def _is_master_password_enabled() -> bool:
+    """Return True when a master password salt file exists."""
+    return MASTER_SALT_FILE.exists()
+
+
+def prompt_master_password(prompt: str = "Master password: ") -> str:
+    """
+    Prompt for the master password via getpass.
+
+    Raises ValueError when stdin is not a TTY (non-interactive) so callers
+    must supply --master-password instead of hanging.
+    """
+    if not sys.stdin.isatty():
+        raise ValueError(
+            "Master password required but stdin is not a TTY. "
+            "Use --master-password for non-interactive use."
+        )
+    password = getpass.getpass(prompt)
+    if not password:
+        raise ValueError("Master password cannot be empty")
+    return password
+
+
+def derive_master_key(master_password: str, salt: Optional[bytes] = None) -> bytes:
+    """
+    Derive a 32-byte key from the master password via Argon2id.
+
+    Args:
+        master_password: The user's master password
+        salt: Optional salt bytes; when None, reads MASTER_SALT_FILE
+
+    Returns:
+        32-byte derived key
+    """
+    if salt is None:
+        if not MASTER_SALT_FILE.exists():
+            raise ValueError("Master salt file not found; run --set-master-password first")
+        _verify_file_permissions(MASTER_SALT_FILE)
+        salt = MASTER_SALT_FILE.read_bytes()
+
+    kdf = Argon2id(
+        salt=salt,
+        length=MASTER_KDF_LENGTH,
+        iterations=ARGON2_ITERATIONS,
+        lanes=ARGON2_LANES,
+        memory_cost=ARGON2_MEMORY_COST,
+    )
+    return kdf.derive(master_password.encode("utf-8"))
+
+
+def combine_keys(derived: bytes, file_key: bytes) -> bytes:
+    """XOR a master-password-derived key with the on-disk encryption key."""
+    if len(derived) != len(file_key):
+        raise ValueError("Derived key and file key must be the same length")
+    return bytes(a ^ b for a, b in zip(derived, file_key))
+
+
+def get_file_encryption_key() -> bytes:
+    """Retrieve the persistent on-disk AES key material (cached)."""
     return _get_cached_key(KEY_FILE, "encryption")
+
+
+def get_encryption_key(master_password: Optional[str] = None) -> bytes:
+    """
+    Resolve the final AES-256 key.
+
+    When a master password is configured (master_salt.bin exists), the final
+    key is derived_key XOR file_key (two-factor encryption). Otherwise the
+    on-disk file key is used alone (backward compatible).
+    """
+    file_key = get_file_encryption_key()
+
+    if _is_master_password_enabled():
+        if master_password is None:
+            raise ValueError("Master password required but not provided")
+
+        # Cache final key for this process so Argon2id is not re-run every call
+        cache_id = (
+            "final:"
+            + str(MASTER_SALT_FILE.stat().st_mtime)
+            + ":"
+            + hashlib.sha256(master_password.encode("utf-8")).hexdigest()
+        )
+        if cache_id in _FINAL_KEY_CACHE:
+            return _FINAL_KEY_CACHE[cache_id]
+
+        derived = derive_master_key(master_password)
+        final_key = combine_keys(derived, file_key)
+        _FINAL_KEY_CACHE[cache_id] = final_key
+        return final_key
+
+    return file_key
 
 
 def get_pepper() -> bytes:
@@ -120,45 +233,156 @@ def get_pepper() -> bytes:
 
 def secure_delete_file(file_path: Path, passes: int = SECURE_DELETE_PASSES) -> None:
     """
-    Securely delete a file by overwriting with random data multiple times.
-    
+    Securely delete a file using shred (preferred on Fedora/RHEL) or
+    manual overwrite as fallback.
+
+    Note: shred is effective on traditional block-device-backed
+    filesystems (ext3, ext4 data=ordered, XFS). It does NOT guarantee
+    secure erasure on SSDs (wear-leveling), copy-on-write filesystems
+    (btrfs, ZFS), or filesystems with data journaling (ext4 data=journal).
+
     Args:
         file_path: Path to file to securely delete
         passes: Number of overwrite passes (default: SECURE_DELETE_PASSES)
     """
     if not file_path.exists():
         return
-    
-    file_size = file_path.stat().st_size
-    
-    # Overwrite with random data multiple times
-    with open(file_path, "r+b") as f:
-        for _ in range(passes):
-            f.seek(0)
-            f.write(secrets.token_bytes(file_size))
-            f.flush()
-            os.fsync(f.fileno())
-    
-    # Delete the file
-    file_path.unlink()
+
+    shred_bin = shutil.which("shred")
+    if shred_bin:
+        subprocess.run(
+            [shred_bin, "-vuxzn", str(passes), str(file_path)],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    else:
+        print(
+            "[!] shred not found; falling back to manual overwrite "
+            "(limited effectiveness on modern filesystems)",
+            file=sys.stderr,
+        )
+        file_size = file_path.stat().st_size
+        with open(file_path, "r+b") as f:
+            for _ in range(passes):
+                f.seek(0)
+                f.write(secrets.token_bytes(file_size))
+                f.flush()
+                os.fsync(f.fileno())
+        file_path.unlink()
 
 
-def encrypt_data(data: str) -> bytes:
+def encrypt_data(data: str, key: bytes) -> bytes:
     """Encrypt JSON Payload using AES-GCM-SIV."""
-    key = get_encryption_key()
     nonce = secrets.token_bytes(12)
     aesgcm = AESGCMSIV(key)
     ciphertext = aesgcm.encrypt(nonce, data.encode(), None)
     return nonce + ciphertext  # Store nonce with ciphertext
 
 
-def decrypt_data(encrypted: bytes) -> str:
+def decrypt_data(encrypted: bytes, key: bytes) -> str:
     """Decrypt AES-GCM-SIV ciphertext (nonce||ciphertext)."""
-    key = get_encryption_key()
+    if len(encrypted) < MIN_ENCRYPTED_LENGTH:
+        raise ValueError("Encrypted data too short -- possibly corrupted")
     nonce = encrypted[:12]
     ciphertext = encrypted[12:]
     aesgcm = AESGCMSIV(key)
     return aesgcm.decrypt(nonce, ciphertext, None).decode()
+
+
+def resolve_master_password(args: Any) -> Optional[str]:
+    """
+    Resolve the master password from CLI args or interactive prompt.
+
+    Resolution order:
+      1. --master-password VALUE (prints security warning)
+      2. Auto-prompt when master_salt.bin exists
+      3. None when master password is not configured
+    """
+    if getattr(args, "master_password", None):
+        print(
+            "[!] WARNING: --master-password exposes the password in process lists. "
+            "Prefer interactive -U/--unlock for normal use.",
+            file=sys.stderr,
+        )
+        return args.master_password
+
+    if _is_master_password_enabled():
+        return prompt_master_password()
+
+    return None
+
+
+def set_master_password(
+    new_password: Optional[str] = None,
+    current_password: Optional[str] = None,
+) -> None:
+    """
+    Configure or change the master password and re-encrypt the vault.
+
+    Args:
+        new_password: New master password (prompted if None)
+        current_password: Current master password when one already exists
+                          (prompted if None and master is already enabled)
+    """
+    initialize_security_files()
+
+    # Determine old key
+    if _is_master_password_enabled():
+        if current_password is None:
+            current_password = prompt_master_password("Current master password: ")
+        old_key = get_encryption_key(current_password)
+    else:
+        old_key = get_encryption_key()
+
+    # Decrypt existing vault entries with old key
+    plaintext_entries: List[str] = []
+    if PASSWORD_FILE.exists():
+        _verify_file_permissions(PASSWORD_FILE)
+        with open(PASSWORD_FILE, "rb") as f:
+            lines = [line.strip() for line in f if line.strip()]
+        for line in lines:
+            blob = base64.b64decode(line, validate=True)
+            plaintext_entries.append(decrypt_data(blob, old_key))
+
+    # Obtain new master password
+    if new_password is None:
+        pw1 = prompt_master_password("New master password: ")
+        pw2 = prompt_master_password("Confirm master password: ")
+        if pw1 != pw2:
+            raise ValueError("Master passwords do not match")
+        new_password = pw1
+    elif not new_password:
+        raise ValueError("Master password cannot be empty")
+
+    # Create fresh salt and derive new combined key
+    salt = secrets.token_bytes(32)
+    MASTER_SALT_FILE.write_bytes(salt)
+    MASTER_SALT_FILE.chmod(DEFAULT_FILE_PERMISSIONS)
+
+    # Invalidate any cached encryption key so new salt is used
+    _KEY_CACHE.clear()
+    _FINAL_KEY_CACHE.clear()
+
+    derived = derive_master_key(new_password, salt=salt)
+    file_key = get_file_encryption_key()
+    new_key = combine_keys(derived, file_key)
+
+    # Re-encrypt vault with new key
+    if plaintext_entries:
+        temp_path = PASSWORD_FILE.with_suffix(".enc.tmp")
+        with open(temp_path, "wb") as f:
+            for plaintext in plaintext_entries:
+                encrypted = encrypt_data(plaintext, new_key)
+                f.write(base64.b64encode(encrypted) + b"\n")
+        temp_path.chmod(DEFAULT_FILE_PERMISSIONS)
+        if PASSWORD_FILE.exists():
+            secure_delete_file(PASSWORD_FILE)
+        temp_path.rename(PASSWORD_FILE)
+        PASSWORD_FILE.chmod(DEFAULT_FILE_PERMISSIONS)
+
+    print(f"[✓] Master password configured. Salt stored at {MASTER_SALT_FILE}")
+    print("[✓] Vault re-encrypted with two-factor key (master password + encryption.key)")
 
 
 def argon2id_hash(password: str) -> Dict[str, Any]:
@@ -193,6 +417,48 @@ def argon2id_hash(password: str) -> Dict[str, Any]:
     }
 
 
+def build_charset(
+    use_upper: bool = False,
+    use_lower: bool = False,
+    use_digits: bool = False,
+    use_symbols: bool = False,
+    allowed_symbols: Optional[str] = None,
+    exclude_similar: bool = False,
+    blank: bool = False,
+) -> List[Tuple[str, str]]:
+    """
+    Build the list of (name, filtered_chars) tuples used by both
+    compute_charset_size and generate_password.
+    """
+    charset_tuples: List[Tuple[str, str]] = []
+
+    if use_upper:
+        up = _filter_similar_chars(string.ascii_uppercase, exclude_similar)
+        if up:
+            charset_tuples.append(("upper", up))
+    if use_lower:
+        lo = _filter_similar_chars(string.ascii_lowercase, exclude_similar)
+        if lo:
+            charset_tuples.append(("lower", lo))
+    if use_digits:
+        dg = _filter_similar_chars(string.digits, exclude_similar)
+        if dg:
+            charset_tuples.append(("digits", dg))
+
+    effective_symbols = allowed_symbols if allowed_symbols else (
+        string.punctuation if use_symbols else ""
+    )
+    if effective_symbols:
+        sym = _filter_similar_chars(effective_symbols, exclude_similar)
+        if sym:
+            charset_tuples.append(("symbols", "".join(dict.fromkeys(sym))))
+
+    if blank:
+        charset_tuples.append(("blank", " "))
+
+    return charset_tuples
+
+
 def compute_charset_size(
     use_upper: bool = False,
     use_lower: bool = False,
@@ -208,27 +474,16 @@ def compute_charset_size(
     calculate_password_strength, this mirrors the generator's charset
     construction so entropy is computed against the actual pool.
     """
-    size = 0
-    if use_upper:
-        up = _filter_similar_chars(string.ascii_uppercase, exclude_similar)
-        size += len(up)
-    if use_lower:
-        lo = _filter_similar_chars(string.ascii_lowercase, exclude_similar)
-        size += len(lo)
-    if use_digits:
-        dg = _filter_similar_chars(string.digits, exclude_similar)
-        size += len(dg)
-
-    effective_symbols = allowed_symbols if allowed_symbols else (
-        string.punctuation if use_symbols else ""
+    charset_tuples = build_charset(
+        use_upper=use_upper,
+        use_lower=use_lower,
+        use_digits=use_digits,
+        use_symbols=use_symbols,
+        allowed_symbols=allowed_symbols,
+        exclude_similar=exclude_similar,
+        blank=blank,
     )
-    if effective_symbols:
-        sym = _filter_similar_chars(effective_symbols, exclude_similar)
-        size += len(set(sym))
-
-    if blank:
-        size += 1
-
+    size = sum(len(chars) for _, chars in charset_tuples)
     return max(size, 1)
 
 
@@ -480,6 +735,23 @@ def _filter_similar_chars(chars: str, exclude_similar: bool) -> str:
     return "".join(c for c in chars if c not in SIMILAR_CHARS)
 
 
+def _violates_no_repeats(
+    slots: List[Optional[str]],
+    ch: str,
+    pos: int,
+    length: int,
+    no_repeats: bool,
+) -> bool:
+    """Return True if placing ch at pos would create a consecutive duplicate."""
+    if not no_repeats:
+        return False
+    if pos > 0 and slots[pos - 1] is not None and slots[pos - 1] == ch:
+        return True
+    if pos < length - 1 and slots[pos + 1] is not None and slots[pos + 1] == ch:
+        return True
+    return False
+
+
 def _validate_generation_feasibility(
     length: int,
     charset_tuples: List[Tuple[str, str]],
@@ -585,26 +857,16 @@ def generate_password(
                 "Add more symbols or enable other character types."
             )
 
-    # Build and filter character sets ONCE (optimization)
-    charset_tuples = []
-    if use_upper:
-        up = _filter_similar_chars(string.ascii_uppercase, exclude_similar)
-        if up:
-            charset_tuples.append(("upper", up))
-    if use_lower:
-        lo = _filter_similar_chars(string.ascii_lowercase, exclude_similar)
-        if lo:
-            charset_tuples.append(("lower", lo))
-    if use_digits:
-        dg = _filter_similar_chars(string.digits, exclude_similar)
-        if dg:
-            charset_tuples.append(("digits", dg))
-    if effective_symbols:
-        sym = _filter_similar_chars(effective_symbols, exclude_similar)
-        if sym:
-            charset_tuples.append(("symbols", sym))
-    if blank:
-        charset_tuples.append(("blank", " "))
+    # Build and filter character sets ONCE via shared helper
+    charset_tuples = build_charset(
+        use_upper=use_upper,
+        use_lower=use_lower,
+        use_digits=use_digits,
+        use_symbols=use_symbols,
+        allowed_symbols=allowed_symbols,
+        exclude_similar=exclude_similar,
+        blank=blank,
+    )
 
     # Validate character sets
     for name, chars in charset_tuples:
@@ -616,29 +878,15 @@ def generate_password(
         length, charset_tuples, min_characters_per_type, no_repeats, blank
     )
 
-    # Pre-compute all_chars string (no list conversion needed)
+    # Pre-compute all_chars string and frozensets for verification
     all_chars = "".join(chars for _, chars in charset_tuples)
+    charset_sets = [(name, frozenset(chars)) for name, chars in charset_tuples]
 
     # Attempt password generation with retries
     for attempt in range(MAX_GENERATION_ATTEMPTS):
         try:
             # slots holds final characters (None for unfilled)
             slots: List[Optional[str]] = [None] * length
-            reserved_positions = set()
-
-            # helper: check if placing ch at pos would violate no_repeats with already-filled neighbors
-            def violates_no_repeats(ch: str, pos: int) -> bool:
-                if not no_repeats:
-                    return False
-                if pos > 0 and slots[pos - 1] is not None and slots[pos - 1] == ch:
-                    return True
-                if (
-                    pos < length - 1
-                    and slots[pos + 1] is not None
-                    and slots[pos + 1] == ch
-                ):
-                    return True
-                return False
 
             # Reserve positions and place characters to satisfy minima first (avoid overwrites)
             if min_characters_per_type:
@@ -674,11 +922,10 @@ def generate_password(
                         trials = 0
                         while trials < 200 and not placed:
                             ch = secrets.choice(chars)
-                            if violates_no_repeats(ch, pos):
+                            if _violates_no_repeats(slots, ch, pos, length, no_repeats):
                                 trials += 1
                                 continue
                             slots[pos] = ch
-                            reserved_positions.add(pos)
                             if pos in available_positions:
                                 available_positions.remove(pos)
                             placed = True
@@ -720,10 +967,10 @@ def generate_password(
 
             # Verify minima were satisfied for each selected charset
             if min_characters_per_type:
-                for name, chars in charset_tuples:
-                    if not chars:
+                for name, char_set in charset_sets:
+                    if not char_set:
                         continue
-                    count = sum(1 for c in password if c in chars)
+                    count = sum(1 for c in password if c in char_set)
                     if count < min_characters_per_type:
                         raise ValueError(
                             "Minima not satisfied after construction - retrying"
@@ -829,6 +1076,7 @@ def format_history_table(entries: List[Dict[str, Any]]) -> str:
 
 def save_password(
     password: str,
+    key: bytes,
     filename: Path = PASSWORD_FILE,
     label: Optional[str] = None,
     category: Optional[str] = None,
@@ -837,6 +1085,7 @@ def save_password(
 ) -> None:
     """Securely save encrypted password record with metadata."""
     try:
+        _verify_file_permissions(filename)
         strength = calculate_password_strength(password, charset_size=charset_size)
         record = {
             "timestamp": datetime.now().strftime("%a, %b %d, %Y %I:%M:%S:%f %p"),
@@ -848,7 +1097,7 @@ def save_password(
             "argon2id": argon2id_hash(password),
         }
         plaintext = json.dumps(record, separators=(",", ":"))
-        encrypted = encrypt_data(plaintext)
+        encrypted = encrypt_data(plaintext, key)
         line = base64.b64encode(encrypted) + b"\n"
 
         with open(filename, "ab") as f:
@@ -860,6 +1109,7 @@ def save_password(
 
 
 def show_password_history(
+    key: bytes,
     filename: Path = PASSWORD_FILE,
     limit: Optional[int] = None,
     search: Optional[str] = None,
@@ -874,6 +1124,8 @@ def show_password_history(
             print("No password history available")
             return
 
+        _verify_file_permissions(filename)
+
         # Read all entries (newest first)
         with open(filename, "rb") as f:
             entries = [line.strip() for line in f if line.strip()]
@@ -884,7 +1136,7 @@ def show_password_history(
         for line in entries:
             try:
                 blob = base64.b64decode(line, validate=True)
-                rec_json = decrypt_data(blob)
+                rec_json = decrypt_data(blob, key)
                 rec = json.loads(rec_json)
                 
                 # Apply filters
@@ -913,7 +1165,7 @@ def show_password_history(
                         pass
                 
                 filtered_entries.append(rec)
-            except Exception as e:
+            except Exception:
                 continue  # Skip invalid entries
         
         # Apply limit
@@ -1028,6 +1280,16 @@ def _initialize_clipboard() -> Optional[Callable[[str], bool]]:
     return None
 
 
+def _clear_clipboard() -> None:
+    """Overwrite the clipboard with an empty string (auto-clear callback)."""
+    method = _initialize_clipboard()
+    if method is not None:
+        try:
+            method("")
+        except Exception:
+            pass
+
+
 def copy_to_clipboard(password: str) -> bool:
     """Copy password to system clipboard using cached method."""
     method = _initialize_clipboard()
@@ -1039,9 +1301,16 @@ def copy_to_clipboard(password: str) -> bool:
         return False
 
 
+def schedule_clipboard_clear() -> None:
+    """Schedule a daemon timer to clear the clipboard after CLIPBOARD_CLEAR_SECONDS."""
+    timer = threading.Timer(CLIPBOARD_CLEAR_SECONDS, _clear_clipboard)
+    timer.daemon = True
+    timer.start()
+
+
 def cleanup_files() -> None:
     """Clean up password and key files with secure deletion."""
-    files_to_cleanup = [PASSWORD_FILE, KEY_FILE, PEPPER_FILE]
+    files_to_cleanup = [PASSWORD_FILE, KEY_FILE, PEPPER_FILE, MASTER_SALT_FILE]
     
     for file in files_to_cleanup:
         if file.exists():
@@ -1207,6 +1476,23 @@ def create_argument_parser() -> argparse.ArgumentParser:
         "--clipboard",
         action="store_true",
         help="Copy password to clipboard",
+    )
+    basic_group.add_argument(
+        "-U",
+        "--unlock",
+        action="store_true",
+        help="Explicitly unlock vault with master password (auto-prompts when master password is configured)",
+    )
+    basic_group.add_argument(
+        "--master-password",
+        type=str,
+        metavar="PASSWORD",
+        help="Master password for scripting/CI (exposes password in process lists; prefer -U)",
+    )
+    basic_group.add_argument(
+        "--set-master-password",
+        action="store_true",
+        help="Configure or change the master password and re-encrypt the vault",
     )
 
     # Character type options
@@ -1381,12 +1667,35 @@ def main() -> None:
         parser.print_help()
         sys.exit(0)
 
+    # Configure / change master password (before other vault ops)
+    if args.set_master_password:
+        try:
+            # When --master-password is supplied, use it as the NEW password
+            # (and as current password if one already exists — for CI re-set).
+            new_pw = args.master_password
+            current_pw = args.master_password if _is_master_password_enabled() else None
+            set_master_password(new_password=new_pw, current_password=current_pw)
+        except Exception as e:
+            print(f"[!] Error: {e}", file=sys.stderr)
+            sys.exit(1)
+        sys.exit(0)
+
     if args.cleanup:
         cleanup_files()
         sys.exit(0)
 
+    def _require_key() -> bytes:
+        """Resolve encryption key on demand for vault operations."""
+        try:
+            master_pw = resolve_master_password(args)
+            return get_encryption_key(master_pw)
+        except Exception as e:
+            print(f"[!] Error: {e}", file=sys.stderr)
+            sys.exit(1)
+
     if args.show_history:
         show_password_history(
+            key=_require_key(),
             limit=args.limit,
             search=args.search,
             filter_strength=args.filter_strength,
@@ -1425,6 +1734,7 @@ def main() -> None:
             if args.save_history:
                 save_password(
                     args.passphrase,
+                    key=_require_key(),
                     label=args.label,
                     category=args.category,
                     tags=tags
@@ -1445,6 +1755,9 @@ def main() -> None:
             blank=args.blank,
         )
 
+        # Resolve key once if we will save any passwords
+        key: Optional[bytes] = _require_key() if args.save_history else None
+
         for i in range(args.count):
             password = generate_password(
                 length=args.length,
@@ -1459,11 +1772,11 @@ def main() -> None:
                 blank=args.blank,
                 pattern=args.pattern,
             )
-            
+
             # Calculate and display strength
             strength = calculate_password_strength(password, charset_size=pool_size)
             strength_display = format_strength_meter(strength)
-            
+
             print(f"Generated Password {i+1}: {password}")
             print(f"Strength: {strength_display}")
 
@@ -1471,12 +1784,17 @@ def main() -> None:
             if args.clipboard:
                 if copy_to_clipboard(password):
                     print("✓ Password copied to clipboard")
+                    schedule_clipboard_clear()
+                    print(
+                        f"Clipboard will auto-clear in {CLIPBOARD_CLEAR_SECONDS} seconds..."
+                    )
                 else:
                     print("⚠ Could not copy to clipboard (install pyperclip for better support)")
 
-            if args.save_history:
+            if args.save_history and key is not None:
                 save_password(
                     password,
+                    key=key,
                     label=args.label,
                     category=args.category,
                     tags=tags,

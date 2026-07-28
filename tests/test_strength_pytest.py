@@ -22,6 +22,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from password_generator import (
+    build_charset,
     calculate_password_strength,
     compute_charset_size,
     expected_unique_chars,
@@ -262,3 +263,47 @@ class TestComputeCharsetSize:
     def test_user_config_pool(self):
         size = _pool(BLANK_CONFIG)
         assert size > 50
+
+
+# ── 7. build_charset sanity ──────────────────────────────────────────────
+
+class TestBuildCharset:
+
+    def test_matches_compute_charset_size(self):
+        tuples = build_charset(
+            use_upper=True, use_lower=True, use_digits=True, use_symbols=True
+        )
+        size_from_tuples = sum(len(chars) for _, chars in tuples)
+        assert size_from_tuples == compute_charset_size(
+            use_upper=True, use_lower=True, use_digits=True, use_symbols=True
+        )
+
+    def test_non_empty_charsets(self):
+        tuples = build_charset(
+            use_upper=True, use_lower=True, use_digits=True,
+            use_symbols=True, blank=True,
+        )
+        assert len(tuples) >= 4
+        for name, chars in tuples:
+            assert chars, f"{name} charset unexpectedly empty"
+
+    def test_exclude_similar_reduces_chars(self):
+        full = build_charset(use_upper=True, use_lower=True, use_digits=True)
+        filtered = build_charset(
+            use_upper=True, use_lower=True, use_digits=True, exclude_similar=True
+        )
+        full_size = sum(len(c) for _, c in full)
+        filtered_size = sum(len(c) for _, c in filtered)
+        assert filtered_size < full_size
+
+    def test_blank_config_matches_pool(self):
+        tuples = build_charset(
+            use_upper=BLANK_CONFIG["use_upper"],
+            use_lower=BLANK_CONFIG["use_lower"],
+            use_digits=BLANK_CONFIG["use_digits"],
+            use_symbols=BLANK_CONFIG["use_symbols"],
+            allowed_symbols=BLANK_CONFIG["allowed_symbols"],
+            exclude_similar=BLANK_CONFIG["exclude_similar"],
+            blank=BLANK_CONFIG["blank"],
+        )
+        assert sum(len(c) for _, c in tuples) == _pool(BLANK_CONFIG)

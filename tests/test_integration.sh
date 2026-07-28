@@ -56,29 +56,61 @@ trap 'restore_shell_state' EXIT
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${SCRIPT_DIR}/.." || { echo "[FAIL] Could not cd to project root"; script_exit 1; }
 
+# Test master password for non-interactive CI runs
+MASTER_PW="TestMaster123!"
+MP="--master-password ${MASTER_PW}"
+
 echo "=========================================="
 echo "Testing Secure Password Generator"
 echo "=========================================="
+
+# Start from a clean vault so master-password tests are deterministic
+python3 password_generator.py -C >/dev/null 2>&1 || true
+
+# ============================================
+# MASTER PASSWORD SETUP
+# ============================================
+
+# Test 0a: Set master password (non-interactive)
+echo -e "\n[TEST 0a] Set master password"
+python3 password_generator.py --set-master-password ${MP} || { echo "[FAIL] Test 0a failed"; script_exit 1; }
+test -f "${HOME}/.secure_passwords/master_salt.bin" || { echo "[FAIL] Test 0a failed - master_salt.bin missing"; script_exit 1; }
+
+# Test 0b: Vault ops fail without master password when one is set (non-TTY)
+echo -e "\n[TEST 0b] Vault ops fail without master password (non-TTY)"
+set +e
+OUT_0B=$(python3 password_generator.py -F -L 12 2>&1)
+RC_0B=$?
+set -e
+if [ "$RC_0B" -eq 0 ]; then
+    echo "[FAIL] Test 0b failed - vault op succeeded without master password"
+    script_exit 1
+fi
+if echo "$OUT_0B" | grep -qi "master password"; then
+    echo "  -> Correctly rejected missing master password"
+else
+    echo "  -> Correctly rejected with nonzero exit (rc=$RC_0B)"
+fi
 
 # ============================================
 # BASIC FUNCTIONALITY TESTS
 # ============================================
 
-# Test 1: Basic password generation
+# Test 1: Basic password generation (no save — no master pw needed)
 echo -e "\n[TEST 1] Basic password generation"
 python3 password_generator.py -F -L 16 -n || { echo "[FAIL] Test 1 failed"; script_exit 1; }
 
 # Test 2: Password with metadata (label, category, tags)
 echo -e "\n[TEST 2] Password with metadata (label, category, tags)"
-python3 password_generator.py -F -L 16 --label "Gmail Account" --category "Email" --tags "work,important" || { echo "[FAIL] Test 2 failed"; script_exit 2; }
+python3 password_generator.py -F -L 16 --label "Gmail Account" --category "Email" --tags "work,important" ${MP} || { echo "[FAIL] Test 2 failed"; script_exit 2; }
 
 # Test 3: Multiple passwords with different metadata
 echo -e "\n[TEST 3] Multiple passwords with different metadata"
-python3 password_generator.py -F -L 12 --label "Bank Account" --category "Banking" --tags "critical,2fa" -c 2 || { echo "[FAIL] Test 3 failed"; script_exit 3; }
+python3 password_generator.py -F -L 12 --label "Bank Account" --category "Banking" --tags "critical,2fa" -c 2 ${MP} || { echo "[FAIL] Test 3 failed"; script_exit 3; }
 
 # Test 4: Password with custom passphrase
 echo -e "\n[TEST 4] Custom passphrase with metadata"
-python3 password_generator.py -P "MySecurePass123!" --label "Custom Pass" --category "Personal" --tags "manual" || { echo "[FAIL] Test 4 failed"; script_exit 4; }
+python3 password_generator.py -P "MySecurePass123!" --label "Custom Pass" --category "Personal" --tags "manual" ${MP} || { echo "[FAIL] Test 4 failed"; script_exit 4; }
 
 # ============================================
 # CHARACTER TYPE TESTS
@@ -142,40 +174,40 @@ python3 password_generator.py -F -L 12 -c 3 --label "Batch Test" --category "Tes
 
 # Test 17: View history (table format)
 echo -e "\n[TEST 17] View password history (table format)"
-python3 password_generator.py -H || { echo "[FAIL] Test 17 failed"; script_exit 17; }
+python3 password_generator.py -H ${MP} || { echo "[FAIL] Test 17 failed"; script_exit 17; }
 
 # Test 18: View history with limit
 echo -e "\n[TEST 18] View history with limit"
-python3 password_generator.py -H --limit 3 || { echo "[FAIL] Test 18 failed"; script_exit 18; }
+python3 password_generator.py -H --limit 3 ${MP} || { echo "[FAIL] Test 18 failed"; script_exit 18; }
 
 # Test 19: Search history by label
 echo -e "\n[TEST 19] Search history by label"
-python3 password_generator.py -H --search "Gmail" || { echo "[FAIL] Test 19 failed"; script_exit 19; }
+python3 password_generator.py -H --search "Gmail" ${MP} || { echo "[FAIL] Test 19 failed"; script_exit 19; }
 
 # Test 20: Search history by category
 echo -e "\n[TEST 20] Search history by category"
-python3 password_generator.py -H --search "Email" || { echo "[FAIL] Test 20 failed"; script_exit 20; }
+python3 password_generator.py -H --search "Email" ${MP} || { echo "[FAIL] Test 20 failed"; script_exit 20; }
 
 # Test 21: Search history by tags
 echo -e "\n[TEST 21] Search history by tags"
-python3 password_generator.py -H --search "work" || { echo "[FAIL] Test 21 failed"; script_exit 21; }
+python3 password_generator.py -H --search "work" ${MP} || { echo "[FAIL] Test 21 failed"; script_exit 21; }
 
 # Test 22: Filter by category
 echo -e "\n[TEST 22] Filter by category"
-python3 password_generator.py -H --filter-category "Email" || { echo "[FAIL] Test 22 failed"; script_exit 22; }
+python3 password_generator.py -H --filter-category "Email" ${MP} || { echo "[FAIL] Test 22 failed"; script_exit 22; }
 
 # Test 23: Filter by strength
 echo -e "\n[TEST 23] Filter by strength (>= 8)"
-python3 password_generator.py -H --filter-strength 8 || { echo "[FAIL] Test 23 failed"; script_exit 23; }
+python3 password_generator.py -H --filter-strength 8 ${MP} || { echo "[FAIL] Test 23 failed"; script_exit 23; }
 
 # Test 24: Filter by date
 echo -e "\n[TEST 24] Filter by date (since today)"
 TODAY=$(date +%Y-%m-%d)
-python3 password_generator.py -H --since "$TODAY" || { echo "[FAIL] Test 24 failed"; script_exit 24; }
+python3 password_generator.py -H --since "$TODAY" ${MP} || { echo "[FAIL] Test 24 failed"; script_exit 24; }
 
 # Test 25: Combined filters
 echo -e "\n[TEST 25] Combined filters (category + strength)"
-python3 password_generator.py -H --filter-category "Email" --filter-strength 7 || { echo "[FAIL] Test 25 failed"; script_exit 25; }
+python3 password_generator.py -H --filter-category "Email" --filter-strength 7 ${MP} || { echo "[FAIL] Test 25 failed"; script_exit 25; }
 
 # ============================================
 # ENTRY MANAGEMENT TESTS
@@ -183,7 +215,7 @@ python3 password_generator.py -H --filter-category "Email" --filter-strength 7 |
 
 # Test 26: Delete entry by index
 echo -e "\n[TEST 26] Delete entry by index"
-ENTRY_COUNT=$(python3 password_generator.py -H 2>/dev/null | grep -c "│" || echo "0")
+ENTRY_COUNT=$(python3 password_generator.py -H ${MP} 2>/dev/null | grep -c "│" || echo "0")
 if [ "$ENTRY_COUNT" -gt "2" ]; then
     python3 password_generator.py --delete-entry 1 || { echo "[FAIL] Test 26 failed"; script_exit 26; }
 else
@@ -192,7 +224,7 @@ fi
 
 # Test 27: View history after deletion
 echo -e "\n[TEST 27] View history after deletion"
-python3 password_generator.py -H || { echo "[FAIL] Test 27 failed"; script_exit 27; }
+python3 password_generator.py -H ${MP} || { echo "[FAIL] Test 27 failed"; script_exit 27; }
 
 # ============================================
 # EDGE CASES AND VALIDATION TESTS
@@ -224,9 +256,9 @@ python3 password_generator.py -p '****lluu' -n || { echo "[FAIL] Test 32 failed"
 
 # Test 33: No save option
 echo -e "\n[TEST 33] No save option (verify not saved)"
-BEFORE_COUNT=$(python3 password_generator.py -H 2>/dev/null | grep -c "│" || echo "0")
+BEFORE_COUNT=$(python3 password_generator.py -H ${MP} 2>/dev/null | grep -c "│" || echo "0")
 python3 password_generator.py -F -L 16 -n --label "No Save Test" || { echo "[FAIL] Test 33 failed"; script_exit 33; }
-AFTER_COUNT=$(python3 password_generator.py -H 2>/dev/null | grep -c "│" || echo "0")
+AFTER_COUNT=$(python3 password_generator.py -H ${MP} 2>/dev/null | grep -c "│" || echo "0")
 if [ "$BEFORE_COUNT" -ne "$AFTER_COUNT" ]; then
     echo "[FAIL] Test 33 failed - password was saved when --no-save was used"
     script_exit 33
@@ -300,16 +332,63 @@ python3 password_generator.py -f /tmp/test_blank.yaml -n || { echo "[FAIL] Test 
 rm -f /tmp/test_blank.yaml
 
 # ============================================
-# FILE OPERATIONS TESTS (continued)
+# MASTER PASSWORD / SECURITY TESTS
 # ============================================
 
-# Test 40: Cleanup (secure deletion)
-echo -e "\n[TEST 40] Secure deletion (cleanup)"
-python3 password_generator.py -C || { echo "[FAIL] Test 40 failed"; script_exit 40; }
+# Test 40: History succeeds with correct --master-password
+echo -e "\n[TEST 40] History succeeds with correct master password"
+python3 password_generator.py -H ${MP} >/dev/null || { echo "[FAIL] Test 40 failed"; script_exit 40; }
 
-# Test 41: Verify cleanup worked
-echo -e "\n[TEST 41] Verify cleanup worked"
-python3 password_generator.py -H 2>&1 | grep -q "No password history available" || { echo "[FAIL] Test 41 failed - history still exists after cleanup"; script_exit 41; }
+# Test 41: Wrong master password yields empty/unreadable history (decrypt failures skipped)
+echo -e "\n[TEST 41] Wrong master password cannot decrypt entries"
+WRONG_OUT=$(python3 password_generator.py -H --master-password "WrongPassword!" 2>/dev/null || true)
+# With wrong key, decrypt fails per-line and filtered list is empty -> table says "No entries"
+if echo "$WRONG_OUT" | grep -qE "No entries to display|No password history"; then
+    echo "  -> Wrong password produced no readable entries (expected)"
+else
+    # If some garbage somehow appeared as rows, still fail if Gmail label is visible
+    if echo "$WRONG_OUT" | grep -q "Gmail Account"; then
+        echo "[FAIL] Test 41 failed - wrong password decrypted vault"
+        script_exit 41
+    fi
+    echo "  -> Wrong password did not expose known labels (expected)"
+fi
+
+# Test 42: shred is available on this platform (Fedora/RHEL)
+echo -e "\n[TEST 42] shred binary available"
+if command -v shred >/dev/null 2>&1; then
+    echo "  -> shred found at $(command -v shred)"
+else
+    echo "[FAIL] Test 42 failed - shred not found (required on Fedora/RHEL)"
+    script_exit 42
+fi
+
+# ============================================
+# FILE OPERATIONS TESTS (cleanup)
+# ============================================
+
+# Test 43: Cleanup (secure deletion via shred)
+echo -e "\n[TEST 43] Secure deletion (cleanup)"
+python3 password_generator.py -C || { echo "[FAIL] Test 43 failed"; script_exit 43; }
+
+# Test 44: Verify cleanup worked (vault + master salt gone)
+echo -e "\n[TEST 44] Verify cleanup worked"
+python3 password_generator.py -H 2>&1 | grep -q "No password history available" || { echo "[FAIL] Test 44 failed - history still exists after cleanup"; script_exit 44; }
+if [ -f "${HOME}/.secure_passwords/master_salt.bin" ]; then
+    echo "[FAIL] Test 44 failed - master_salt.bin still exists after cleanup"
+    script_exit 44
+fi
+
+# ============================================
+# BACKWARD COMPATIBILITY (no master password)
+# ============================================
+
+# Test 45: Vault without master password still works
+echo -e "\n[TEST 45] Backward compatibility (no master password)"
+python3 password_generator.py -C >/dev/null 2>&1 || true
+python3 password_generator.py -F -L 12 --label "NoMaster" --category "Compat" || { echo "[FAIL] Test 45 failed - save without master"; script_exit 45; }
+python3 password_generator.py -H | grep -q "NoMaster" || { echo "[FAIL] Test 45 failed - history without master"; script_exit 45; }
+python3 password_generator.py -C || { echo "[FAIL] Test 45 failed - cleanup"; script_exit 45; }
 
 echo -e "\n=========================================="
 echo "All tests completed successfully!"

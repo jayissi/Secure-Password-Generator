@@ -19,18 +19,19 @@ A robust, powerful, and secure command-line utility for generating **cryptograph
 ## ✨ Features
 
 - **Cryptographically Secure** randomness via Python's `secrets` module
+- **Two-Factor Encryption** - master password (something you know) XOR'd with `encryption.key` (something you have)
 - **AES-GCM-SIV Encryption** with Base64-encoded storage for misuse-resistant authenticated encryption
 - **Argon2id Hashing** with unique 256-bit salt per password and a separate 256-bit pepper key
-- **Secure File Deletion** - files overwritten with random data multiple times before removal
-- **Restrictive Permissions** - all files created with `0600` (owner read/write only)
+- **Secure File Deletion** - uses Linux `shred -vuxzn` when available, with overwrite+unlink fallback
+- **Restrictive Permissions** - all files created with `0600` (owner read/write only); warns if permissions drift
 - **Flexible Character Policies** - uppercase, lowercase, digits, symbols, blanks, custom symbol sets, exclude similar characters, prevent consecutive duplicates, minimum per-type requirements
 - **Pattern-Based Generation** - define exact character type positions (`l`=lower, `u`=upper, `d`=digit, `s`=symbol, `b`=blank, `*`=any)
 - **Password Strength Meter** - entropy-based scoring, character diversity bonuses, expected-uniqueness penalties, pattern detection (1-10 scale)
 - **Metadata & Organization** - labels, categories, comma-separated tags, automatic timestamps
 - **History Management** - ASCII table view, search by label/category/tags, filter by strength/category/date, entry deletion
 - **Config File Support** - load defaults from YAML or JSON config files; CLI args always override
-- **Clipboard Support** - copy passwords via `pyperclip` or `xclip` (RHEL/Fedora Linux)
-- **Performance Optimized** - clipboard method caching, encryption key caching, pre-validation of generation constraints
+- **Clipboard Support** - copy passwords via `pyperclip` or `xclip` (RHEL/Fedora Linux) with configurable auto-clear (`CLIPBOARD_CLEAR_SECONDS`, default 60s)
+- **Performance Optimized** - clipboard method caching, encryption key caching, pre-validation of generation constraints, shared charset builder
 
 ---
 
@@ -94,7 +95,10 @@ password_generator -h
 | `--count`              | `-c`  | Number of passwords to generate              | 1       |
 | `--passphrase`         | `-P`  | Custom passphrase (supersedes other options) | None    |
 | `--config`             | `-f`  | Load defaults from YAML/JSON config file     | None    |
-| `--clipboard`          | `-X`  | Copy password to clipboard                   | False   |
+| `--clipboard`          | `-X`  | Copy password to clipboard (auto-clears)     | False   |
+| `--unlock`             | `-U`  | Explicitly unlock vault with master password | False   |
+| `--master-password`    |       | Master password for scripting/CI             | None    |
+| `--set-master-password`|       | Configure/change master password + re-encrypt| False   |
 | `--help`               | `-h`  | Show help message                            | N/A     |
 
 #### Character Type Options
@@ -232,10 +236,26 @@ password_generator -f config.json -L 32
 <br/>
 
 **8. Secure cleanup**  
-Securely delete all password and key files.
+Securely delete all password and key files (including master salt).
 
 ```bash
 password_generator -C
+```
+
+<br/>
+
+**9. Two-factor encryption (master password)**  
+Configure a master password so the vault requires both something you know and the on-disk `encryption.key`.
+
+```bash
+# First-time setup (interactive prompts)
+password_generator --set-master-password
+
+# Unlock is automatic when master_salt.bin exists; -U is optional/self-documenting
+password_generator -U -H
+
+# Scripting/CI only (exposes password in process lists)
+password_generator --master-password 'YourSecret' -H
 ```
 
 ---
@@ -305,6 +325,8 @@ tags: "default,work"
 | `category`         | string | Default category for passwords               | "General"   |
 | `tags`             | string | Comma-separated default tags                 | None        |
 
+> **Note:** Clipboard auto-clear timeout is controlled by the code-level constant `CLIPBOARD_CLEAR_SECONDS` (default `60`) in `password_generator.py`, not by the config file. Master password setup is CLI-only (`--set-master-password`).
+
 ---
 
 ## 🛡️ Security Details
@@ -314,11 +336,13 @@ This tool is designed with security as a top priority. `JSON Payload → Argon2i
 ### Storage Location
 
 - **Password Vault**: `${HOME}/.secure_passwords/vault.enc`
-- **Encryption Key**: `${HOME}/.secure_passwords/encryption.key` (256-bit AES key)
+- **Encryption Key**: `${HOME}/.secure_passwords/encryption.key` (256-bit key material)
 - **Pepper Key**: `${HOME}/.secure_passwords/pepper.key` (256-bit pepper for Argon2id)
+- **Master Salt**: `${HOME}/.secure_passwords/master_salt.bin` (32-byte salt for master-password KDF; created by `--set-master-password`)
 
 ### Security Features
 
+- **Two-Factor Encryption**: When a master password is configured, the final AES-256 key is `Argon2id(master_password, master_salt) XOR encryption.key`. Stealing the vault directory alone is not enough.
 - **Randomness**: Uses Python's `secrets` module, not `random`, ensuring cryptographic quality randomness.
 - **Minimum Length**: Enforces a minimum of 8 characters, with recommended defaults of 12+.
 - **AES-GCM-SIV Encryption**: Provides misuse-resistant authenticated encryption; records are Base64-encoded per line to prevent newline corruption.
@@ -328,10 +352,11 @@ This tool is designed with security as a top priority. `JSON Payload → Argon2i
   - 512-bit digest output
   - Memory-hard algorithm resistant to GPU/ASIC attacks
 - **Timestamp**: Each password entry is stamped with creation time.
-- **File Permissions**: All files are created with `0600` file permissions (read/write) restricted to the file's owner.
-- **Secure Deletion**: Files are overwritten with random data multiple times before deletion to prevent data recovery.
+- **File Permissions**: All files are created with `0600` file permissions (read/write) restricted to the file's owner. The tool warns if permissions drift.
+- **Secure Deletion**: Prefers Linux `shred -vuxzn` (overwrite, exact size, zero final pass, then unlink). Falls back to manual overwrite+unlink when `shred` is unavailable. Note: shred cannot guarantee erasure on SSDs, CoW filesystems (btrfs/ZFS), or data-journaled filesystems.
+- **Clipboard Auto-Clear**: Copied passwords are scheduled to clear after `CLIPBOARD_CLEAR_SECONDS` (default 60).
 
-### 🔐 Argon2id (Salt + Pepper) + AES-GCM-SIV Encryption Flow
+### 🔐 Argon2id (Salt + Pepper) + Two-Factor AES-GCM-SIV Encryption Flow
 
 ```mermaid
 flowchart TD
@@ -339,12 +364,20 @@ flowchart TD
         payload["JSON Payload<br/>(password + metadata)"]
         salt["256-bit Salt<br/>(unique per password)"]
         pepper["256-bit Pepper<br/>(secret key file)"]
-        aesKey["256-bit AES Key<br/>(encryption.key)"]
+        masterPw["Master Password<br/>(something you know)"]
+        masterSalt["master_salt.bin<br/>(32-byte salt)"]
+        fileKey["encryption.key<br/>(something you have)"]
         nonce["96-bit Nonce<br/>(random)"]
     end
 
     subgraph hashing [Argon2id Hashing]
         argon2["Argon2id KDF"]
+    end
+
+    subgraph keyDerivation [Two-Factor Key Derivation]
+        masterKdf["Argon2id<br/>(master password)"]
+        xorOp["XOR"]
+        finalKey["Final AES-256 Key"]
     end
 
     subgraph encryption [AES-GCM-SIV Encryption]
@@ -361,8 +394,14 @@ flowchart TD
     pepper --> argon2
     argon2 --> digest
 
+    masterPw --> masterKdf
+    masterSalt --> masterKdf
+    masterKdf --> xorOp
+    fileKey --> xorOp
+    xorOp --> finalKey
+
     payload --> aesgcm
-    aesKey --> aesgcm
+    finalKey --> aesgcm
     nonce --> aesgcm
     aesgcm --> ciphertext
 ```
@@ -370,8 +409,8 @@ flowchart TD
 <br/>
 
 > [!CAUTION]
-> You are responsible for the secure management of the `${HOME}/.secure_passwords/` directory and its contents.  
-> Ensure it is stored and secured properly and ***do not share or back them up insecurely***.
+> You are responsible for the secure management of the `${HOME}/.secure_passwords/` directory **and** your master password.  
+> Keep the master password secret (never share it). Do not store `encryption.key` / `master_salt.bin` insecurely, and ***do not share or back them up insecurely***. Losing either factor may make the vault unrecoverable.
 
 ---
 
@@ -379,7 +418,7 @@ flowchart TD
 
 ### Integration Tests
 
-The project includes a comprehensive integration test suite (41 tests). Run tests directly:
+The project includes a comprehensive integration test suite. Run tests directly:
 
 ```bash
 bash tests/test_integration.sh
@@ -388,14 +427,14 @@ bash tests/test_integration.sh
 Or test in an isolated Podman container:
 
 ```bash
-podman run --rm -v $(pwd):/workspace:Z fedora:latest bash -c "cd /workspace && dnf install -y python3 python3-pip > /dev/null 2>&1 && pip3 install -r requirements.txt > /dev/null 2>&1 && bash tests/test_integration.sh"
+podman run --rm -v $(pwd):/workspace:Z fedora:latest bash -c "cd /workspace && dnf install -y python3 python3-pip > /dev/null 2>&1 && pip3 install -r requirements.txt > /dev/null 2>&1 && python3 -m pytest tests/test_strength_pytest.py -v && bash tests/test_integration.sh"
 ```
 
 **Exit Codes:** On failure, the script exits with the test number that failed (e.g., exit code `15` means Test 15 failed). Exit code `0` indicates all tests passed.
 
 ### Unit Tests
 
-Pytest suite covering entropy-based strength scoring, consistency, edge cases, and charset computation:
+Pytest suite covering entropy-based strength scoring, consistency, edge cases, charset computation, and `build_charset`:
 
 ```bash
 pytest tests/test_strength_pytest.py -v
