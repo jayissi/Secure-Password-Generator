@@ -13,7 +13,6 @@ Covers:
 - Progressive scoring (5 types > 4 types > 3 types)
 """
 
-import math
 import string
 
 import pytest
@@ -26,7 +25,6 @@ from secure_password_generator.generator import (
     expected_unique_chars,
     generate_password,
 )
-
 
 # ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -315,3 +313,35 @@ class TestBuildCharset:
     def test_blank_config_matches_pool(self):
         tuples = build_charset(BLANK_CFG)
         assert sum(len(c) for _, c in tuples) == _pool(BLANK_CFG)
+
+
+# ── 8. Latin-ext scoring ────────────────────────────────────────────────
+
+class TestLatinExtScoring:
+
+    def test_six_types_beats_five(self):
+        pw6 = "aA1! ñbB2@cC3#dD4$eE"
+        pw5 = "aA1! bB2@cC3#dD4$eE5"
+        pool6 = 26 + 26 + 10 + 32 + 1 + 94
+        pool5 = 26 + 26 + 10 + 32 + 1
+        score6 = calculate_password_strength(pw6, charset_size=pool6)
+        score5 = calculate_password_strength(pw5, charset_size=pool5)
+        assert score6 >= score5, (
+            f"6-type ({score6}) should be >= 5-type ({score5})"
+        )
+
+    def test_latin_ext_only_does_not_crash(self):
+        pw = "ñéüßøæ¡¿«»©" * 2
+        score = calculate_password_strength(pw)
+        assert 1 <= score <= 10
+
+    def test_pool_inference_adds_93_for_non_ascii(self):
+        pw = "aB3!ñ"
+        score_inferred = calculate_password_strength(pw)
+        assert 1 <= score_inferred <= 10
+
+    def test_five_types_unchanged_without_latin_ext(self):
+        pw = "aA1! bB2@cC3#dD4$eE5%"
+        pool = 26 + 26 + 10 + 32 + 1
+        score = calculate_password_strength(pw, charset_size=pool)
+        assert score >= 9

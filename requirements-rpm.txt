@@ -1,0 +1,13 @@
+# System/RPM dependencies for Secure Password Generator
+# platform:
+#   - fedora
+#   - rhel
+#   - centos
+#
+# Install with: grep -vE '^\s*(#|$)' requirements-rpm.txt | xargs sudo dnf install -y
+
+# Provides shred for secure file deletion
+coreutils
+
+# Optional: clipboard support (xclip fallback when pyperclip is unavailable)
+#xclip

@@ -24,9 +24,9 @@ A robust, powerful, and secure command-line utility for generating **cryptograph
 - **Argon2id Hashing** with unique 256-bit salt per password and a separate 256-bit pepper key
 - **Secure File Deletion** — uses Linux `shred -vuxzn` when available, with overwrite+unlink fallback
 - **Restrictive Permissions** — all files created with `0600` (owner read/write only); warns if permissions drift
-- **Flexible Character Policies** — uppercase, lowercase, digits, symbols, blanks, custom symbol sets, exclude similar characters, prevent consecutive duplicates, minimum per-type requirements
+- **Flexible Character Policies** — uppercase, lowercase, digits, symbols, blanks, Latin-1 Supplement (accented letters/symbols via `--latin-ext`), custom symbol sets, exclude similar characters, prevent consecutive duplicates, minimum per-type requirements
 - **Pattern-Based Generation** — define exact character type positions (`l`=lower, `u`=upper, `d`=digit, `s`=symbol, `b`=blank, `*`=any)
-- **Password Strength Meter** — entropy-based scoring with progressive character-type diversity bonuses (5 types = +3, 4 = +2, 3 = +1), expected-uniqueness penalties, pattern detection (1–10 scale)
+- **Password Strength Meter** — entropy-based scoring with progressive character-type diversity bonuses (6 types = +4, 5 = +3, 4 = +2, 3 = +1), expected-uniqueness penalties, pattern detection (1–10 scale)
 - **Metadata & Organization** — labels, categories, comma-separated tags, automatic timestamps
 - **History Management** — table view (via `tabulate`), search by label/category/tags, filter by strength/category/date, authenticated entry deletion
 - **Config File Support** — load defaults from YAML or JSON config files; CLI args always override
@@ -51,7 +51,7 @@ A robust, powerful, and secure command-line utility for generating **cryptograph
 |   `tabulate`   | Formatted history table output       |
 |    `pytest`    | Test suite (dev dependency)          |
 
-**System/RPM dependencies** are listed in `bindep.txt`:
+**System/RPM dependencies** are listed in `requirements-rpm.txt`:
 
 |   Package   | Purpose            | Required? |
 |:-----------:|--------------------|:---------:|
@@ -102,7 +102,7 @@ That's it! You're ready to generate passwords.
 Secure-Password-Generator/
 ├── pyproject.toml                    # PEP 621 metadata and entry points
 ├── requirements.txt                  # pip install -r compatibility
-├── bindep.txt                        # System/RPM dependencies
+├── requirements-rpm.txt              # System/RPM dependencies
 ├── config-sample.yaml                # Example YAML config
 ├── config-example.json               # Example JSON config
 ├── secure_password_generator/        # Main package
@@ -180,6 +180,7 @@ python -m secure_password_generator -h
 |     `--symbols`     | `-s`  | Include symbols                            |  False  |
 | `--allowed-symbols` | `-a`  | Custom allowed symbols (implies --symbols) |  None   |
 |      `--blank`      | `-b`  | Include space (never first/last)           |  False  |
+|    `--latin-ext`    | `-x`  | Include Latin-1 Supplement characters      |  False  |
 |     `--pattern`     | `-p`  | Pattern string (l/u/d/s/b/* codes)         |  None   |
 
 #### Advanced Options
@@ -356,6 +357,7 @@ exclude_similar: false
 min_chars: 2
 allowed_symbols: "!@#$%^&*?`"
 blank_space: false
+# latin_ext: false
 save_history: true
 
 # Optional metadata defaults
@@ -378,6 +380,7 @@ tags: "default,work"
   "min_chars": 2,
   "allowed_symbols": "!@#$%^&*?`",
   "blank_space": false,
+  "latin_ext": false,
   "save_history": true,
   "label": "My Default Label",
   "category": "General",
@@ -387,22 +390,23 @@ tags: "default,work"
 
 **Config Field Reference:**
 
-|       Field       |  Type  | Description                          |   Default   |
-|:-----------------:|:------:|--------------------------------------|:-----------:|
-|     `length`      |  int   | Password length (minimum: 8)         |     12      |
-|      `upper`      |  bool  | Include uppercase letters            |    false    |
-|      `lower`      |  bool  | Include lowercase letters            |    false    |
-|     `digits`      |  bool  | Include digits                       |    false    |
-|     `symbols`     |  bool  | Include symbols                      |    false    |
-|   `no_repeats`    |  bool  | Prevent consecutive duplicates       |    false    |
-| `exclude_similar` |  bool  | Exclude similar-looking characters   |    false    |
-|    `min_chars`    |  int   | Minimum characters per selected type |      1      |
-| `allowed_symbols` | string | Custom symbol set                    | All symbols |
-|   `blank_space`   |  bool  | Include space character              |    false    |
-|  `save_history`   |  bool  | Save password to encrypted history   |    true     |
-|      `label`      | string | Default label for passwords          |  "Unnamed"  |
-|    `category`     | string | Default category for passwords       |  "General"  |
-|      `tags`       | string | Comma-separated default tags         |    None     |
+|       Field       |  Type  | Description                           |   Default   |
+|:-----------------:|:------:|---------------------------------------|:-----------:|
+|     `length`      |  int   | Password length (minimum: 8)          |     12      |
+|      `upper`      |  bool  | Include uppercase letters             |    false    |
+|      `lower`      |  bool  | Include lowercase letters             |    false    |
+|     `digits`      |  bool  | Include digits                        |    false    |
+|     `symbols`     |  bool  | Include symbols                       |    false    |
+|   `no_repeats`    |  bool  | Prevent consecutive duplicates        |    false    |
+| `exclude_similar` |  bool  | Exclude similar-looking characters    |    false    |
+|    `min_chars`    |  int   | Minimum characters per selected type  |      1      |
+| `allowed_symbols` | string | Custom symbol set                     | All symbols |
+|   `blank_space`   |  bool  | Include space character               |    false    |
+|    `latin_ext`    |  bool  | Include Latin-1 Supplement characters |    false    |
+|  `save_history`   |  bool  | Save password to encrypted history    |    true     |
+|      `label`      | string | Default label for passwords           |  "Unnamed"  |
+|    `category`     | string | Default category for passwords        |  "General"  |
+|      `tags`       | string | Comma-separated default tags          |    None     |
 
 > **Note:** Clipboard auto-clear timeout is controlled by the code-level constant `CLIPBOARD_CLEAR_SECONDS` (default `60`) in `constants.py`, not by the config file. Master password setup is CLI-only (`--set-master-password`).
 
@@ -498,7 +502,7 @@ flowchart TD
 
 ## 🧪 Testing
 
-The entire test suite (126 tests) runs through pytest in under 2 seconds.  A test-mode Argon2id profile is applied automatically by `conftest.py`.
+The entire test suite (140 tests) runs through pytest in under 2 seconds.  A test-mode Argon2id profile is applied automatically by `conftest.py`.
 
 ### Running Tests
 
@@ -517,15 +521,15 @@ podman run --rm -v $(pwd):/workspace:Z fedora:latest bash -c \
 
 ### Test Files
 
-|           File            | Tests | Coverage                                                    |
-|:-------------------------:|:-----:|-------------------------------------------------------------|
-|     `test_config.py`      |  14   | Config loading, `CharsetConfig`, `ConfigError`              |
-|     `test_crypto.py`      |  16   | Encrypt/decrypt, key management, master-password validation |
-|    `test_generator.py`    |  19   | Charset, generation constraints, progressive scoring        |
-| `test_strength_pytest.py` |  37   | Entropy boundaries, consistency, edge cases                 |
-|     `test_history.py`     |  18   | Vault CRUD, search/filter, authenticated delete             |
-|       `test_cli.py`       |  19   | CLI integration (in-process via `run_cli()`)                |
-|  `test_entry_points.py`   |   3   | Subprocess smoke tests (`pwgen`, `python -m`)               |
+|           File            | Tests | Coverage                                                         |
+|:-------------------------:|:-----:|------------------------------------------------------------------|
+|     `test_config.py`      |  14   | Config loading, `CharsetConfig`, `ConfigError`                   |
+|     `test_crypto.py`      |  16   | Encrypt/decrypt, key management, master-password validation      |
+|    `test_generator.py`    |  26   | Charset, generation constraints, progressive scoring, latin-ext  |
+| `test_strength_pytest.py` |  41   | Entropy boundaries, consistency, edge cases, latin-ext scoring   |
+|     `test_history.py`     |  18   | Vault CRUD, search/filter, authenticated delete                  |
+|       `test_cli.py`       |  21   | CLI integration (in-process via `run_cli()`), latin-ext          |
+|  `test_entry_points.py`   |   3   | Subprocess smoke tests (`pwgen`, `python -m`)                    |
 
 ### Benchmarks
 

@@ -5,16 +5,17 @@ Vault CRUD operations, table formatting, and search/filter.
 import base64
 import json
 import logging
+import unicodedata
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from tabulate import tabulate
 
+import secure_password_generator.constants as _constants
 from secure_password_generator.constants import (
     DEFAULT_FILE_PERMISSIONS,
 )
-import secure_password_generator.constants as _constants
 from secure_password_generator.crypto import (
     argon2id_hash,
     decrypt_data,
@@ -32,7 +33,7 @@ from secure_password_generator.utils import (
 logger = logging.getLogger("secure_password_generator")
 
 
-def format_history_table(entries: List[Dict[str, Any]]) -> str:
+def format_history_table(entries: list[dict[str, Any]]) -> str:
     """Format password history as a table using ``tabulate``.
 
     Args:
@@ -74,13 +75,14 @@ def format_history_table(entries: List[Dict[str, Any]]) -> str:
 def save_password(
     password: str,
     key: bytes,
-    filename: Optional[Path] = None,
-    label: Optional[str] = None,
-    category: Optional[str] = None,
-    tags: Optional[List[str]] = None,
-    charset_size: Optional[int] = None,
+    filename: Path | None = None,
+    label: str | None = None,
+    category: str | None = None,
+    tags: list[str] | None = None,
+    charset_size: int | None = None,
 ) -> None:
     """Securely save an encrypted password record with metadata."""
+    password = unicodedata.normalize("NFC", password)
     if filename is None:
         filename = _constants.PASSWORD_FILE
     try:
@@ -113,12 +115,12 @@ def save_password(
 
 def show_password_history(
     key: bytes,
-    filename: Optional[Path] = None,
-    limit: Optional[int] = None,
-    search: Optional[str] = None,
-    filter_strength: Optional[int] = None,
-    filter_category: Optional[str] = None,
-    since: Optional[str] = None,
+    filename: Path | None = None,
+    limit: int | None = None,
+    search: str | None = None,
+    filter_strength: int | None = None,
+    filter_category: str | None = None,
+    since: str | None = None,
     use_table: bool = True,
 ) -> None:
     """Display password history with optional filtering."""
@@ -135,7 +137,7 @@ def show_password_history(
             entries = [line.strip() for line in f if line.strip()]
         entries.reverse()
 
-        filtered_entries: list[Dict[str, Any]] = []
+        filtered_entries: list[dict[str, Any]] = []
         for line in entries:
             try:
                 blob = base64.b64decode(line, validate=True)
@@ -154,16 +156,14 @@ def show_password_history(
                     ):
                         continue
 
-                if filter_strength is not None:
-                    if rec.get("strength", 0) < filter_strength:
-                        continue
+                if (filter_strength is not None
+                        and rec.get("strength", 0) < filter_strength):
+                    continue
 
-                if filter_category:
-                    if (
-                        rec.get("category", "").lower()
-                        != filter_category.lower()
-                    ):
-                        continue
+                if (filter_category
+                        and rec.get("category", "").lower()
+                        != filter_category.lower()):
+                    continue
 
                 if since:
                     try:
@@ -214,7 +214,7 @@ def show_password_history(
 def delete_entry_by_index(
     index: int,
     key: bytes,
-    filename: Optional[Path] = None,
+    filename: Path | None = None,
 ) -> None:
     """Delete a specific entry by index with secure deletion.
 
@@ -254,8 +254,7 @@ def delete_entry_by_index(
 
     entries.reverse()
     with open(filename, "wb") as f:
-        for entry in entries:
-            f.write(entry + b"\n")
+        f.writelines(entry + b"\n" for entry in entries)
 
     filename.chmod(DEFAULT_FILE_PERMISSIONS)
     print(f"[+] Entry {index} securely deleted")

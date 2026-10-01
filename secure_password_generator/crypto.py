@@ -10,7 +10,7 @@ import os
 import secrets
 import sys
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCMSIV
 from cryptography.hazmat.primitives.kdf.argon2 import Argon2id
@@ -43,9 +43,9 @@ logger = logging.getLogger("secure_password_generator")
 # ---------------------------------------------------------------------------
 # Encryption-key caching (per-process)
 # ---------------------------------------------------------------------------
-_KEY_CACHE: Dict[str, Tuple[bytes, float]] = {}
-_FINAL_KEY_CACHE: Dict[str, bytes] = {}
-_SESSION_TOKEN: Optional[str] = None
+_KEY_CACHE: dict[str, tuple[bytes, float]] = {}
+_FINAL_KEY_CACHE: dict[str, bytes] = {}
+_SESSION_TOKEN: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -155,7 +155,7 @@ def prompt_master_password(prompt: str = "Master password: ") -> str:
 
 
 def derive_master_key(
-    master_password: str, salt: Optional[bytes] = None
+    master_password: str, salt: bytes | None = None
 ) -> bytes:
     """Derive a 32-byte key from the master password via Argon2id.
 
@@ -199,7 +199,7 @@ def get_file_encryption_key() -> bytes:
     return _get_cached_key(KEY_FILE, "encryption")
 
 
-def get_encryption_key(master_password: Optional[str] = None) -> bytes:
+def get_encryption_key(master_password: str | None = None) -> bytes:
     """Resolve the final AES-256 key.
 
     When a master password is configured the final key is
@@ -253,7 +253,7 @@ def decrypt_data(encrypted: bytes, key: bytes) -> str:
     return aesgcm.decrypt(nonce, ciphertext, None).decode()
 
 
-def argon2id_hash(password: str) -> Dict[str, Any]:
+def argon2id_hash(password: str) -> dict[str, Any]:
     """Derive Argon2id digest with salt + pepper.
 
     Salt is unique per password.  Pepper is loaded from a separate secure
@@ -289,7 +289,7 @@ def argon2id_hash(password: str) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Master-password resolution
 # ---------------------------------------------------------------------------
-def resolve_master_password(args: Any) -> Optional[str]:
+def resolve_master_password(args: Any) -> str | None:
     """Resolve the master password from CLI args, env, file, or prompt.
 
     Resolution order:
@@ -344,8 +344,8 @@ def resolve_master_password(args: Any) -> Optional[str]:
 # Master-password set / change
 # ---------------------------------------------------------------------------
 def set_master_password(
-    new_password: Optional[str] = None,
-    current_password: Optional[str] = None,
+    new_password: str | None = None,
+    current_password: str | None = None,
 ) -> None:
     """Configure or change the master password and re-encrypt the vault.
 

@@ -18,6 +18,7 @@ import string
 import pytest
 
 from secure_password_generator.config import CharsetConfig
+from secure_password_generator.constants import MIN_PASSWORD_LENGTH
 from secure_password_generator.generator import (
     _filter_similar_chars,
     build_charset,
@@ -25,8 +26,6 @@ from secure_password_generator.generator import (
     compute_charset_size,
     generate_password,
 )
-from secure_password_generator.constants import MIN_PASSWORD_LENGTH
-
 
 # ── CharsetConfig + build_charset ────────────────────────────────────────
 
@@ -212,3 +211,69 @@ class TestProgressiveScoring:
         pw = "a" * 20
         score = calculate_password_strength(pw, charset_size=26)
         assert score <= 6
+
+
+# ── Latin-ext generation ─────────────────────────────────────────────────
+
+class TestLatinExt:
+
+    def test_build_charset_includes_latin_ext(self):
+        cfg = CharsetConfig(use_lower=True, latin_ext=True)
+        tuples = build_charset(cfg)
+        names = [name for name, _ in tuples]
+        assert "latin_ext" in names
+
+    def test_build_charset_latin_ext_count(self):
+        cfg = CharsetConfig(use_lower=True, latin_ext=True)
+        tuples = build_charset(cfg)
+        latin_chars = [chars for name, chars in tuples if name == "latin_ext"]
+        assert len(latin_chars) == 1
+        assert len(latin_chars[0]) == 94
+
+    def test_build_charset_latin_ext_range(self):
+        cfg = CharsetConfig(use_lower=True, latin_ext=True)
+        tuples = build_charset(cfg)
+        latin_chars = next(chars for name, chars in tuples if name == "latin_ext")
+        for c in latin_chars:
+            assert 0x00A1 <= ord(c) <= 0x00FF
+            assert ord(c) != 0x00AD
+
+    def test_compute_charset_size_with_latin_ext(self):
+        without = compute_charset_size(CharsetConfig(use_lower=True))
+        with_latin = compute_charset_size(
+            CharsetConfig(use_lower=True, latin_ext=True)
+        )
+        assert with_latin == without + 94
+
+    def test_generate_password_latin_ext_contains_non_ascii(self):
+        cfg = CharsetConfig(use_lower=True, latin_ext=True)
+        has_non_ascii = False
+        for _ in range(20):
+            pw = generate_password(length=16, cfg=cfg)
+            if any(ord(c) > 127 for c in pw):
+                has_non_ascii = True
+                break
+        assert has_non_ascii, "Expected at least one non-ASCII character"
+
+    def test_generate_password_latin_ext_no_repeats(self):
+        cfg = CharsetConfig(
+            use_upper=True, use_lower=True, use_digits=True,
+            latin_ext=True,
+        )
+        for _ in range(20):
+            pw = generate_password(length=20, cfg=cfg, no_repeats=True)
+            for i in range(1, len(pw)):
+                assert pw[i] != pw[i - 1], (
+                    f"Consecutive repeat at {i}: {pw!r}"
+                )
+
+    def test_generate_password_latin_ext_min_chars(self):
+        cfg = CharsetConfig(
+            use_upper=True, use_lower=True, latin_ext=True,
+        )
+        for _ in range(10):
+            pw = generate_password(
+                length=20, cfg=cfg, min_characters_per_type=2,
+            )
+            latin_count = sum(1 for c in pw if ord(c) > 127)
+            assert latin_count >= 2

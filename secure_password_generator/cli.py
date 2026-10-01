@@ -5,28 +5,26 @@ Command-line interface for Secure Password Generator.
 
 import argparse
 import sys
-from typing import Any, Optional
 
 import argcomplete
 from argcomplete.completers import FilesCompleter
 
+import secure_password_generator.constants as _constants
 from secure_password_generator import __version__
 from secure_password_generator.clipboard import (
     copy_to_clipboard,
     schedule_clipboard_clear,
 )
 from secure_password_generator.config import CharsetConfig, ConfigError, load_config
-import secure_password_generator.constants as _constants
 from secure_password_generator.constants import (
     CLIPBOARD_CLEAR_SECONDS,
     DEFAULT_PASSWORD_LENGTH,
-    ENV_MASTER_PASSWORD,
     MIN_PASSWORD_LENGTH,
 )
 from secure_password_generator.crypto import (
-    is_master_password_enabled,
     cleanup_files,
     get_encryption_key,
+    is_master_password_enabled,
     resolve_master_password,
     set_master_password,
 )
@@ -42,7 +40,6 @@ from secure_password_generator.history import (
     show_password_history,
 )
 from secure_password_generator.utils import configure_logging
-
 
 # ── Argument parser ──────────────────────────────────────────────────────
 
@@ -129,10 +126,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
             "(CLI args override config values)"
         ),
     )
-    setattr(
-        config_action, "completer",
-        FilesCompleter(["yaml", "yml", "json"]),
-    )
+    config_action.completer = FilesCompleter(["yaml", "yml", "json"])
     basic_group.add_argument(
         "-X", "--clipboard", action="store_true",
         help="Copy password to clipboard",
@@ -214,6 +208,13 @@ def create_argument_parser() -> argparse.ArgumentParser:
         help=(
             "Generate password from pattern "
             "(l=lower, u=upper, d=digit, s=symbol, b=blank, *=any)"
+        ),
+    )
+    char_group.add_argument(
+        "-x", "--latin-ext", action="store_true",
+        help=(
+            "Include Latin-1 Supplement characters "
+            "(accented letters, symbols)"
         ),
     )
 
@@ -381,7 +382,7 @@ def main() -> None:
     if args.allowed_symbols:
         args.symbols = True
 
-    tags: Optional[list[str]] = None
+    tags: list[str] | None = None
     if args.tags:
         tags = [tag.strip() for tag in args.tags.split(",")]
 
@@ -414,11 +415,12 @@ def main() -> None:
             allowed_symbols=args.allowed_symbols,
             exclude_similar=args.exclude_similar,
             blank=args.blank,
+            latin_ext=args.latin_ext,
         )
 
         pool_size = compute_charset_size(cfg)
 
-        key: Optional[bytes] = (
+        key: bytes | None = (
             _require_key() if args.save_history else None
         )
 

@@ -14,9 +14,9 @@ Covers:
 import os
 import secrets
 import types
-from pathlib import Path
 from unittest.mock import patch
 
+import cryptography.exceptions
 import pytest
 
 from secure_password_generator.crypto import (
@@ -26,7 +26,6 @@ from secure_password_generator.crypto import (
     encrypt_data,
     resolve_master_password,
 )
-
 
 # ── encrypt / decrypt round-trip ─────────────────────────────────────────
 
@@ -42,7 +41,7 @@ class TestEncryptDecrypt:
         key1 = secrets.token_bytes(32)
         key2 = secrets.token_bytes(32)
         encrypted = encrypt_data("secret", key1)
-        with pytest.raises(Exception):
+        with pytest.raises(cryptography.exceptions.InvalidTag):
             decrypt_data(encrypted, key2)
 
     def test_short_blob_raises(self):

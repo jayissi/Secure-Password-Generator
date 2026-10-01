@@ -30,6 +30,7 @@ class TestEntryPoints:
         result = subprocess.run(
             ["pwgen", "-F", "-L", "12", "-n"],
             capture_output=True, text=True, timeout=30, env=_test_env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"pwgen failed: {result.stderr}"
@@ -42,6 +43,7 @@ class TestEntryPoints:
             [sys.executable, "-m", "secure_password_generator",
              "-F", "-L", "12", "-n"],
             capture_output=True, text=True, timeout=30, env=_test_env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"python -m failed: {result.stderr}"

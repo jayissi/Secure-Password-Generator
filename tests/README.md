@@ -6,16 +6,16 @@ to invoke separately.
 
 **Summary:**
 
-|           File            |        Type         | Tests | Runtime |
-|:-------------------------:|:-------------------:|:-----:|:-------:|
-|     `test_config.py`      |    pytest (unit)    |  14   |  < 1s   |
-|     `test_crypto.py`      |    pytest (unit)    |  16   |  < 1s   |
-|    `test_generator.py`    |    pytest (unit)    |  19   |  < 1s   |
-| `test_strength_pytest.py` |    pytest (unit)    |  37   |  < 1s   |
-|     `test_history.py`     |   pytest (vault)    |  18   |  < 1s   |
-|       `test_cli.py`       |    pytest (CLI)     |  19   |  < 1s   |
-|  `test_entry_points.py`   | pytest (subprocess) |   3   |  < 1s   |
-|         **Total**         |                     | **126** | **< 1s** |
+|           File            |        Type         |  Tests  | Runtime  |
+|:-------------------------:|:-------------------:|:-------:|:--------:|
+|     `test_config.py`      |    pytest (unit)    |   14    |  < 1s    |
+|     `test_crypto.py`      |    pytest (unit)    |   16    |  < 1s    |
+|    `test_generator.py`    |    pytest (unit)    |   26    |  < 1s    |
+| `test_strength_pytest.py` |    pytest (unit)    |   41    |  < 1s    |
+|     `test_history.py`     |   pytest (vault)    |   18    |  < 1s    |
+|       `test_cli.py`       |    pytest (CLI)     |   21    |  < 1s    |
+|  `test_entry_points.py`   | pytest (subprocess) |    3    |  < 1s    |
+|         **Total**         |                     | **139** | **< 1s** |
 
 ---
 
@@ -104,19 +104,20 @@ Module under test: `secure_password_generator.crypto`
 - Master-password complexity: too short, missing types, valid (3 and 4 types)
 - `resolve_master_password()` priority: CLI flag > env-var > file > None
 
-### `test_generator.py` -- 19 tests
+### `test_generator.py` -- 26 tests
 
 Module under test: `secure_password_generator.generator`
 
-- `build_charset` with empty, single, all types, custom symbols, exclude similar
-- `compute_charset_size` minimum and blank offset
+- `build_charset` with empty, single, all types, custom symbols, exclude similar, latin_ext
+- `compute_charset_size` minimum and blank offset, latin_ext adds 93
 - Pattern minimum-length padding and long-pattern passthrough
 - Blank never at first/last (100-iteration stress)
 - `_filter_similar_chars` LRU cache identity
 - `generate_password`: min length, no-repeats (50 iter), min-per-type (20 iter), empty charset
 - Progressive scoring: 5 types >= 4 >= 3, single type penalised
+- Latin-ext: build_charset includes latin_ext tuple, chars in range, non-ASCII in output, no-repeats, min-per-type
 
-### `test_strength_pytest.py` -- 37 tests
+### `test_strength_pytest.py` -- 41 tests
 
 Module under test: `secure_password_generator.generator` (strength scoring)
 
@@ -126,6 +127,7 @@ Module under test: `secure_password_generator.generator` (strength scoring)
 - Edge cases: empty, single char, all spaces, inferred pool, range check
 - Expected-uniqueness formula: single draw, saturation, monotonicity, zeros
 - `compute_charset_size` / `build_charset` sanity checks
+- Latin-ext scoring: 6-type beats 5-type, latin-ext-only no crash, pool inference adds 93, 5-type regression check
 
 ### `test_history.py` -- 18 tests
 
@@ -138,7 +140,7 @@ Module under test: `secure_password_generator.history`
   invalid index, empty vault
 - `format_history_table`: empty input, header presence
 
-### `test_cli.py` -- 19 tests
+### `test_cli.py` -- 21 tests
 
 Module under test: `secure_password_generator.cli` (via `run_cli()`)
 
@@ -150,6 +152,7 @@ Module under test: `secure_password_generator.cli` (via `run_cli()`)
   override beats config, `--no-save-history`
 - Cleanup: files removed, vault empty after
 - No-master-password backward compat
+- Latin-ext: `-x -l` produces non-ASCII, `-F -x` combined works
 
 ### `test_entry_points.py` -- 3 tests
 

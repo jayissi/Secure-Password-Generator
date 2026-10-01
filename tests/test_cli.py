@@ -61,7 +61,8 @@ class TestMasterPassword:
             k: v for k, v in os.environ.items()
             if k != "SPG_MASTER_PASSWORD"
         }
-        with patch.dict(os.environ, {**env_clean, "SPG_MASTER_PASSWORD": MASTER_PW}, clear=True):
+        env_with_mp = {**env_clean, "SPG_MASTER_PASSWORD": MASTER_PW}
+        with patch.dict(os.environ, env_with_mp, clear=True):
             result = run_cli("-F", "-L", "12", "-n")
         assert result.exit_code == 0
         assert "Generated Password" in result.stdout
@@ -205,6 +206,27 @@ class TestNoMasterPassword:
         result2 = run_cli("-H")
         assert result2.exit_code == 0
         assert "NoMaster" in result2.stdout
+
+
+# ── Latin-ext CLI ────────────────────────────────────────────────────────
+
+class TestLatinExtCLI:
+
+    def test_latin_ext_flag(self, vault):
+        result = run_cli("-x", "-l", "-L", "16", "-n")
+        assert result.exit_code == 0
+        pw = _extract_password(result.stdout)
+        assert any(ord(c) > 127 for c in pw), (
+            f"Expected non-ASCII chars in: {pw!r}"
+        )
+
+    def test_full_plus_latin_ext(self, vault):
+        result = run_cli("-F", "-x", "-L", "20", "-n")
+        assert result.exit_code == 0
+        pw = _extract_password(result.stdout)
+        assert any(ord(c) > 127 for c in pw), (
+            f"Expected non-ASCII chars in: {pw!r}"
+        )
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────

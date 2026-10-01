@@ -19,7 +19,9 @@
     "lluuddss",
     "mgmt",
     "ndjson",
+    "optimisations",
     "organised",
+    "parametrised",
     "pathlib",
     "penalised",
     "pyperclip",
@@ -28,6 +30,7 @@
     "pwgen",
     "tabulate",
     "testpaths",
+    "unicodedata",
     "vuxzn",
     "xclip"
   ]

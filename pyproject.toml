@@ -39,3 +39,21 @@ pwgen = "secure_password_generator.cli:main"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 cache_dir = "/tmp/.pytest_cache_spg"
+
+# ── Ruff Linter Configuration ──────────────────────────────────────────
+# Run: ruff check secure_password_generator/ tests/ benchmarks/
+[tool.ruff]
+target-version = "py313"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "UP", "B", "SIM", "I", "FURB", "RUF", "PLW", "EXE"]
+ignore = [
+    "BLE001",   # Blind except -- intentional in security/clipboard code
+    "S110",     # try-except-pass -- intentional for clipboard fallbacks
+    "SIM105",   # contextlib.suppress -- keep explicit try/except for clarity
+    "DTZ005",   # datetime.now without tz -- local display timestamps
+    "DTZ007",   # strptime without %z -- parsing stored timestamps
+    "PLW0603",  # global statement -- intentional for clipboard/key caching
+    "B905",     # zip without strict -- length pre-validated in combine_keys
+]

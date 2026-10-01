@@ -6,8 +6,6 @@ import io
 import os
 import sys
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Optional
 from unittest.mock import patch
 
 import pytest
@@ -107,7 +105,7 @@ class CLIResult:
     stderr: str
 
 
-def run_cli(*args: str, env: Optional[dict] = None) -> CLIResult:
+def run_cli(*args: str, env: dict | None = None) -> CLIResult:
     """Call ``cli.main()`` in-process with the given CLI arguments.
 
     Patches ``sys.argv`` and captures stdout/stderr.  Returns a

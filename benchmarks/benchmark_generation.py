@@ -18,7 +18,6 @@ import statistics
 import time
 
 from secure_password_generator.config import CharsetConfig
-from secure_password_generator.constants import MAX_GENERATION_ATTEMPTS
 from secure_password_generator.generator import (
     generate_password,
 )

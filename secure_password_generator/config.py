@@ -5,7 +5,7 @@ Configuration: CharsetConfig dataclass, YAML/JSON config file loader, ConfigErro
 import dataclasses
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 import yaml
 
@@ -27,12 +27,13 @@ class CharsetConfig:
     use_lower: bool = False
     use_digits: bool = False
     use_symbols: bool = False
-    allowed_symbols: Optional[str] = None
+    allowed_symbols: str | None = None
     exclude_similar: bool = False
     blank: bool = False
+    latin_ext: bool = False
 
 
-def load_config(config_path: str) -> Dict[str, Any]:
+def load_config(config_path: str) -> dict[str, Any]:
     """Load and validate a YAML or JSON config file.
 
     Format is auto-detected by file extension (.yaml/.yml for YAML,
@@ -82,7 +83,7 @@ def load_config(config_path: str) -> Dict[str, Any]:
             f"Unknown config keys: {', '.join(sorted(unknown))}"
         )
 
-    mapped: Dict[str, Any] = {}
+    mapped: dict[str, Any] = {}
     for key, value in config.items():
         dest = CONFIG_KEY_MAP.get(str(key), str(key))
         mapped[dest] = value

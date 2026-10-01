@@ -98,6 +98,8 @@ module hard-codes magic numbers.
 - Security: `SECURE_DELETE_PASSES` (3), `CLIPBOARD_CLEAR_SECONDS` (60),
   `MIN_ENCRYPTED_LENGTH` (28), `DEFAULT_FILE_PERMISSIONS` (0o600),
   `DEFAULT_DIR_PERMISSIONS` (0o700), `SIMILAR_CHARS`
+- Latin-1 Supplement: `LATIN_EXT_CHARS` (93 printable characters from
+  U+00A1 to U+00FF, excluding U+00AD)
 - Argon2id parameters: `ARGON2_DIGEST_LENGTH` (64), `MASTER_KDF_LENGTH`
   (32), `ARGON2_ITERATIONS` (100), `ARGON2_LANES` (4),
   `ARGON2_MEMORY_COST` (64 MiB)
@@ -127,8 +129,8 @@ defines `ConfigError`, the exception raised for all config-file problems.
 
 - `CharsetConfig` -- immutable (frozen) dataclass with fields:
   `use_upper`, `use_lower`, `use_digits`, `use_symbols`,
-  `allowed_symbols`, `exclude_similar`, `blank`.  Used by `generator.py`
-  and constructed by `cli.py` from parsed arguments.
+  `allowed_symbols`, `exclude_similar`, `blank`, `latin_ext`.  Used by
+  `generator.py` and constructed by `cli.py` from parsed arguments.
 - `ConfigError` -- exception class raised when a config file is missing,
   has invalid syntax, uses an unsupported extension, or contains unknown
   keys.  Caught by `cli.main()` which prints the message and exits.
@@ -230,8 +232,8 @@ detection.
 - `expected_unique_chars(pool_size, length)` -- birthday-problem formula
   for the expected number of distinct characters in a random draw.
 - `calculate_password_strength(password, charset_size)` -- entropy-based
-  scoring with progressive character-type diversity bonuses (5 types = +3,
-  4 = +2, 3 = +1, 2 = +0, 1 = -1), expected-uniqueness penalties,
+  scoring with progressive character-type diversity bonuses (6 types = +4,
+  5 = +3, 4 = +2, 3 = +1, 2 = +0, 1 = -1), expected-uniqueness penalties,
   consecutive-repeat penalty, and simple-pattern penalty.  Returns an
   integer from 1 to 10.
 - `format_strength_meter(score)` -- renders a coloured Unicode bar such as
@@ -329,7 +331,8 @@ script (defined in `pyproject.toml`) and `__main__.py` both call
   3. Apply config-file defaults if `-f` was given (CLI args override).
   4. Handle `--set-master-password` or `--cleanup` and exit.
   5. Handle `--show-history` or `--delete-entry` (both require the key).
-  6. Resolve character-type flags (`--full` expands to all types).
+  6. Resolve character-type flags (`--full` expands to all types;
+     `--latin-ext` is opt-in only, not included in `--full`).
   7. Generate one or more passwords, display strength, optionally copy to
      clipboard, and optionally save to the encrypted vault.
 

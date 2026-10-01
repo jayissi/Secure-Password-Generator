@@ -24,6 +24,14 @@ DEFAULT_DIR_PERMISSIONS = 0o700
 
 SIMILAR_CHARS = "il1Lo0O"
 
+# Latin-1 Supplement printable characters (U+00A1 to U+00FF).
+# Excludes U+00A0 (NBSP) and U+00AD (soft hyphen) — both are
+# invisible/non-printable.  93 characters total.
+LATIN_EXT_CHARS = "".join(
+    chr(cp) for cp in range(0x00A1, 0x0100)
+    if cp != 0x00AD
+)
+
 # Argon2id parameters
 ARGON2_DIGEST_LENGTH = 64       # 512-bit digest (per-password hashing)
 MASTER_KDF_LENGTH = 32          # 256-bit derived key (master password)
@@ -65,7 +73,8 @@ COLOR_RESET = "\033[0m"
 VALID_CONFIG_KEYS = {
     "length", "upper", "lower", "digits", "symbols",
     "no_repeats", "exclude_similar", "min_chars",
-    "allowed_symbols", "blank_space", "label", "category", "tags",
+    "allowed_symbols", "blank_space", "latin_ext",
+    "label", "category", "tags",
     "save_history",
 }
 

@@ -20,8 +20,6 @@ from datetime import datetime
 import pytest
 
 from secure_password_generator.crypto import (
-    decrypt_data,
-    encrypt_data,
     get_encryption_key,
     initialize_security_files,
 )
@@ -31,7 +29,6 @@ from secure_password_generator.history import (
     save_password,
     show_password_history,
 )
-
 
 # ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -151,7 +148,10 @@ class TestShowHistory:
             save_password(f"pw{i}", vault_key, filename=vault_file, label=f"Entry{i}")
         show_password_history(vault_key, filename=vault_file, limit=2, use_table=False)
         out = capsys.readouterr().out
-        lines = [l for l in out.splitlines() if l.strip().startswith(("1.", "2.", "3."))]
+        lines = [
+            line for line in out.splitlines()
+            if line.strip().startswith(("1.", "2.", "3."))
+        ]
         assert len(lines) <= 2
 
 

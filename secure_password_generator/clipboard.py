@@ -4,15 +4,15 @@ Clipboard operations: copy, auto-clear timer.
 
 import subprocess
 import threading
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from secure_password_generator.constants import CLIPBOARD_CLEAR_SECONDS
 
 _CLIPBOARD_INITIALIZED = False
-_CLIPBOARD_METHOD: Optional[Callable[[str], bool]] = None
+_CLIPBOARD_METHOD: Callable[[str], bool] | None = None
 
 
-def _initialize_clipboard() -> Optional[Callable[[str], bool]]:
+def _initialize_clipboard() -> Callable[[str], bool] | None:
     """Detect and cache the best available clipboard method (Linux)."""
     global _CLIPBOARD_INITIALIZED, _CLIPBOARD_METHOD
     if _CLIPBOARD_INITIALIZED:

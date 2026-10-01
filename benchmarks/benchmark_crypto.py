@@ -22,9 +22,7 @@ import json
 import os
 import secrets
 import statistics
-import tempfile
 import time
-from pathlib import Path
 
 from secure_password_generator.constants import (
     ARGON2_ITERATIONS,
@@ -155,7 +153,10 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    kdf_mode = "TEST (SPG_TEST_KDF=1)" if os.environ.get("SPG_TEST_KDF") else "PRODUCTION"
+    kdf_mode = (
+        "TEST (SPG_TEST_KDF=1)" if os.environ.get("SPG_TEST_KDF")
+        else "PRODUCTION"
+    )
 
     print()
     print("Cryptographic Operations: Timing Benchmark")

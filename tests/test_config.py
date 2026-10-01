@@ -22,7 +22,6 @@ from secure_password_generator.config import (
     load_config,
 )
 
-
 # ── load_config ──────────────────────────────────────────────────────────
 
 class TestLoadConfig:

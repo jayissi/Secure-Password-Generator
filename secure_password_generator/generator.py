@@ -7,7 +7,8 @@ import logging
 import math
 import secrets
 import string
-from typing import List, Optional, Tuple, cast
+import unicodedata
+from typing import cast
 
 from secure_password_generator.config import CharsetConfig
 from secure_password_generator.constants import (
@@ -16,6 +17,7 @@ from secure_password_generator.constants import (
     COLOR_RED,
     COLOR_RESET,
     COLOR_YELLOW,
+    LATIN_EXT_CHARS,
     MAX_GENERATION_ATTEMPTS,
     MIN_PASSWORD_LENGTH,
     SIMILAR_CHARS,
@@ -36,7 +38,7 @@ def _filter_similar_chars(chars: str, exclude_similar: bool) -> str:
     return "".join(c for c in chars if c not in SIMILAR_CHARS)
 
 
-def build_charset(cfg: CharsetConfig) -> List[Tuple[str, str]]:
+def build_charset(cfg: CharsetConfig) -> list[tuple[str, str]]:
     """Build the list of ``(name, filtered_chars)`` tuples for generation.
 
     Args:
@@ -45,7 +47,7 @@ def build_charset(cfg: CharsetConfig) -> List[Tuple[str, str]]:
     Returns:
         Ordered list of ``(category_name, characters)`` pairs.
     """
-    charset_tuples: List[Tuple[str, str]] = []
+    charset_tuples: list[tuple[str, str]] = []
 
     if cfg.use_upper:
         up = _filter_similar_chars(string.ascii_uppercase, cfg.exclude_similar)
@@ -60,7 +62,7 @@ def build_charset(cfg: CharsetConfig) -> List[Tuple[str, str]]:
         if dg:
             charset_tuples.append(("digits", dg))
 
-    effective_symbols = cfg.allowed_symbols if cfg.allowed_symbols else (
+    effective_symbols = cfg.allowed_symbols or (
         string.punctuation if cfg.use_symbols else ""
     )
     if effective_symbols:
@@ -70,6 +72,9 @@ def build_charset(cfg: CharsetConfig) -> List[Tuple[str, str]]:
 
     if cfg.blank:
         charset_tuples.append(("blank", " "))
+
+    if cfg.latin_ext:
+        charset_tuples.append(("latin_ext", LATIN_EXT_CHARS))
 
     return charset_tuples
 
@@ -96,7 +101,7 @@ def expected_unique_chars(pool_size: int, length: int) -> float:
 
 def calculate_password_strength(
     password: str,
-    charset_size: Optional[int] = None,
+    charset_size: int | None = None,
 ) -> int:
     """Calculate password strength using entropy and complexity grading.
 
@@ -104,7 +109,7 @@ def calculate_password_strength(
       * **Entropy bits** (PRIMARY): ``length * log2(charset_size)`` mapped
         to a 1-10 base score.
       * **Character-type diversity** (SECONDARY): progressive bonus —
-        5 types = +3, 4 = +2, 3 = +1, 2 = +0, 1 = -1.
+        6 types = +4, 5 = +3, 4 = +2, 3 = +1, 2 = +0, 1 = -1.
       * **Expected uniqueness** (TERTIARY): penalise when actual unique
         chars fall significantly below the statistical expectation.
       * Consecutive-repeat and simple-pattern penalties.
@@ -136,12 +141,17 @@ def calculate_password_strength(
             pool += 32
         if " " in password:
             pool += 1
+        if any(ord(c) > 127 for c in password):
+            pool += 94  # Latin-1 Supplement
         charset_size = max(pool, 1)
 
     # -- Single-pass character-type detection ---------------------------------
     has_upper = has_lower = has_digit = has_symbol = has_blank = False
+    has_latin_ext = False
     for c in password:
-        if c.isupper():
+        if ord(c) > 127:
+            has_latin_ext = True
+        elif c.isupper():
             has_upper = True
         elif c.islower():
             has_lower = True
@@ -152,7 +162,9 @@ def calculate_password_strength(
         elif not c.isalnum():
             has_symbol = True
 
-    char_types = sum([has_upper, has_lower, has_digit, has_symbol, has_blank])
+    char_types = sum([
+        has_upper, has_lower, has_digit, has_symbol, has_blank, has_latin_ext,
+    ])
 
     # -- PRIMARY: entropy-based base score ------------------------------------
     entropy_bits = length * math.log2(charset_size) if charset_size > 1 else 0
@@ -175,7 +187,9 @@ def calculate_password_strength(
         base_score = 1
 
     # -- SECONDARY: progressive character-type diversity ----------------------
-    if char_types >= 5:
+    if char_types >= 6:
+        base_score = min(10, base_score + 4)
+    elif char_types >= 5:
         base_score = min(10, base_score + 3)
     elif char_types >= 4:
         base_score = min(10, base_score + 2)
@@ -246,7 +260,7 @@ def format_strength_meter(score: int) -> str:
 # ── Password generation helpers ──────────────────────────────────────────
 
 def _violates_no_repeats(
-    slots: List[Optional[str]],
+    slots: list[str | None],
     ch: str,
     pos: int,
     length: int,
@@ -257,15 +271,13 @@ def _violates_no_repeats(
         return False
     if pos > 0 and slots[pos - 1] is not None and slots[pos - 1] == ch:
         return True
-    if pos < length - 1 and slots[pos + 1] is not None and slots[pos + 1] == ch:
-        return True
-    return False
+    return pos < length - 1 and slots[pos + 1] is not None and slots[pos + 1] == ch
 
 
 def _validate_generation_feasibility(
     length: int,
-    charset_tuples: List[Tuple[str, str]],
-    min_chars: Optional[int],
+    charset_tuples: list[tuple[str, str]],
+    min_chars: int | None,
     no_repeats: bool,
     blank: bool,
 ) -> None:
@@ -324,7 +336,7 @@ def generate_symbol_only_password(length: int, symbols: str) -> str:
         )
 
     password: list[str] = []
-    last_char: Optional[str] = None
+    last_char: str | None = None
     symbol_counts = {s: 0 for s in unique_symbols}
     target_count = length // num_symbols
 
@@ -387,7 +399,7 @@ def generate_password_from_pattern(
         else:
             password.append(code)
 
-    return "".join(password)
+    return unicodedata.normalize("NFC", "".join(password))
 
 
 # ── Main generation function ─────────────────────────────────────────────
@@ -397,9 +409,9 @@ def generate_password_from_pattern(
 def generate_password(
     length: int,
     cfg: CharsetConfig,
-    min_characters_per_type: Optional[int] = None,
+    min_characters_per_type: int | None = None,
     no_repeats: bool = False,
-    pattern: Optional[str] = None,
+    pattern: str | None = None,
 ) -> str:
     """Generate a cryptographically secure random password.
 
@@ -418,7 +430,7 @@ def generate_password(
     """
     if pattern:
         effective_symbols = (
-            cfg.allowed_symbols if cfg.allowed_symbols else string.punctuation
+            cfg.allowed_symbols or string.punctuation
         )
         return generate_password_from_pattern(pattern, effective_symbols)
 
@@ -430,9 +442,7 @@ def generate_password(
         length = MIN_PASSWORD_LENGTH
 
     effective_symbols = (
-        cfg.allowed_symbols
-        if cfg.allowed_symbols
-        else (string.punctuation if cfg.use_symbols else "")
+        cfg.allowed_symbols or (string.punctuation if cfg.use_symbols else "")
     )
 
     # Handle symbol-only case
@@ -464,7 +474,7 @@ def generate_password(
 
     for attempt in range(MAX_GENERATION_ATTEMPTS):
         try:
-            slots: List[Optional[str]] = [None] * length
+            slots: list[str | None] = [None] * length
 
             if min_characters_per_type:
                 available_positions = set(range(length))
@@ -504,8 +514,7 @@ def generate_password(
                                 trials += 1
                                 continue
                             slots[pos] = ch
-                            if pos in available_positions:
-                                available_positions.remove(pos)
+                            available_positions.discard(pos)
                             placed = True
 
                         if not placed:
@@ -540,10 +549,10 @@ def generate_password(
                 raise ValueError(
                     "Internal error: incomplete password construction"
                 )
-            password = "".join(cast(List[str], slots))
+            password = "".join(cast(list[str], slots))
 
             if min_characters_per_type:
-                for name, char_set in charset_sets:
+                for _name, char_set in charset_sets:
                     if not char_set:
                         continue
                     count = sum(1 for c in password if c in char_set)
@@ -567,14 +576,14 @@ def generate_password(
                             "Consecutive duplicate characters - retrying"
                         )
 
-            return password
+            return unicodedata.normalize("NFC", password)
 
-        except ValueError:
+        except ValueError as exc:
             if attempt == MAX_GENERATION_ATTEMPTS - 1:
                 raise ValueError(
                     f"Failed to generate password after "
                     f"{MAX_GENERATION_ATTEMPTS} attempts"
-                )
+                ) from exc
             continue
 
     raise ValueError(
