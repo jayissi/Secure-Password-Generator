@@ -430,11 +430,13 @@ def cleanup_files() -> None:
     """Securely delete all password and key files."""
     files_to_cleanup = [PASSWORD_FILE, KEY_FILE, PEPPER_FILE, MASTER_SALT_FILE]
 
+    removed_any = False
     for file in files_to_cleanup:
         if file.exists():
             try:
                 secure_delete_file(file)
                 print(f"[+] Securely removed: {file}")
+                removed_any = True
             except Exception as exc:
                 logger.error("Failed to securely remove %s: %s", file, exc)
 
@@ -442,5 +444,9 @@ def cleanup_files() -> None:
         try:
             PASSWORD_DIR.rmdir()
             print(f"[+] Removed directory: {PASSWORD_DIR}")
+            removed_any = True
         except OSError:
             logger.warning("Directory not empty, keeping: %s", PASSWORD_DIR)
+
+    if not removed_any:
+        print("[*] Vault is already clean. No files to remove.")
