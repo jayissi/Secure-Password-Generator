@@ -9,99 +9,89 @@ standard deviation, and flicker (score variance) for each config.
 
 import argparse
 import statistics
-import string
-import sys
 from collections import Counter
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from password_generator import (
+from secure_password_generator.config import CharsetConfig
+from secure_password_generator.generator import (
     calculate_password_strength,
     compute_charset_size,
     generate_password,
 )
-
 
 DEFAULT_ITERATIONS = 100
 
 CONFIGS = {
     "blank_full": {
         "label": "Full + Blank (blank-space config)",
+        "cfg": CharsetConfig(
+            use_upper=True,
+            use_lower=True,
+            use_digits=True,
+            use_symbols=True,
+            allowed_symbols="!@#$%^&*?",
+            exclude_similar=True,
+            blank=True,
+        ),
         "gen_kwargs": {
             "length": 33,
-            "use_upper": True,
-            "use_lower": True,
-            "use_digits": True,
-            "use_symbols": True,
             "min_characters_per_type": 4,
-            "exclude_similar": True,
-            "allowed_symbols": "!@#$%^&*?",
             "no_repeats": True,
-            "blank": True,
         },
     },
     "full_no_blank": {
         "label": "Full charset, no blank",
+        "cfg": CharsetConfig(
+            use_upper=True,
+            use_lower=True,
+            use_digits=True,
+            use_symbols=True,
+            exclude_similar=False,
+            allowed_symbols=None,
+            blank=False,
+        ),
         "gen_kwargs": {
             "length": 24,
-            "use_upper": True,
-            "use_lower": True,
-            "use_digits": True,
-            "use_symbols": True,
             "min_characters_per_type": 2,
-            "exclude_similar": False,
-            "allowed_symbols": None,
             "no_repeats": True,
-            "blank": False,
         },
     },
     "short_simple": {
         "label": "Short password, upper+lower only",
+        "cfg": CharsetConfig(
+            use_upper=True,
+            use_lower=True,
+            use_digits=False,
+            use_symbols=False,
+            exclude_similar=False,
+            allowed_symbols=None,
+            blank=False,
+        ),
         "gen_kwargs": {
             "length": 10,
-            "use_upper": True,
-            "use_lower": True,
-            "use_digits": False,
-            "use_symbols": False,
             "min_characters_per_type": 1,
-            "exclude_similar": False,
-            "allowed_symbols": None,
             "no_repeats": False,
-            "blank": False,
         },
     },
 }
 
 
-def _pool_size_from_kwargs(kw: dict) -> int:
-    return compute_charset_size(
-        use_upper=kw["use_upper"],
-        use_lower=kw["use_lower"],
-        use_digits=kw["use_digits"],
-        use_symbols=kw["use_symbols"],
-        allowed_symbols=kw.get("allowed_symbols"),
-        exclude_similar=kw.get("exclude_similar", False),
-        blank=kw.get("blank", False),
-    )
-
-
 def run_test(config_key: str, iterations: int) -> dict:
-    cfg = CONFIGS[config_key]
-    kw = cfg["gen_kwargs"]
-    pool_size = _pool_size_from_kwargs(kw)
+    cfg_entry = CONFIGS[config_key]
+    charset_cfg = cfg_entry["cfg"]
+    kw = cfg_entry["gen_kwargs"]
+    pool_size = compute_charset_size(charset_cfg)
 
-    scores = []
-    passwords = []
+    scores: list[int] = []
+    passwords: list[str] = []
 
     for _ in range(iterations):
-        pw = generate_password(**kw)
+        pw = generate_password(cfg=charset_cfg, **kw)
         s = calculate_password_strength(pw, charset_size=pool_size)
         scores.append(s)
         passwords.append(pw)
 
     return {
-        "label": cfg["label"],
+        "label": cfg_entry["label"],
         "pool_size": pool_size,
         "length": kw["length"],
         "iterations": iterations,
@@ -153,7 +143,7 @@ def main() -> None:
         "-n", "--iterations",
         type=int,
         default=DEFAULT_ITERATIONS,
-        help=f"Number of passwords to generate per config (default: {DEFAULT_ITERATIONS})",
+        help=f"Number of passwords per config (default: {DEFAULT_ITERATIONS})",
     )
     parser.add_argument(
         "-c", "--config",
