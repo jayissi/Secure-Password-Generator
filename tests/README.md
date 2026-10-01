@@ -1,19 +1,21 @@
 # tests/ -- Test Suite Reference
 
-This directory contains all automated tests and diagnostic tools for the
-Secure Password Generator.
+This directory contains all automated tests for the Secure Password
+Generator.  Every test runs through pytest -- there are no shell scripts
+to invoke separately.
 
 **Summary:**
 
-|           File            |       Type        | Test count | Runtime |
-|:-------------------------:|:-----------------:|:----------:|:-------:|
-|     `test_config.py`      |      pytest       |     14     |  < 1 s  |
-|     `test_crypto.py`      |      pytest       |     16     |  < 1 s  |
-|    `test_generator.py`    |      pytest       |     19     |  < 1 s  |
-| `test_strength_pytest.py` |      pytest       |     37     |  < 1 s  |
-|   `test_integration.sh`   | Bash (end-to-end) |     52     |  ~40 s  |
-|  `benchmark_strength.py`  |  CLI diagnostic   |     --     |  ~1 s   |
-|         **Total**         |                   |  **138**   |         |
+|           File            |        Type         | Tests | Runtime |
+|:-------------------------:|:-------------------:|:-----:|:-------:|
+|     `test_config.py`      |    pytest (unit)    |  14   |  < 1s   |
+|     `test_crypto.py`      |    pytest (unit)    |  16   |  < 1s   |
+|    `test_generator.py`    |    pytest (unit)    |  19   |  < 1s   |
+| `test_strength_pytest.py` |    pytest (unit)    |  37   |  < 1s   |
+|     `test_history.py`     |   pytest (vault)    |  18   |  < 1s   |
+|       `test_cli.py`       |    pytest (CLI)     |  19   |  < 1s   |
+|  `test_entry_points.py`   | pytest (subprocess) |   3   |  < 1s   |
+|         **Total**         |                     | **126** | **< 1s** |
 
 ---
 
@@ -25,318 +27,153 @@ Install the package in editable mode with development dependencies:
 pip install -e '.[dev]'
 ```
 
-For the integration tests, `pwgen` must be on your `PATH` (installed by
-the command above).  System dependencies (`shred`, optionally `xclip`)
-should also be available -- see `bindep.txt` in the project root.
+System dependencies (`shred`, optionally `xclip`) should be available --
+see `bindep.txt` in the project root.
 
 ---
 
 ## Quick Start
 
-Run everything in the recommended order:
+Run the entire suite with a single command:
 
 ```bash
-# 1. Unit tests (fast, no side effects)
 pytest tests/ -v
-
-# 2. Integration tests (creates and destroys vault files)
-bash tests/test_integration.sh
-
-# 3. Benchmark (informational -- no pass/fail)
-python tests/benchmark_strength.py -n 200
 ```
+
+The test-mode Argon2id profile (`SPG_TEST_KDF=1`) is applied automatically
+by a module-level statement in `conftest.py`.  No environment variable
+needs to be set manually.
+
+Performance benchmarks live in the `benchmarks/` directory at the project
+root -- see [benchmarks/README.md](../benchmarks/README.md).
 
 ---
 
-## Recommended Execution Order
+## Test Architecture
 
-1. **Unit tests** (`pytest tests/ -v`) -- run first.  They are fast
-   (under 1 second total), use no disk I/O against the real vault, and
-   have no side effects.  Failures here indicate a code regression in the
-   core logic.
+### Speed
 
-2. **Integration tests** (`bash tests/test_integration.sh`) -- run second.
-   These invoke the `pwgen` CLI end-to-end, creating and destroying
-   vault files in `~/.secure_passwords/`.  They take roughly 40 seconds
-   because several tests exercise Argon2id key derivation.  The script
-   starts with a clean vault (`pwgen -C`) and ends by cleaning up after
-   itself.
+The suite runs in under 1 second.  Two optimisations make this possible:
 
-3. **Benchmark** (`python tests/benchmark_strength.py`) -- run last and
-   optionally.  This is a diagnostic tool, not a test.  It reports score
-   distributions and flicker across multiple configurations to help tune
-   the strength-scoring algorithm.
+1. **Test-mode Argon2id** -- a module-level `os.environ` call in
+   `conftest.py` sets `SPG_TEST_KDF=1` before any package import, which
+   reduces Argon2id from 100 iterations / 64 MiB to 1 iteration / 8 MiB.
+   Production security is unchanged because the override only takes effect
+   when the environment variable is set.
+
+2. **In-process CLI calls** -- `test_cli.py` invokes `cli.main()` directly
+   via the `run_cli()` helper in `conftest.py`, avoiding subprocess cold
+   starts.  Only `test_entry_points.py` (3 tests) shells out to the real
+   `pwgen` binary.
+
+### Isolation
+
+No test touches `~/.secure_passwords/`.  The `vault_dir` fixture in
+`conftest.py` patches all path constants to a pytest `tmp_path` directory.
+Each test gets a fresh, empty vault.
 
 ---
 
 ## File Reference
 
+### `conftest.py` -- shared fixtures and helpers
+
+- Module-level `os.environ["SPG_TEST_KDF"] = "1"` -- sets the test KDF
+  override before any package import.
+- `vault_dir(tmp_path)` -- function-scoped fixture that redirects all vault
+  paths to a temp directory and clears crypto caches.
+- `run_cli(*args)` -- helper that calls `cli.main()` in-process, captures
+  stdout/stderr, and returns a `CLIResult` dataclass.
+
 ### `test_config.py` -- 14 tests
 
-**Module under test:** `secure_password_generator.config`
+Module under test: `secure_password_generator.config`
 
-**What it covers:**
-
-- `load_config()` raises `ConfigError` (not `sys.exit`) for all error
-  conditions:
-  - Missing file
-  - Unsupported file extension (`.toml`)
-  - Invalid YAML syntax
-  - Invalid JSON syntax
-  - Non-dict YAML (e.g., a list)
-  - Unknown configuration keys
-- Successful YAML and JSON round-trips (values are read back correctly)
-- `blank_space` key is mapped to `blank` via `CONFIG_KEY_MAP`
-- Empty YAML file returns an empty dictionary
-- `CharsetConfig` dataclass:
-  - Default field values are all `False`/`None`
-  - Frozen (assignment to fields raises `AttributeError`)
-  - Equality comparison between identical instances
-  - Hashable (can be used in sets)
-
-**How to run:**
-
-```bash
-pytest tests/test_config.py -v
-```
-
----
+- `load_config()` raises `ConfigError` for: missing file, unsupported
+  extension, invalid YAML/JSON, non-dict YAML, unknown keys
+- YAML and JSON round-trip (values read back correctly)
+- `blank_space` key mapped to `blank`
+- `CharsetConfig` dataclass: defaults, frozen, equality, hashable
 
 ### `test_crypto.py` -- 16 tests
 
-**Module under test:** `secure_password_generator.crypto`
+Module under test: `secure_password_generator.crypto`
 
-**What it covers:**
-
-- **Encrypt / decrypt round-trip:**
-  - Encrypting and decrypting with the same key recovers the plaintext
-  - Decrypting with a different key raises an exception
-  - A too-short encrypted blob raises `ValueError`
-  - Empty plaintext encrypts and decrypts correctly
-- **`combine_keys()` XOR:**
-  - XOR with a zero key returns the original
-  - XOR of a key with itself returns all zeros
-  - Mismatched key lengths raise `ValueError`
-- **Master-password complexity (`_validate_master_password`):**
-  - Too-short password is rejected
-  - Password missing character types is rejected
-  - Valid passwords with exactly 3 and all 4 types are accepted
-- **`resolve_master_password()` priority chain:**
-  - CLI `--master-password` flag takes top priority
-  - `SPG_MASTER_PASSWORD` environment variable is used when no CLI flag
-  - `--master-password-file` reads the first line of the file
-  - Returns `None` when no master password is configured
-
-All `resolve_master_password` tests use `unittest.mock.patch` to isolate
-from the real filesystem and environment.
-
-**How to run:**
-
-```bash
-pytest tests/test_crypto.py -v
-```
-
----
+- Encrypt/decrypt round-trip (correct key, wrong key, short blob, empty)
+- `combine_keys()` XOR identity, self-XOR, length mismatch
+- Master-password complexity: too short, missing types, valid (3 and 4 types)
+- `resolve_master_password()` priority: CLI flag > env-var > file > None
 
 ### `test_generator.py` -- 19 tests
 
-**Module under test:** `secure_password_generator.generator`
+Module under test: `secure_password_generator.generator`
 
-**What it covers:**
-
-- **`build_charset()`:**
-  - Empty config returns an empty list
-  - Single character type returns the correct tuple
-  - All five types (upper, lower, digits, symbols, blank) are present
-  - Custom `allowed_symbols` restricts the symbol pool
-  - `exclude_similar=True` reduces the pool size
-- **`compute_charset_size()`:**
-  - Minimum is 1 (empty config)
-  - Adding `blank=True` adds exactly 1 to the size
-- **Pattern minimum-length enforcement:**
-  - A short pattern (e.g., `"ld"`) is padded to `MIN_PASSWORD_LENGTH`
-  - A long pattern is left unchanged
-- **Blank-position constraint (100-iteration stress test):**
-  - Generated passwords with `blank=True` never have a space as the
-    first or last character
-- **`_filter_similar_chars()` LRU cache:**
-  - Repeated calls with the same arguments return the same object
-  - `exclude_similar=False` returns the original string unchanged
-- **`generate_password()` constraints:**
-  - Minimum length enforcement (short request is increased to 8)
-  - `no_repeats=True` produces no consecutive duplicates (50 iterations)
-  - `min_characters_per_type` is honoured for each type (20 iterations)
-  - Empty charset raises `ValueError`
-- **Progressive strength scoring:**
-  - 5 character types score >= 4 types
-  - 4 character types score >= 3 types
-  - Single character type is penalised
-
-**How to run:**
-
-```bash
-pytest tests/test_generator.py -v
-```
-
----
+- `build_charset` with empty, single, all types, custom symbols, exclude similar
+- `compute_charset_size` minimum and blank offset
+- Pattern minimum-length padding and long-pattern passthrough
+- Blank never at first/last (100-iteration stress)
+- `_filter_similar_chars` LRU cache identity
+- `generate_password`: min length, no-repeats (50 iter), min-per-type (20 iter), empty charset
+- Progressive scoring: 5 types >= 4 >= 3, single type penalised
 
 ### `test_strength_pytest.py` -- 37 tests
 
-**Module under test:** `secure_password_generator.generator` (strength
-scoring, charset computation, expected-uniqueness formula)
+Module under test: `secure_password_generator.generator` (strength scoring)
 
-This is the most comprehensive test file, organised into seven test
-classes.
+- Consistency: stable scores under blank and full configs (50 iterations each)
+- Entropy boundaries: 6 parametrised thresholds, short/long passwords
+- Diversity bonuses: single-type penalty, two-types neutral, five-types max
+- Edge cases: empty, single char, all spaces, inferred pool, range check
+- Expected-uniqueness formula: single draw, saturation, monotonicity, zeros
+- `compute_charset_size` / `build_charset` sanity checks
 
-**What it covers:**
+### `test_history.py` -- 18 tests
 
-- **Consistency (zero flicker):**
-  - 50 passwords generated with the blank+full config all score 10/10
-  - 50 passwords generated with the full config (no blank) all score
-    within the expected range {9, 10}
-- **Entropy boundaries (parametrized):**
-  - Six password/pool combinations verified against minimum expected
-    scores (from 2 up to 10)
-  - Short passwords (4 chars) score low
-  - Long diverse passwords (33 chars, 5 types) score high
-- **Character diversity:**
-  - Single-type password is penalised (score <= 6)
-  - Three types score higher than two
-  - Five types with blank achieve score >= 9
-  - Progressive: 5 types >= 4 types (explicit assertion)
-- **Edge cases:**
-  - Empty password returns 1
-  - Single character returns 1
-  - All-spaces password scores <= 2
-  - `charset_size=None` infers the pool from the password characters
-  - Score is always in range [1, 10] across diverse inputs
-- **Expected-uniqueness formula (`expected_unique_chars`):**
-  - Single draw from pool of 26 returns ~1.0
-  - Large pool / small length returns near-length value
-  - Small pool / large length saturates near pool size
-  - Pool equals length returns a value between 15 and 26
-  - Zero inputs return 0.0
-  - Monotonically increasing in length
-- **`compute_charset_size` sanity:**
-  - Upper-only = 26, upper+lower = 52, all types = 94
-  - `exclude_similar` reduces the pool
-  - `blank` adds 1
-  - Custom symbols produces exact count
-  - Blank config pool > 50
-- **`build_charset` sanity:**
-  - Tuple sizes match `compute_charset_size`
-  - All charsets are non-empty
-  - `exclude_similar` reduces total characters
-  - Blank config matches its computed pool
+Module under test: `secure_password_generator.history`
 
-**How to run:**
+- `save_password`: file creation, metadata round-trip, multiple entries
+- `show_password_history`: empty vault, table format, search (label,
+  category, tags), filter (strength, category, date), limit
+- `delete_entry_by_index`: authenticated delete, wrong key rejected,
+  invalid index, empty vault
+- `format_history_table`: empty input, header presence
 
-```bash
-pytest tests/test_strength_pytest.py -v
-```
+### `test_cli.py` -- 19 tests
+
+Module under test: `secure_password_generator.cli` (via `run_cli()`)
+
+- Master-password lifecycle: set, reject without, env-var auth, password-file
+  auth, wrong password shows no entries
+- Generation modes: `-F` full, `-c 3` multiple, `-P` passphrase, pattern,
+  pattern with wildcard
+- CLI plumbing: `-h` exits 0, no-args help, YAML config, JSON config, CLI
+  override beats config, `--no-save-history`
+- Cleanup: files removed, vault empty after
+- No-master-password backward compat
+
+### `test_entry_points.py` -- 3 tests
+
+Subprocess smoke tests (the only file that shells out):
+
+- `pwgen -F -L 12 -n` exits 0 and prints a password
+- `python -m secure_password_generator -F -L 12 -n` exits 0
+- `shred` binary is on `PATH`
 
 ---
 
-### `test_integration.sh` -- 52 tests
-
-**Type:** Bash shell script (end-to-end CLI tests)
-
-This script exercises the `pwgen` command as an end user would.  It
-creates and destroys vault files in `~/.secure_passwords/` during
-execution.  It can be run directly or sourced.
-
-**What it covers, in order:**
-
-| Tests  | Category                 | Description                                                                                                |
-|:------:|--------------------------|------------------------------------------------------------------------------------------------------------|
-| 0a--0b | Master-password setup    | Set master password, verify vault ops fail without it                                                      |
-|  1--4  | Basic functionality      | Generation (no save), metadata, multiple passwords, passphrase                                             |
-| 5--10  | Character types          | Upper-only, lower-only, digits-only (with output regex verification), symbols, custom symbols, blank       |
-| 11--16 | Advanced options         | Exclude similar, no repeats, min per type, pattern, pattern+blank, multiple count                          |
-| 17--25 | History viewing          | Table display, limit, search by label/category/tags, filter by category/strength/date, combined filters    |
-| 26--27 | Entry management         | Authenticated delete (requires key), history after delete                                                  |
-| 28--32 | Edge cases               | Minimum length enforcement, long (32) and very long (64) passwords, all options combined, wildcard pattern |
-|   33   | Pattern minimum length   | Short pattern `"ld"` produces password >= 8 characters                                                     |
-| 34--35 | File operations          | No-save flag verification, help message                                                                    |
-| 36--40 | Config files             | YAML config, JSON config, missing config error, CLI override, `blank_space` key mapping                    |
-| 41--42 | Master-password security | Correct password succeeds, wrong password produces no readable entries                                     |
-| 43--44 | Alternative auth methods | `SPG_MASTER_PASSWORD` env-var, `--master-password-file`                                                    |
-|   45   | System dependency        | `shred` binary is available                                                                                |
-|   46   | Blank-position stress    | 100 iterations: blank never at first or last position                                                      |
-|   47   | Package entry point      | `python -m secure_password_generator` works                                                                |
-| 48--49 | Cleanup                  | Secure deletion, verify vault and salt are gone                                                            |
-|   50   | Backward compatibility   | Vault without master password (file-key only) still works                                                  |
-
-**How to run:**
-
-```bash
-bash tests/test_integration.sh
-```
-
-**Exit codes:** On failure the script exits with the test number (e.g.,
-exit code 26 means Test 26 failed).  Exit code 0 means all tests passed.
-
----
-
-### `benchmark_strength.py` -- diagnostic tool
-
-**Type:** Standalone CLI script (not a pytest test)
-
-**Purpose:** Generates N passwords per configuration and reports score
-distributions, mean, standard deviation, and whether flicker (more than
-one distinct score) was observed.  Useful for tuning the strength-scoring
-algorithm or verifying that a change to the generator does not introduce
-score instability.
-
-**Bundled configurations:**
-
-|       Key       | Description                             | Length | Pool |
-|:---------------:|-----------------------------------------|:------:|:----:|
-|  `blank_full`   | Full charset + blank + similar excluded |   33   |  65  |
-| `full_no_blank` | Full charset, no blank                  |   24   |  94  |
-| `short_simple`  | Upper + lower only                      |   10   |  52  |
-
-**How to run:**
-
-```bash
-# Default: 100 iterations per config
-python tests/benchmark_strength.py
-
-# Custom iteration count
-python tests/benchmark_strength.py -n 200
-
-# Specific configs only
-python tests/benchmark_strength.py -c blank_full short_simple
-```
-
-**Sample output:**
-
-```text
-======================================================================
-  Config:      Full + Blank (blank-space config)
-  Length:      33
-  Pool size:   65
-  Iterations:  100
-======================================================================
-  Strength scores:
-    Score 10:  100 (100.0%) ##################################################
-    Mean:   10.00
-    StdDev: 0.000
-    Range:  10 - 10
-
-  Flicker (>1 distinct score): NO
-```
+> **Benchmarks** (generation throughput, crypto timing, scoring consistency)
+> live in `benchmarks/` at the project root.
+> See [benchmarks/README.md](../benchmarks/README.md).
 
 ---
 
 ## CI / Container Usage
 
-Run the full test suite in an isolated Podman container:
+Run the full suite in an isolated Podman container:
 
 ```bash
 podman run --rm -v $(pwd):/workspace:Z fedora:latest bash -c \
   "cd /workspace && dnf install -y python3 python3-pip > /dev/null 2>&1 \
   && pip3 install -e '.[dev]' > /dev/null 2>&1 \
-  && pytest tests/ -v \
-  && bash tests/test_integration.sh"
+  && pytest tests/ -v"
 ```
