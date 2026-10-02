@@ -48,14 +48,17 @@ A robust, powerful, and secure command-line utility for generating **cryptograph
 |  `pyperclip`   | Clipboard support                    |
 |    `PyYAML`    | YAML config file support             |
 |   `tabulate`   | Formatted history table output       |
+|   `pyright`   | Static type checking (dev dependency) |
 |    `pytest`    | Test suite (dev dependency)          |
+|     `ruff`     | Linter (dev dependency)              |
 
 **System/RPM dependencies** are listed in `requirements-rpm.txt`:
 
-|   Package   | Purpose            | Required? |
-|:-----------:|--------------------|:---------:|
-| `coreutils` | Provides `shred`   |    Yes    |
-|   `xclip`   | Clipboard fallback | Optional  |
+|    Package    | Purpose                      | Required? |
+|:-------------:|------------------------------|:---------:|
+|  `coreutils`  | Provides `shred`             |    Yes    |
+|    `xclip`    | Clipboard fallback           | Optional  |
+| `nodejs-npm`  | Required by pyright (dev)    | Optional  |
 
 Install system dependencies on Fedora / RHEL:
 
@@ -274,7 +277,7 @@ For a full tutorial and recipes, see [docs/EXAMPLES.md](docs/EXAMPLES.md).
 
 ## 🧪 Testing
 
-The test suite runs through pytest in under 2 seconds. A test-mode Argon2id profile is applied automatically by `conftest.py`.
+The test suite runs through pytest in under 2 seconds. A test-mode Argon2id profile is applied automatically by `conftest.py`. Static type checking is handled by pyright.
 
 |           File            | Tests | Coverage                                                   |
 |:-------------------------:|:-----:|------------------------------------------------------------|
@@ -290,6 +293,7 @@ The test suite runs through pytest in under 2 seconds. A test-mode Argon2id prof
 
 ```bash
 pytest tests/ -v
+pyright secure_password_generator/ tests/
 ```
 
 See [tests/README.md](tests/README.md) for the full test architecture and

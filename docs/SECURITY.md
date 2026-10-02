@@ -37,7 +37,7 @@ This tool is designed with security as a top priority.
 - **File Permissions**: All files are created with `0600` file permissions (read/write) restricted to the file's owner. The tool warns if permissions drift.
 - **Secure Deletion**: Prefers Linux `shred -vuxzn` (overwrite, exact size, zero final pass, then unlink). Falls back to manual overwrite+unlink when `shred` is unavailable. Note: shred cannot guarantee erasure on SSDs, CoW filesystems (btrfs/ZFS), or data-journaled filesystems.
 - **Clipboard Auto-Clear**: Copied passwords are scheduled to clear after `CLIPBOARD_CLEAR_SECONDS` (default 60).
-- **CI/CD**: GitHub Actions runs lint (ruff), tests (pytest), and smoke tests on every push and PR. Dependabot monitors dependencies for security updates weekly.
+- **CI/CD**: GitHub Actions runs lint (ruff), type checking (pyright), tests (pytest), and smoke tests on every push and PR. Dependabot monitors dependencies for security updates weekly.
 
 ---
 

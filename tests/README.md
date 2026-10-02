@@ -224,10 +224,12 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 ```bash
 podman run --rm -v $(pwd):/workspace:Z fedora:latest bash -c "
   cd /workspace &&
-  dnf install -y python3 python3-pip > /dev/null 2>&1 &&
-  pip3 install -e . pytest ruff > /dev/null 2>&1 &&
+  dnf install -y python3 python3-pip nodejs-npm > /dev/null 2>&1 &&
+  pip3 install -e . -r requirements.txt > /dev/null 2>&1 &&
   echo '=== Ruff Lint ===' &&
   ruff check secure_password_generator/ tests/ benchmarks/ &&
+  echo '=== Pyright ===' &&
+  pyright secure_password_generator/ tests/ &&
   echo '=== Pytest ===' &&
   pytest tests/ -v --tb=short &&
   echo '=== Smoke Test ===' &&
@@ -236,3 +238,8 @@ podman run --rm -v $(pwd):/workspace:Z fedora:latest bash -c "
   echo '=== ALL CHECKS PASSED ==='
 "
 ```
+
+> **Note:** `nodejs-npm` is required because `pyright` is a Node.js binary.
+> The `pip install pyright` wrapper downloads Node automatically in most
+> environments, but Fedora containers may not have `node` pre-installed.
+> See `requirements-rpm.txt` for all system dependencies.
