@@ -31,7 +31,7 @@ pip install -e '.[dev]'
 ```
 
 System dependencies (`shred`, optionally `xclip`) should be available --
-see `bindep.txt` in the project root.
+see `requirements-rpm.txt` in the project root.
 
 ---
 
@@ -107,7 +107,7 @@ Module under test: `secure_password_generator.crypto`
 - Master-password complexity: too short, missing types, valid (3 and 4 types)
 - `resolve_master_password()` priority: CLI flag > env-var > file > None
 
-### `test_generator.py` -- 30 tests
+### `test_generator.py` -- 31 tests
 
 Module under test: `secure_password_generator.generator`
 
@@ -169,7 +169,7 @@ Module under test: `secure_password_generator.interactive`
 - `TestLabelCommand`: label updates metadata, invalid index, no args,
   generate with metadata
 
-### `test_cli.py` -- 24 tests
+### `test_cli.py` -- 25 tests
 
 Module under test: `secure_password_generator.cli` (via `run_cli()`)
 

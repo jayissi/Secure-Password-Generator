@@ -120,7 +120,7 @@ module hard-codes magic numbers.
 - File paths: `PASSWORD_DIR`, `PASSWORD_FILE`, `KEY_FILE`, `PEPPER_FILE`,
   `MASTER_SALT_FILE` -- all under `~/.secure_passwords/`
 - ANSI colours: `COLOR_RED`, `COLOR_ORANGE`, `COLOR_YELLOW`,
-  `COLOR_GREEN`, `COLOR_RESET`
+  `COLOR_GREEN`, `COLOR_BRIGHT_GREEN`, `COLOR_RESET`
 - Config-file support: `VALID_CONFIG_KEYS`, `CONFIG_KEY_MAP`
 - Environment variables: `ENV_MASTER_PASSWORD` (`SPG_MASTER_PASSWORD`)
 
@@ -330,7 +330,7 @@ custom wizards, vault browsing, and health reporting.
 
 **Key exports:**
 
-- `PwgenShell` -- `cmd.Cmd` subclass with prompt `pwgen> ` and commands:
+- `PwgenShell` -- `cmd.Cmd` subclass with `pwgen>` prompt and commands:
   `quick [LENGTH]` (generate with all types, default 24), `new` (guided
   wizard), `browse` (paginated vault view), `health` (score distribution
   and vault stats), `quit`/`exit`/EOF.

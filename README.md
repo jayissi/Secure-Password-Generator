@@ -228,35 +228,42 @@ python -m secure_password_generator -h
 
 ## 📝 Quick Start Examples
 
-Generate a strong password with all character types:
+Generate a strong password (don't save):
 
-    pwgen -F -L 24
+```bash
+pwgen -F -L 20 -n
+```
 
 Generate and save with metadata:
 
-    pwgen -F -L 16 --label "Gmail" --category "Email" --tags "work"
+```bash
+pwgen -F -L 16 --label "Gmail" --category "Email" --tags "work"
+```
 
 View saved passwords:
 
-    pwgen -H
+```bash
+pwgen -H
+```
 
-Start interactive mode (guided prompts):
+Start interactive mode:
 
-    pwgen -i
+```bash
+pwgen -i
+```
 
-For more examples with sample output, use cases, and advanced
-workflows, see [docs/EXAMPLES.md](docs/EXAMPLES.md).
+For a full tutorial and recipes, see [docs/EXAMPLES.md](docs/EXAMPLES.md).
 
 ---
 
 ## 📚 Documentation
 
-| Document | Description |
-|----------|-------------|
-| [Examples](docs/EXAMPLES.md) | Detailed usage examples with sample output |
-| [Interactive Mode](docs/INTERACTIVE.md) | Guided interactive interface |
-| [Configuration](docs/CONFIGURATION.md) | YAML/JSON config file format |
-| [Security](docs/SECURITY.md) | Encryption flow, storage, threat model |
+| Document                                 | Description                                |
+|------------------------------------------|--------------------------------------------|
+| [Examples](docs/EXAMPLES.md)             | Detailed usage examples with sample output |
+| [Interactive Mode](docs/INTERACTIVE.md)  | Guided interactive interface               |
+| [Configuration](docs/CONFIGURATION.md)   | YAML/JSON config file format               |
+| [Security](docs/SECURITY.md)             | Encryption flow, storage, threat model     |
 
 ---
 
@@ -264,16 +271,16 @@ workflows, see [docs/EXAMPLES.md](docs/EXAMPLES.md).
 
 The test suite runs through pytest in under 2 seconds. A test-mode Argon2id profile is applied automatically by `conftest.py`.
 
-|           File            | Tests | Coverage                                                         |
-|:-------------------------:|:-----:|------------------------------------------------------------------|
-|     `test_config.py`      |  14   | Config loading, `CharsetConfig`, `ConfigError`                   |
-|     `test_crypto.py`      |  16   | Encrypt/decrypt, key management, master-password validation      |
-|    `test_generator.py`    |  31   | Charset, generation constraints, progressive scoring, latin-ext  |
-| `test_strength_pytest.py` |  41   | Entropy boundaries, consistency, edge cases, latin-ext scoring   |
-|     `test_history.py`     |  22   | Vault CRUD, search/filter, authenticated delete, metadata update |
-|   `test_interactive.py`   |  41   | Interactive mode commands, session lifecycle, label, metadata     |
-|       `test_cli.py`       |  25   | CLI integration (in-process via `run_cli()`), latin-ext          |
-|  `test_entry_points.py`   |   3   | Subprocess smoke tests (`pwgen`, `python -m`)                    |
+|           File            | Tests | Coverage                                                   |
+|:-------------------------:|:-----:|------------------------------------------------------------|
+|     `test_config.py`      |  14   | Config loading, CharsetConfig, ConfigError                 |
+|     `test_crypto.py`      |  16   | Encrypt/decrypt, key management, master-password           |
+|    `test_generator.py`    |  31   | Charset, constraints, progressive scoring, latin-ext       |
+| `test_strength_pytest.py` |  41   | Entropy boundaries, consistency, edge cases                |
+|     `test_history.py`     |  22   | Vault CRUD, search/filter, delete, metadata update         |
+|   `test_interactive.py`   |  41   | Interactive commands, session lifecycle, label             |
+|       `test_cli.py`       |  25   | CLI integration, latin-ext, strength display               |
+|  `test_entry_points.py`   |   3   | Subprocess smoke tests for pwgen and python -m             |
 
 ```bash
 pytest tests/ -v

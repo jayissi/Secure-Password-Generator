@@ -10,11 +10,11 @@ This tool is designed with security as a top priority.
 
 ## Storage Location
 
-| File               | Path                                          | Purpose                           |
-|:-------------------|:----------------------------------------------|:----------------------------------|
-| Password Vault     | `~/.secure_passwords/vault.enc`               | Encrypted password records        |
-| Encryption Key     | `~/.secure_passwords/encryption.key`          | 256-bit AES key material          |
-| Pepper Key         | `~/.secure_passwords/pepper.key`              | 256-bit pepper for Argon2id       |
+| File               | Path                                          | Purpose                              |
+|:-------------------|:----------------------------------------------|:-------------------------------------|
+| Password Vault     | `~/.secure_passwords/vault.enc`               | Encrypted password records           |
+| Encryption Key     | `~/.secure_passwords/encryption.key`          | 256-bit AES key material             |
+| Pepper Key         | `~/.secure_passwords/pepper.key`              | 256-bit pepper for Argon2id          |
 | Master Salt        | `~/.secure_passwords/master_salt.bin`         | 32-byte salt for master-password KDF |
 
 ---

@@ -205,7 +205,7 @@ Duplicate labels are also flagged:
 
 ---
 
-## CLI-Style Commands
+## CLI-Style Command Reference
 
 These commands accept the same flags as the non-interactive CLI, giving
 power users the familiar flag syntax directly inside the REPL.
@@ -232,23 +232,23 @@ Strength Summary: 3 passwords generated
 
 #### `generate` Flags
 
-| Flag | Long              | Description                          |
-|:-----|:------------------|:-------------------------------------|
-| `-F` | `--full`          | All types + no-repeats               |
-| `-L` | `--length N`      | Password length (default: 12)        |
-| `-c` | `--count N`       | Number of passwords (default: 1)     |
-| `-u` | `--upper`         | Include uppercase                    |
-| `-l` | `--lower`         | Include lowercase                    |
-| `-d` | `--digits`        | Include digits                       |
-| `-s` | `--symbols`       | Include symbols                      |
-| `-a` | `--allowed-symbols` | Custom symbol set (implies `-s`)   |
-| `-x` | `--latin-ext`     | Latin-1 extended characters          |
-| `-b` | `--blank`         | Include space character              |
-| `-r` | `--no-repeats`    | No consecutive duplicates            |
-| `-e` | `--exclude-similar` | Exclude i/l/1/L/o/0/O             |
-| `-m` | `--min N`         | Min characters per selected type     |
-| `-p` | `--pattern P`     | Pattern (l/u/d/s/b/*)                |
-| `-n` | `--no-save`       | Just print, skip save prompt         |
+| Flag | Long                | Description                      |
+|:-----|:--------------------|:---------------------------------|
+| `-F` | `--full`            | All types + no-repeats           |
+| `-L` | `--length N`        | Password length (default: 12)    |
+| `-c` | `--count N`         | Number of passwords (default: 1) |
+| `-u` | `--upper`           | Include uppercase                |
+| `-l` | `--lower`           | Include lowercase                |
+| `-d` | `--digits`          | Include digits                   |
+| `-s` | `--symbols`         | Include symbols                  |
+| `-a` | `--allowed-symbols` | Custom symbol set (implies `-s`) |
+| `-x` | `--latin-ext`       | Latin-1 extended characters      |
+| `-b` | `--blank`           | Include space character          |
+| `-r` | `--no-repeats`      | No consecutive duplicates        |
+| `-e` | `--exclude-similar` | Exclude i/l/1/L/o/0/O            |
+| `-m` | `--min N`           | Min chars per selected type      |
+| `-p` | `--pattern P`       | Pattern (l/u/d/s/b/*)            |
+| `-n` | `--no-save`         | Just print, skip save prompt     |
 
 ### `save` — Save Last Password
 
