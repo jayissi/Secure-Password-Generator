@@ -41,16 +41,16 @@ A robust, powerful, and secure command-line utility for generating **cryptograph
 
 **Python dependencies** are installed automatically by `pip` (see `pyproject.toml`):
 
-|    Package     | Purpose                              |
-|:--------------:|--------------------------------------|
-| `argcomplete`  | Shell tab-completion                 |
-| `cryptography` | AES-GCM-SIV encryption, Argon2id KDF |
-|  `pyperclip`   | Clipboard support                    |
-|    `PyYAML`    | YAML config file support             |
-|   `tabulate`   | Formatted history table output       |
-|   `pyright`   | Static type checking (dev dependency) |
-|    `pytest`    | Test suite (dev dependency)          |
-|     `ruff`     | Linter (dev dependency)              |
+|    Package     | Purpose                               |
+|:--------------:|---------------------------------------|
+| `argcomplete`  | Shell tab-completion                  |
+| `cryptography` | AES-GCM-SIV encryption, Argon2id KDF  |
+|  `pyperclip`   | Clipboard support                     |
+|    `PyYAML`    | YAML config file support              |
+|   `tabulate`   | Formatted history table output        |
+|   `pyright`    | Static type checking (dev dependency) |
+|    `pytest`    | Test suite (dev dependency)           |
+|     `ruff`     | Linter (dev dependency)               |
 
 **System/RPM dependencies** are listed in `requirements-rpm.txt`:
 
