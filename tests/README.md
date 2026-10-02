@@ -218,11 +218,21 @@ Subprocess smoke tests (the only file that shells out):
 
 ## CI / Container Usage
 
-Run the full suite in an isolated Podman container:
+Run the full CI pipeline locally in a Podman container.  This mirrors the
+GitHub Actions workflow (`.github/workflows/ci.yml`):
 
 ```bash
-podman run --rm -v $(pwd):/workspace:Z fedora:latest bash -c \
-  "cd /workspace && dnf install -y python3 python3-pip > /dev/null 2>&1 \
-  && pip3 install -e '.[dev]' > /dev/null 2>&1 \
-  && pytest tests/ -v"
+podman run --rm -v $(pwd):/workspace:Z fedora:latest bash -c "
+  cd /workspace &&
+  dnf install -y python3 python3-pip > /dev/null 2>&1 &&
+  pip3 install -e . pytest ruff > /dev/null 2>&1 &&
+  echo '=== Ruff Lint ===' &&
+  ruff check secure_password_generator/ tests/ benchmarks/ &&
+  echo '=== Pytest ===' &&
+  pytest tests/ -v --tb=short &&
+  echo '=== Smoke Test ===' &&
+  pwgen -V &&
+  pwgen -F -L 16 -n &&
+  echo '=== ALL CHECKS PASSED ==='
+"
 ```

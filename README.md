@@ -6,6 +6,7 @@
 ![License](https://img.shields.io/badge/license-MIT-750014?logo=open-source-initiative&logoColor=750014) <!-- https://brand.mit.edu/color -->
 ![Security](https://img.shields.io/badge/security-cryptographically_secure-008000?logo=lock&logoColor=008000)
 ![Interactive](https://img.shields.io/badge/mode-interactive-blue)
+[![CI](https://github.com/jayissi/Secure-Password-Generator/actions/workflows/ci.yml/badge.svg)](https://github.com/jayissi/Secure-Password-Generator/actions/workflows/ci.yml)
 
 A robust, powerful, and secure command-line utility for generating **cryptographically strong passwords**. Built with Python's `secrets` module, this tool supports Argon2id password hashing and Base64-encoded AES-GCM-SIV encryption with customizable character sets, password metadata organization, and advanced search capabilities.
 
@@ -98,6 +99,9 @@ That's it! You're ready to generate passwords.
 
 ```text
 Secure-Password-Generator/
+├── .github/
+│   ├── workflows/ci.yml              # CI: lint, test, smoke test
+│   └── dependabot.yml                # Automated dependency updates
 ├── pyproject.toml                    # PEP 621 metadata and entry points
 ├── requirements.txt                  # pip install -r compatibility
 ├── requirements-rpm.txt              # System/RPM dependencies
