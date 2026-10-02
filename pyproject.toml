@@ -62,4 +62,5 @@ ignore = [
 # Run: pyright secure_password_generator/ tests/
 [tool.pyright]
 pythonVersion = "3.13"
-typeCheckingMode = "basic"
+typeCheckingMode = "standard"
+include = ["secure_password_generator", "tests"]
