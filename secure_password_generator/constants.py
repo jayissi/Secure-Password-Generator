@@ -87,3 +87,8 @@ CONFIG_KEY_MAP = {
 # Environment Variables
 # =========================
 ENV_MASTER_PASSWORD = "SPG_MASTER_PASSWORD"
+
+# =========================
+# Associated Authenticated Data
+# =========================
+VAULT_AAD = b"vault-entry"

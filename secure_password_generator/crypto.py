@@ -32,9 +32,11 @@ from secure_password_generator.constants import (
     PASSWORD_DIR,
     PASSWORD_FILE,
     PEPPER_FILE,
+    VAULT_AAD,
 )
 from secure_password_generator.utils import (
     secure_delete_file,
+    vault_lock,
     verify_file_permissions,
 )
 
@@ -235,22 +237,22 @@ def get_pepper() -> bytes:
 # ---------------------------------------------------------------------------
 # AES-GCM-SIV encrypt / decrypt
 # ---------------------------------------------------------------------------
-def encrypt_data(data: str, key: bytes) -> bytes:
+def encrypt_data(data: str, key: bytes, aad: bytes | None = None) -> bytes:
     """Encrypt a JSON payload using AES-GCM-SIV."""
     nonce = secrets.token_bytes(12)
     aesgcm = AESGCMSIV(key)
-    ciphertext = aesgcm.encrypt(nonce, data.encode(), None)
+    ciphertext = aesgcm.encrypt(nonce, data.encode(), aad)
     return nonce + ciphertext
 
 
-def decrypt_data(encrypted: bytes, key: bytes) -> str:
+def decrypt_data(encrypted: bytes, key: bytes, aad: bytes | None = None) -> str:
     """Decrypt AES-GCM-SIV ciphertext (nonce || ciphertext)."""
     if len(encrypted) < MIN_ENCRYPTED_LENGTH:
         raise ValueError("Encrypted data too short -- possibly corrupted")
     nonce = encrypted[:12]
     ciphertext = encrypted[12:]
     aesgcm = AESGCMSIV(key)
-    return aesgcm.decrypt(nonce, ciphertext, None).decode()
+    return aesgcm.decrypt(nonce, ciphertext, aad).decode()
 
 
 def argon2id_hash(password: str) -> dict[str, Any]:
@@ -307,8 +309,8 @@ def resolve_master_password(args: Any) -> str | None:
         )
         return args.master_password
 
-    # 2. Environment variable
-    env_pw = os.environ.get(ENV_MASTER_PASSWORD)
+    # 2. Environment variable (consumed on first read)
+    env_pw = os.environ.pop(ENV_MASTER_PASSWORD, None)
     if env_pw:
         logger.warning(
             "%s is set. Environment variables may be visible via "
@@ -366,17 +368,7 @@ def set_master_password(
     else:
         old_key = get_encryption_key()
 
-    # Decrypt existing vault entries with old key
-    plaintext_entries: list[str] = []
-    if PASSWORD_FILE.exists():
-        verify_file_permissions(PASSWORD_FILE)
-        with open(PASSWORD_FILE, "rb") as f:
-            lines = [line.strip() for line in f if line.strip()]
-        for line in lines:
-            blob = base64.b64decode(line, validate=True)
-            plaintext_entries.append(decrypt_data(blob, old_key))
-
-    # Obtain new master password
+    # Obtain new master password (before locking — may prompt interactively)
     if new_password is None:
         pw1 = prompt_master_password("New master password: ")
         pw2 = prompt_master_password("Confirm master password: ")
@@ -388,33 +380,44 @@ def set_master_password(
 
     _validate_master_password(new_password)
 
-    # Create fresh salt and derive new combined key
-    salt = secrets.token_bytes(32)
-    MASTER_SALT_FILE.write_bytes(salt)
-    MASTER_SALT_FILE.chmod(DEFAULT_FILE_PERMISSIONS)
-
-    # Invalidate cached keys so new salt is used
-    _KEY_CACHE.clear()
-    _FINAL_KEY_CACHE.clear()
-    global _SESSION_TOKEN
-    _SESSION_TOKEN = None
-
-    derived = derive_master_key(new_password, salt=salt)
-    file_key = get_file_encryption_key()
-    new_key = combine_keys(derived, file_key)
-
-    # Re-encrypt vault with new key
-    if plaintext_entries:
-        temp_path = PASSWORD_FILE.with_suffix(".enc.tmp")
-        with open(temp_path, "wb") as f:
-            for plaintext in plaintext_entries:
-                encrypted = encrypt_data(plaintext, new_key)
-                f.write(base64.b64encode(encrypted) + b"\n")
-        temp_path.chmod(DEFAULT_FILE_PERMISSIONS)
+    with vault_lock():
+        # Decrypt existing vault entries with old key
+        plaintext_entries: list[str] = []
         if PASSWORD_FILE.exists():
-            secure_delete_file(PASSWORD_FILE)
-        temp_path.rename(PASSWORD_FILE)
-        PASSWORD_FILE.chmod(DEFAULT_FILE_PERMISSIONS)
+            verify_file_permissions(PASSWORD_FILE)
+            with open(PASSWORD_FILE, "rb") as f:
+                lines = [line.strip() for line in f if line.strip()]
+            for line in lines:
+                blob = base64.b64decode(line, validate=True)
+                plaintext_entries.append(decrypt_data(blob, old_key, aad=VAULT_AAD))
+
+        # Create fresh salt and derive new combined key
+        salt = secrets.token_bytes(32)
+        MASTER_SALT_FILE.write_bytes(salt)
+        MASTER_SALT_FILE.chmod(DEFAULT_FILE_PERMISSIONS)
+
+        # Invalidate cached keys so new salt is used
+        _KEY_CACHE.clear()
+        _FINAL_KEY_CACHE.clear()
+        global _SESSION_TOKEN
+        _SESSION_TOKEN = None
+
+        derived = derive_master_key(new_password, salt=salt)
+        file_key = get_file_encryption_key()
+        new_key = combine_keys(derived, file_key)
+
+        # Re-encrypt vault with new key
+        if plaintext_entries:
+            temp_path = PASSWORD_FILE.with_suffix(".enc.tmp")
+            with open(temp_path, "wb") as f:
+                for plaintext in plaintext_entries:
+                    encrypted = encrypt_data(plaintext, new_key, aad=VAULT_AAD)
+                    f.write(base64.b64encode(encrypted) + b"\n")
+            temp_path.chmod(DEFAULT_FILE_PERMISSIONS)
+            if PASSWORD_FILE.exists():
+                secure_delete_file(PASSWORD_FILE)
+            temp_path.rename(PASSWORD_FILE)
+            PASSWORD_FILE.chmod(DEFAULT_FILE_PERMISSIONS)
 
     print(f"[+] Master password configured. Salt stored at {MASTER_SALT_FILE}")
     print(

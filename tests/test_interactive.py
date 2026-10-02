@@ -209,10 +209,12 @@ class TestSessionLifecycle:
         result = shell.do_EOF("")
         assert result is True
 
-    def test_clear_does_not_crash(self, vault):
+    def test_clear_does_not_crash(self, vault, capsys):
         shell = PwgenShell()
         result = shell.do_clear("")
         assert result is None
+        out = capsys.readouterr().out
+        assert "\033[H\033[2J" in out
 
     def test_interactive_flag_accepted(self, vault):
         from secure_password_generator.cli import create_argument_parser
@@ -228,7 +230,7 @@ class TestSessionLifecycle:
     def test_emptyline_does_nothing(self, vault, capsys):
         shell = PwgenShell()
         result = shell.emptyline()
-        assert result is None
+        assert result is False
         out = capsys.readouterr().out
         assert out == ""
 
@@ -300,6 +302,18 @@ class TestSaveCommand:
         shell.do_save("")
         out = capsys.readouterr().out
         assert "saved to vault" in out
+
+    def test_save_clears_last_password(self, vault, capsys):
+        """After do_save, _last_password and _last_pool_size are None."""
+        shell = PwgenShell()
+        shell.do_generate("-F -L 12")
+        assert shell._last_password is not None
+        capsys.readouterr()
+        shell.do_save("")
+        out = capsys.readouterr().out
+        assert "saved to vault" in out
+        assert shell._last_password is None
+        assert shell._last_pool_size is None
 
 
 # ── TestHistoryCommand ───────────────────────────────────────────────────

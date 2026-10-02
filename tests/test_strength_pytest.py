@@ -345,3 +345,32 @@ class TestLatinExtScoring:
         pool = 26 + 26 + 10 + 32 + 1
         score = calculate_password_strength(pw, charset_size=pool)
         assert score >= 9
+
+
+# ── 9. Pool inference no double-count ────────────────────────────────────
+
+class TestPoolInferenceNoDoubleCount:
+
+    def test_pool_inference_no_double_count(self):
+        """Latin-1 uppercase like À must NOT count in both upper and ext pools.
+
+        Password "Àbc123!" contains:
+          - À (ord > 127) → ext (+94)
+          - b, c → lower (+26)
+          - 1, 2, 3 → digit (+10)
+          - ! → symbol (+32)
+        Correct inferred pool = 26 + 10 + 32 + 94 = 162 (NOT 188).
+        """
+        pw = "\u00c0bc123!"
+        score_inferred = calculate_password_strength(pw)
+        score_correct = calculate_password_strength(pw, charset_size=162)
+        score_wrong = calculate_password_strength(pw, charset_size=188)
+        assert score_inferred == score_correct
+        assert score_inferred != score_wrong or score_correct == score_wrong
+
+    def test_pure_latin_ext_no_ascii_pool(self):
+        """Pure non-ASCII password should only get ext pool (94)."""
+        pw = "\u00c0\u00e9\u00fc\u00df"
+        score = calculate_password_strength(pw)
+        score_94 = calculate_password_strength(pw, charset_size=94)
+        assert score == score_94

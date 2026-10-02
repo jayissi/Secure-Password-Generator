@@ -21,6 +21,7 @@ from datetime import datetime
 
 import pytest
 
+from secure_password_generator.constants import VAULT_AAD
 from secure_password_generator.crypto import (
     decrypt_data,
     get_encryption_key,
@@ -286,6 +287,36 @@ class TestFormatHistoryTable:
         assert "2024-01-01" in table
 
 
+# ── Corrupt vault entry warning ──────────────────────────────────────────
+
+class TestCorruptEntryWarning:
+
+    def test_skipped_entry_warning(self, vault_dir, vault_key, vault_file, capsys):
+        """A corrupt entry triggers a visible warning in show_password_history."""
+        save_password("GoodPassword1!", vault_key, filename=vault_file)
+
+        with open(vault_file, "ab") as f:
+            corrupt_line = base64.b64encode(b"\x00\x01\x02bad_data") + b"\n"
+            f.write(corrupt_line)
+
+        show_password_history(vault_key, filename=vault_file)
+        out = capsys.readouterr().out
+        assert "1 vault entry(ies) could not be decrypted" in out
+        assert "GoodPassword1!" in out
+
+    def test_multiple_corrupt_entries(self, vault_dir, vault_key, vault_file, capsys):
+        """Multiple corrupt entries are counted."""
+        save_password("ValidPw!", vault_key, filename=vault_file)
+
+        corrupt = base64.b64encode(b"\xde\xad\xbe\xef" * 8) + b"\n"
+        with open(vault_file, "ab") as f:
+            f.writelines(corrupt for _ in range(3))
+
+        show_password_history(vault_key, filename=vault_file)
+        out = capsys.readouterr().out
+        assert "3 vault entry(ies) could not be decrypted" in out
+
+
 # ── NFC save normalization ───────────────────────────────────────────────
 
 class TestNFCSaveNormalization:
@@ -298,6 +329,6 @@ class TestNFCSaveNormalization:
 
         raw = vault_file.read_bytes().strip()
         encrypted = base64.b64decode(raw)
-        plaintext = decrypt_data(encrypted, vault_key)
+        plaintext = decrypt_data(encrypted, vault_key, aad=VAULT_AAD)
         record = json.loads(plaintext)
         assert record["password"] == nfc_password

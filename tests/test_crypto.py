@@ -36,8 +36,8 @@ class TestEncryptDecrypt:
     def test_round_trip(self):
         key = secrets.token_bytes(32)
         plaintext = '{"password": "hunter2"}'
-        encrypted = encrypt_data(plaintext, key)
-        assert decrypt_data(encrypted, key) == plaintext
+        encrypted = encrypt_data(plaintext, key, aad=b"test")
+        assert decrypt_data(encrypted, key, aad=b"test") == plaintext
 
     def test_wrong_key_raises(self):
         key1 = secrets.token_bytes(32)
@@ -53,8 +53,20 @@ class TestEncryptDecrypt:
 
     def test_empty_plaintext(self):
         key = secrets.token_bytes(32)
-        encrypted = encrypt_data("", key)
-        assert decrypt_data(encrypted, key) == ""
+        encrypted = encrypt_data("", key, aad=b"test")
+        assert decrypt_data(encrypted, key, aad=b"test") == ""
+
+    def test_mismatched_aad_raises(self):
+        key = secrets.token_bytes(32)
+        encrypted = encrypt_data("secret", key, aad=b"a")
+        with pytest.raises(cryptography.exceptions.InvalidTag):
+            decrypt_data(encrypted, key, aad=b"b")
+
+    def test_none_aad_round_trip(self):
+        key = secrets.token_bytes(32)
+        plaintext = "no-aad-test"
+        encrypted = encrypt_data(plaintext, key, aad=None)
+        assert decrypt_data(encrypted, key, aad=None) == plaintext
 
 
 # ── combine_keys ─────────────────────────────────────────────────────────
@@ -118,15 +130,37 @@ class TestResolveMasterPassword:
             master_password=None,
             master_password_file=None,
         )
+        env = os.environ.copy()
+        env["SPG_MASTER_PASSWORD"] = "EnvValue"
         with (
-            patch.dict(os.environ, {"SPG_MASTER_PASSWORD": "EnvValue"}),
+            patch.dict(os.environ, env, clear=True),
             patch(
                 "secure_password_generator.crypto.is_master_password_enabled",
                 return_value=False,
             ),
         ):
             result = resolve_master_password(args)
-        assert result == "EnvValue"
+            assert result == "EnvValue"
+            assert "SPG_MASTER_PASSWORD" not in os.environ
+
+    def test_env_var_consumed_on_read(self):
+        args = types.SimpleNamespace(
+            master_password=None,
+            master_password_file=None,
+        )
+        env = os.environ.copy()
+        env["SPG_MASTER_PASSWORD"] = "OnceOnly"
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch(
+                "secure_password_generator.crypto.is_master_password_enabled",
+                return_value=False,
+            ),
+        ):
+            first = resolve_master_password(args)
+            second = resolve_master_password(args)
+        assert first == "OnceOnly"
+        assert second is None
 
     def test_password_file_read(self, tmp_path):
         pw_file = tmp_path / "master.txt"

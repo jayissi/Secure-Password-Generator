@@ -2,19 +2,41 @@
 Utility functions: secure file deletion, file permission checks, logging setup.
 """
 
+import fcntl
 import logging
 import os
 import secrets
 import shutil
 import subprocess
+from contextlib import contextmanager
 from pathlib import Path
 
+import secure_password_generator.constants as _constants
 from secure_password_generator.constants import (
     DEFAULT_FILE_PERMISSIONS,
     SECURE_DELETE_PASSES,
 )
 
 logger = logging.getLogger("secure_password_generator")
+
+
+@contextmanager
+def vault_lock():
+    """Acquire an exclusive file lock on the vault directory.
+
+    Prevents TOCTOU race conditions during read-modify-write vault
+    operations by serialising access through ``fcntl.flock(LOCK_EX)``.
+    """
+    pw_dir = _constants.PASSWORD_DIR
+    pw_dir.mkdir(mode=_constants.DEFAULT_DIR_PERMISSIONS, exist_ok=True)
+    lock_path = pw_dir / ".vault.lock"
+    fd = open(lock_path, "w")  # noqa: SIM115
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        fd.close()
 
 
 def configure_logging(*, verbose: bool = False, quiet: bool = False) -> None:
@@ -87,6 +109,9 @@ def secure_delete_file(
             "(limited effectiveness on modern filesystems)"
         )
         file_size = file_path.stat().st_size
+        if file_size == 0:
+            file_path.unlink()
+            return
         with open(file_path, "r+b") as f:
             for _ in range(passes):
                 f.seek(0)

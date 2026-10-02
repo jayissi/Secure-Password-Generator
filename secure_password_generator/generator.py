@@ -132,18 +132,33 @@ def calculate_password_strength(
     # -- Infer charset_size when not provided ---------------------------------
     if charset_size is None:
         pool = 0
-        if any(c.isupper() for c in password):
+        _has_upper = _has_lower = _has_digit = _has_symbol = False
+        _has_blank = _has_ext = False
+        for c in password:
+            if ord(c) > 127:
+                _has_ext = True
+            elif c.isupper():
+                _has_upper = True
+            elif c.islower():
+                _has_lower = True
+            elif c.isdigit():
+                _has_digit = True
+            elif c == " ":
+                _has_blank = True
+            elif not c.isalnum():
+                _has_symbol = True
+        if _has_upper:
             pool += 26
-        if any(c.islower() for c in password):
+        if _has_lower:
             pool += 26
-        if any(c.isdigit() for c in password):
+        if _has_digit:
             pool += 10
-        if any(not c.isalnum() and c != " " for c in password):
+        if _has_symbol:
             pool += 32
-        if " " in password:
+        if _has_blank:
             pool += 1
-        if any(ord(c) > 127 for c in password):
-            pool += 94  # Latin-1 Supplement
+        if _has_ext:
+            pool += 94
         charset_size = max(pool, 1)
 
     # -- Single-pass character-type detection ---------------------------------

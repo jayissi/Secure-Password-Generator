@@ -16,6 +16,7 @@ import secure_password_generator.constants as _constants
 from secure_password_generator.constants import (
     COLOR_RESET,
     DEFAULT_FILE_PERMISSIONS,
+    VAULT_AAD,
 )
 from secure_password_generator.crypto import (
     argon2id_hash,
@@ -29,6 +30,7 @@ from secure_password_generator.generator import (
 )
 from secure_password_generator.utils import (
     secure_delete_file,
+    vault_lock,
     verify_file_permissions,
 )
 
@@ -106,12 +108,13 @@ def save_password(
             "argon2id": argon2id_hash(password),
         }
         plaintext = json.dumps(record, separators=(",", ":"))
-        encrypted = encrypt_data(plaintext, key)
+        encrypted = encrypt_data(plaintext, key, aad=VAULT_AAD)
         line = base64.b64encode(encrypted) + b"\n"
 
-        with open(filename, "ab") as f:
-            f.write(line)
-        filename.chmod(DEFAULT_FILE_PERMISSIONS)
+        with vault_lock():
+            with open(filename, "ab") as f:
+                f.write(line)
+            filename.chmod(DEFAULT_FILE_PERMISSIONS)
     except Exception as exc:
         logger.error("Error saving password: %s", exc)
         raise
@@ -142,10 +145,11 @@ def show_password_history(
         entries.reverse()
 
         filtered_entries: list[dict[str, Any]] = []
+        skipped_count = 0
         for line in entries:
             try:
                 blob = base64.b64decode(line, validate=True)
-                rec_json = decrypt_data(blob, key)
+                rec_json = decrypt_data(blob, key, aad=VAULT_AAD)
                 rec = json.loads(rec_json)
 
                 if search:
@@ -184,7 +188,13 @@ def show_password_history(
                 filtered_entries.append(rec)
             except Exception as exc:
                 logger.debug("Skipping unreadable vault entry: %s", exc)
+                skipped_count += 1
                 continue
+
+        if skipped_count > 0:
+            print(
+                f"[!] {skipped_count} vault entry(ies) could not be decrypted"
+            )
 
         if limit:
             filtered_entries = filtered_entries[:limit]
@@ -236,32 +246,33 @@ def delete_entry_by_index(
         print("No password history available")
         return
 
-    with open(filename, "rb") as f:
-        entries = [line.strip() for line in f if line.strip()]
-    entries.reverse()
+    with vault_lock():
+        with open(filename, "rb") as f:
+            entries = [line.strip() for line in f if line.strip()]
+        entries.reverse()
 
-    if index < 1 or index > len(entries):
-        print(f"Invalid index. Valid range: 1-{len(entries)}")
-        return
+        if index < 1 or index > len(entries):
+            print(f"Invalid index. Valid range: 1-{len(entries)}")
+            return
 
-    target = entries[index - 1]
-    try:
-        blob = base64.b64decode(target, validate=True)
-        decrypt_data(blob, key)
-    except Exception:
-        logger.error("Cannot verify entry — wrong encryption key?")
-        return
+        target = entries[index - 1]
+        try:
+            blob = base64.b64decode(target, validate=True)
+            decrypt_data(blob, key, aad=VAULT_AAD)
+        except Exception:
+            logger.error("Cannot verify entry — wrong encryption key?")
+            return
 
-    entries.pop(index - 1)
+        entries.pop(index - 1)
 
-    secure_delete_file(filename)
+        secure_delete_file(filename)
 
-    entries.reverse()
-    with open(filename, "wb") as f:
-        f.writelines(entry + b"\n" for entry in entries)
+        entries.reverse()
+        with open(filename, "wb") as f:
+            f.writelines(entry + b"\n" for entry in entries)
 
-    filename.chmod(DEFAULT_FILE_PERMISSIONS)
-    print(f"[+] Entry {index} securely deleted")
+        filename.chmod(DEFAULT_FILE_PERMISSIONS)
+        print(f"[+] Entry {index} securely deleted")
 
 
 def update_entry_metadata(
@@ -291,40 +302,41 @@ def update_entry_metadata(
         print("No password history available")
         return
 
-    with open(filename, "rb") as f:
-        entries = [line.strip() for line in f if line.strip()]
-    entries.reverse()
+    with vault_lock():
+        with open(filename, "rb") as f:
+            entries = [line.strip() for line in f if line.strip()]
+        entries.reverse()
 
-    if index < 1 or index > len(entries):
-        print(f"Invalid index. Valid range: 1-{len(entries)}")
-        return
+        if index < 1 or index > len(entries):
+            print(f"Invalid index. Valid range: 1-{len(entries)}")
+            return
 
-    target = entries[index - 1]
-    try:
-        blob = base64.b64decode(target, validate=True)
-        rec_json = decrypt_data(blob, key)
-    except Exception:
-        logger.error("Cannot verify entry — wrong encryption key?")
-        return
+        target = entries[index - 1]
+        try:
+            blob = base64.b64decode(target, validate=True)
+            rec_json = decrypt_data(blob, key, aad=VAULT_AAD)
+        except Exception:
+            logger.error("Cannot verify entry — wrong encryption key?")
+            return
 
-    rec = json.loads(rec_json)
+        rec = json.loads(rec_json)
 
-    if label is not None:
-        rec["label"] = label
-    if category is not None:
-        rec["category"] = category
-    if tags is not None:
-        rec["tags"] = tags
+        if label is not None:
+            rec["label"] = label
+        if category is not None:
+            rec["category"] = category
+        if tags is not None:
+            rec["tags"] = tags
 
-    updated_json = json.dumps(rec, separators=(",", ":"))
-    encrypted = encrypt_data(updated_json, key)
-    entries[index - 1] = base64.b64encode(encrypted)
+        updated_json = json.dumps(rec, separators=(",", ":"))
+        encrypted = encrypt_data(updated_json, key, aad=VAULT_AAD)
+        entries[index - 1] = base64.b64encode(encrypted)
 
-    secure_delete_file(filename)
+        secure_delete_file(filename)
 
-    entries.reverse()
-    with open(filename, "wb") as f:
-        f.writelines(entry + b"\n" for entry in entries)
+        entries.reverse()
+        with open(filename, "wb") as f:
+            f.writelines(entry + b"\n" for entry in entries)
 
-    filename.chmod(DEFAULT_FILE_PERMISSIONS)
-    print(f"[+] Entry {index} updated")
+        filename.chmod(DEFAULT_FILE_PERMISSIONS)
+        print(f"[+] Entry {index} updated")

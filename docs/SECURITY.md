@@ -93,6 +93,33 @@ flowchart TD
 
 ---
 
+## Known Limitations
+
+### Python Memory Constraints
+
+- **Immutable strings/bytes**: Python strings and bytes objects are immutable. Encryption keys, plaintext passwords, and derived secrets cannot be securely zeroed in memory — they persist until the garbage collector reclaims them.
+- **Process memory exposure**: Core dumps, swap files, or memory forensics tools could recover sensitive data from the process address space while it remains allocated.
+- **Mitigation**: The interactive REPL clears key caches on exit (`_cleanup()`). The `do_save` command clears the last generated password from memory immediately after saving. These reduce — but cannot eliminate — the window of exposure.
+
+### Password File Content
+
+- **Password file content**: The master password read from
+  `--master-password-file` is stored as a Python string in memory.
+  Like all Python strings, it cannot be securely overwritten after use.
+
+### Clipboard Behavior
+
+- **Crash survival**: If the process crashes or is killed before the clipboard-clear timer fires, the copied password remains on the system clipboard indefinitely. This is an OS-level limitation.
+- **Clipboard managers**: Third-party clipboard managers may persist clipboard history across reboots, bypassing the auto-clear mechanism.
+- **Mitigation**: Clipboard contents are scheduled to clear after `CLIPBOARD_CLEAR_SECONDS` (default 60 s) under normal operation. Users in high-security environments should disable clipboard managers or clear the clipboard manually.
+
+### Secure Deletion Caveats
+
+- `shred` cannot guarantee erasure on SSDs (wear-levelling), copy-on-write filesystems (btrfs, ZFS), or filesystems with data journaling (`ext4 data=journal`).
+- The manual-overwrite fallback (used when `shred` is not installed) provides best-effort overwriting but shares the same filesystem-level limitations.
+
+---
+
 > [!CAUTION]
 > You are responsible for the secure management of the `~/.secure_passwords/` directory **and** your master password.
 > Keep the master password secret (never share it). Do not store `encryption.key` / `master_salt.bin` insecurely, and ***do not share or back them up insecurely***. Losing either factor may make the vault unrecoverable.

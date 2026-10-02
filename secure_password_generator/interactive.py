@@ -21,6 +21,7 @@ from secure_password_generator.clipboard import (
     schedule_clipboard_clear,
 )
 from secure_password_generator.config import CharsetConfig
+from secure_password_generator.constants import VAULT_AAD
 from secure_password_generator.crypto import (
     _FINAL_KEY_CACHE,
     _KEY_CACHE,
@@ -156,7 +157,7 @@ def _decrypt_vault(key: bytes) -> list[dict]:
     for line in lines:
         try:
             blob = base64.b64decode(line, validate=True)
-            rec = json.loads(decrypt_data(blob, key))
+            rec = json.loads(decrypt_data(blob, key, aad=VAULT_AAD))
             entries.append(rec)
         except Exception:
             continue
@@ -596,6 +597,8 @@ class PwgenShell(cmd.Cmd):
                 charset_size=self._last_pool_size,
             )
             print("[+] Password saved to vault")
+            self._last_password = None
+            self._last_pool_size = None
         except Exception as exc:
             print(f"[!] Save failed: {exc}")
 
@@ -710,8 +713,7 @@ class PwgenShell(cmd.Cmd):
 
     def do_clear(self, _arg: str) -> None:
         """Clear the terminal screen."""
-        import os
-        os.system("clear" if os.name != "nt" else "cls")
+        print("\033[H\033[2J", end="", flush=True)
 
     # ── quit / exit / EOF ────────────────────────────────────────────
 
@@ -746,5 +748,6 @@ class PwgenShell(cmd.Cmd):
         print(f"Unknown command: {line}")
         print("Type 'help' for available commands.")
 
-    def emptyline(self) -> None:
+    def emptyline(self) -> bool:  # type: ignore[override]
         """Do nothing on empty input."""
+        return False

@@ -127,7 +127,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
             "(CLI args override config values)"
         ),
     )
-    config_action.completer = FilesCompleter(["yaml", "yml", "json"])
+    config_action.completer = FilesCompleter(["yaml", "yml", "json"])  # type: ignore[attr-defined]
     basic_group.add_argument(
         "-X", "--clipboard", action="store_true",
         help="Copy password to clipboard",
@@ -320,11 +320,11 @@ def main() -> None:
             print(f"[!] {exc}", file=sys.stderr)
             sys.exit(1)
         defaults = parser.parse_args([])
-        for key, value in config.items():
-            if hasattr(args, key) and getattr(args, key) == getattr(
-                defaults, key
+        for cfg_key, value in config.items():
+            if hasattr(args, cfg_key) and getattr(args, cfg_key) == getattr(
+                defaults, cfg_key
             ):
-                setattr(args, key, value)
+                setattr(args, cfg_key, value)
 
     if args.interactive:
         from secure_password_generator.interactive import PwgenShell
