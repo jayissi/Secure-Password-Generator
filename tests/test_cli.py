@@ -262,6 +262,39 @@ class TestInteractiveFlag:
         assert args.interactive is True
 
 
+# ── CLI edge cases ───────────────────────────────────────────────────────
+
+class TestCLIEdgeCases:
+
+    def test_version_flag(self, vault):
+        result = run_cli("-V")
+        assert "2.0.0" in result.stdout
+
+    def test_delete_entry_integration(self, vault):
+        result1 = run_cli("-F", "-L", "12")
+        assert result1.exit_code == 0
+        result2 = run_cli("--delete-entry", "1")
+        assert result2.exit_code == 0
+        result3 = run_cli("-H")
+        assert (
+            "No password history" in result3.stdout
+            or result3.stdout.count("Generated") == 0
+        )
+
+    def test_passphrase_save_mode(self, vault):
+        result = run_cli("-P", "MyPhrase!", "--label", "PhraseTest")
+        assert result.exit_code == 0
+        result2 = run_cli("-H")
+        assert "PhraseTest" in result2.stdout
+
+    def test_show_history_with_search(self, vault):
+        run_cli("-F", "-L", "12", "--label", "Gmail")
+        run_cli("-F", "-L", "12", "--label", "Bank")
+        result = run_cli("-H", "--search", "Gmail")
+        assert "Gmail" in result.stdout
+        assert "Bank" not in result.stdout
+
+
 # ── Helpers ──────────────────────────────────────────────────────────────
 
 def _extract_password(stdout: str) -> str:

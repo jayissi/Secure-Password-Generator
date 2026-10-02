@@ -21,9 +21,11 @@ import pytest
 
 from secure_password_generator.crypto import (
     _validate_master_password,
+    argon2id_hash,
     combine_keys,
     decrypt_data,
     encrypt_data,
+    initialize_security_files,
     resolve_master_password,
 )
 
@@ -169,3 +171,26 @@ class TestResolveMasterPassword:
         ):
             result = resolve_master_password(args)
         assert result is None
+
+
+# ── argon2id_hash ────────────────────────────────────────────────────────
+
+class TestArgon2idHash:
+
+    def test_argon2id_hash_returns_expected_keys(self, vault_dir):
+        initialize_security_files()
+        result = argon2id_hash("test")
+        assert "salt_b64" in result
+        assert "digest_b64" in result
+        assert "params" in result
+        params = result["params"]
+        assert "length" in params
+        assert "iterations" in params
+        assert "lanes" in params
+        assert "memory_cost" in params
+
+    def test_argon2id_hash_unique_salts(self, vault_dir):
+        initialize_security_files()
+        result1 = argon2id_hash("test")
+        result2 = argon2id_hash("test")
+        assert result1["salt_b64"] != result2["salt_b64"]

@@ -14,12 +14,15 @@ Covers:
 - format_history_table (tabulate output structure)
 """
 
+import base64
+import json
 import secrets
 from datetime import datetime
 
 import pytest
 
 from secure_password_generator.crypto import (
+    decrypt_data,
     get_encryption_key,
     initialize_security_files,
 )
@@ -259,3 +262,42 @@ class TestFormatHistoryTable:
         assert "Strength" in table
         assert "Test" in table
         assert "abc123" in table
+
+    def test_table_has_coloured_score(self):
+        entries = [{
+            "label": "Test",
+            "password": "abc123",
+            "strength": 5,
+            "category": "General",
+            "timestamp": "Mon, Jan 01, 2024 12:00:00:000000 PM",
+        }]
+        table = format_history_table(entries)
+        assert "\033[" in table
+
+    def test_table_timestamp_format(self):
+        entries = [{
+            "label": "Test",
+            "password": "abc123",
+            "strength": 5,
+            "category": "General",
+            "timestamp": "Mon, Jan 01, 2024 12:00:00:000000 PM",
+        }]
+        table = format_history_table(entries)
+        assert "2024-01-01" in table
+
+
+# ── NFC save normalization ───────────────────────────────────────────────
+
+class TestNFCSaveNormalization:
+
+    def test_save_normalizes_nfc(self, vault_dir, vault_key, vault_file):
+        nfd_password = "e\u0301test"
+        nfc_password = "\u00e9test"
+
+        save_password(nfd_password, vault_key, filename=vault_file)
+
+        raw = vault_file.read_bytes().strip()
+        encrypted = base64.b64decode(raw)
+        plaintext = decrypt_data(encrypted, vault_key)
+        record = json.loads(plaintext)
+        assert record["password"] == nfc_password

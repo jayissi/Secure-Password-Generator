@@ -128,6 +128,7 @@ Secure-Password-Generator/
 │   ├── test_generator.py             # Generator module tests
 │   ├── test_strength_pytest.py       # Strength scoring pytest suite
 │   ├── test_history.py               # Vault CRUD tests
+│   ├── test_utils.py                 # Utils module tests
 │   ├── test_interactive.py           # Interactive mode tests
 │   ├── test_cli.py                   # CLI integration tests (in-process)
 │   └── test_entry_points.py          # Subprocess smoke tests
@@ -274,12 +275,13 @@ The test suite runs through pytest in under 2 seconds. A test-mode Argon2id prof
 |           File            | Tests | Coverage                                                   |
 |:-------------------------:|:-----:|------------------------------------------------------------|
 |     `test_config.py`      |  14   | Config loading, CharsetConfig, ConfigError                 |
-|     `test_crypto.py`      |  16   | Encrypt/decrypt, key management, master-password           |
-|    `test_generator.py`    |  31   | Charset, constraints, progressive scoring, latin-ext       |
+|     `test_crypto.py`      |  18   | Encrypt/decrypt, key management, master-password, argon2id |
+|    `test_generator.py`    |  35   | Charset, constraints, scoring, latin-ext, NFC, symbol-only |
 | `test_strength_pytest.py` |  41   | Entropy boundaries, consistency, edge cases                |
-|     `test_history.py`     |  22   | Vault CRUD, search/filter, delete, metadata update         |
-|   `test_interactive.py`   |  41   | Interactive commands, session lifecycle, label             |
-|       `test_cli.py`       |  25   | CLI integration, latin-ext, strength display               |
+|     `test_history.py`     |  25   | Vault CRUD, search/filter, delete, metadata, NFC save      |
+|      `test_utils.py`      |   5   | File permissions, logging configuration                    |
+|   `test_interactive.py`   |  43   | Interactive commands, session lifecycle, label             |
+|       `test_cli.py`       |  29   | CLI integration, latin-ext, strength display, edge cases   |
 |  `test_entry_points.py`   |   3   | Subprocess smoke tests for pwgen and python -m             |
 
 ```bash

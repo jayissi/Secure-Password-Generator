@@ -14,6 +14,7 @@ Covers:
 """
 
 import string
+import unicodedata
 
 import pytest
 
@@ -26,6 +27,7 @@ from secure_password_generator.generator import (
     compute_charset_size,
     format_strength_inline,
     generate_password,
+    generate_symbol_only_password,
 )
 
 # ── CharsetConfig + build_charset ────────────────────────────────────────
@@ -303,3 +305,39 @@ class TestFormatStrengthInline:
     def test_low_score_red(self):
         result = format_strength_inline(1)
         assert "\033[91m" in result  # COLOR_RED
+
+
+# ── generate_symbol_only_password ────────────────────────────────────────
+
+class TestGenerateSymbolOnly:
+
+    def test_symbol_only_no_repeats(self):
+        symbols = "!@#$%"
+        pw = generate_symbol_only_password(16, symbols)
+        assert len(pw) == 16
+        for i in range(1, len(pw)):
+            assert pw[i] != pw[i - 1], (
+                f"Consecutive repeat at {i}: {pw!r}"
+            )
+        assert all(c in symbols for c in pw)
+
+    def test_symbol_only_single_symbol_raises(self):
+        with pytest.raises(ValueError, match="1 symbol"):
+            generate_symbol_only_password(8, "!")
+
+
+# ── NFC normalization ────────────────────────────────────────────────────
+
+class TestNFCNormalization:
+
+    def test_generate_password_returns_nfc(self):
+        cfg = CharsetConfig(use_lower=True, latin_ext=True)
+        for _ in range(10):
+            pw = generate_password(length=16, cfg=cfg)
+            assert unicodedata.normalize("NFC", pw) == pw
+
+    def test_pattern_returns_nfc(self):
+        cfg = CharsetConfig(use_lower=True, latin_ext=True)
+        for _ in range(10):
+            pw = generate_password(length=16, cfg=cfg, pattern="lluuddss")
+            assert unicodedata.normalize("NFC", pw) == pw

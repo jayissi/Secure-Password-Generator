@@ -11,14 +11,15 @@ to invoke separately.
 |           File            |        Type         |  Tests  | Runtime  |
 |:-------------------------:|:-------------------:|:-------:|:--------:|
 |     `test_config.py`      |    pytest (unit)    |   14    |  < 1s    |
-|     `test_crypto.py`      |    pytest (unit)    |   16    |  < 1s    |
-|    `test_generator.py`    |    pytest (unit)    |   31    |  < 1s    |
+|     `test_crypto.py`      |    pytest (unit)    |   18    |  < 1s    |
+|    `test_generator.py`    |    pytest (unit)    |   35    |  < 1s    |
 | `test_strength_pytest.py` |    pytest (unit)    |   41    |  < 1s    |
-|     `test_history.py`     |   pytest (vault)    |   22    |  < 1s    |
-|   `test_interactive.py`   |  pytest (unit/CLI)  |   41    |  < 1s    |
-|       `test_cli.py`       |    pytest (CLI)     |   25    |  < 1s    |
+|     `test_history.py`     |   pytest (vault)    |   25    |  < 1s    |
+|      `test_utils.py`      |    pytest (unit)    |    5    |  < 1s    |
+|   `test_interactive.py`   |  pytest (unit/CLI)  |   43    |  < 1s    |
+|       `test_cli.py`       |    pytest (CLI)     |   29    |  < 1s    |
 |  `test_entry_points.py`   | pytest (subprocess) |    3    |  < 1s    |
-|         **Total**         |                     | **193** | **< 1s** |
+|         **Total**         |                     | **213** | **< 1s** |
 
 ---
 
@@ -98,7 +99,7 @@ Module under test: `secure_password_generator.config`
 - `blank_space` key mapped to `blank`
 - `CharsetConfig` dataclass: defaults, frozen, equality, hashable
 
-### `test_crypto.py` -- 16 tests
+### `test_crypto.py` -- 18 tests
 
 Module under test: `secure_password_generator.crypto`
 
@@ -106,8 +107,9 @@ Module under test: `secure_password_generator.crypto`
 - `combine_keys()` XOR identity, self-XOR, length mismatch
 - Master-password complexity: too short, missing types, valid (3 and 4 types)
 - `resolve_master_password()` priority: CLI flag > env-var > file > None
+- `argon2id_hash()` return structure and unique salts
 
-### `test_generator.py` -- 31 tests
+### `test_generator.py` -- 35 tests
 
 Module under test: `secure_password_generator.generator`
 
@@ -119,6 +121,8 @@ Module under test: `secure_password_generator.generator`
 - `generate_password`: min length, no-repeats (50 iter), min-per-type (20 iter), empty charset
 - Progressive scoring: 5 types >= 4 >= 3, single type penalised
 - Latin-ext: build_charset includes latin_ext tuple, chars in range, non-ASCII in output, no-repeats, min-per-type
+- Symbol-only generation: no consecutive repeats, single symbol raises
+- NFC normalization: generate_password and pattern output are NFC-normalized
 
 ### `test_strength_pytest.py` -- 41 tests
 
@@ -132,7 +136,7 @@ Module under test: `secure_password_generator.generator` (strength scoring)
 - `compute_charset_size` / `build_charset` sanity checks
 - Latin-ext scoring: 6-type beats 5-type, latin-ext-only no crash, pool inference adds 93, 5-type regression check
 
-### `test_history.py` -- 22 tests
+### `test_history.py` -- 25 tests
 
 Module under test: `secure_password_generator.history`
 
@@ -143,9 +147,19 @@ Module under test: `secure_password_generator.history`
   invalid index, empty vault
 - `update_entry_metadata`: update label, preserves other fields,
   invalid index, empty vault
-- `format_history_table`: empty input, header presence
+- `format_history_table`: empty input, header presence, coloured strength
+  scores, timestamp format
+- NFC save normalization: combining characters normalized before storage
 
-### `test_interactive.py` -- 41 tests
+### `test_utils.py` -- 5 tests
+
+Module under test: `secure_password_generator.utils`
+
+- `verify_file_permissions()`: warns on insecure (0644) permissions, silent
+  on correct (0600), no error on nonexistent path
+- `configure_logging()`: verbose sets DEBUG, quiet sets ERROR
+
+### `test_interactive.py` -- 43 tests
 
 Module under test: `secure_password_generator.interactive`
 
@@ -158,7 +172,8 @@ Module under test: `secure_password_generator.interactive`
 - `TestHealthCommand`: empty vault report, populated vault with score
   distribution
 - `TestSessionLifecycle`: quit exits, help lists commands, unknown command
-  shows error, EOF exits, interactive flag accepted by CLI parser
+  shows error, EOF exits, clear does not crash, interactive flag accepted,
+  exit alias returns True, emptyline no-op
 - `TestGenerateCommand`: full charset, multi-count with summary, sets
   last password, invalid flag, quick sets last password
 - `TestSaveCommand`: save after generate, save without generate, save
@@ -169,7 +184,7 @@ Module under test: `secure_password_generator.interactive`
 - `TestLabelCommand`: label updates metadata, invalid index, no args,
   generate with metadata
 
-### `test_cli.py` -- 25 tests
+### `test_cli.py` -- 29 tests
 
 Module under test: `secure_password_generator.cli` (via `run_cli()`)
 
@@ -182,6 +197,8 @@ Module under test: `secure_password_generator.cli` (via `run_cli()`)
 - Cleanup: files removed, vault empty after
 - No-master-password backward compat
 - Latin-ext: `-x -l` produces non-ASCII, `-F -x` combined works
+- CLI edge cases: `--version` flag, `--delete-entry` integration,
+  passphrase save mode, history search filter
 
 ### `test_entry_points.py` -- 3 tests
 

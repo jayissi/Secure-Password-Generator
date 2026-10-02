@@ -220,6 +220,18 @@ class TestSessionLifecycle:
         args = parser.parse_args(["-i"])
         assert args.interactive is True
 
+    def test_exit_returns_true(self, vault, capsys):
+        shell = PwgenShell()
+        result = shell.do_exit("")
+        assert result is True
+
+    def test_emptyline_does_nothing(self, vault, capsys):
+        shell = PwgenShell()
+        result = shell.emptyline()
+        assert result is None
+        out = capsys.readouterr().out
+        assert out == ""
+
 
 # ── TestGenerateCommand ──────────────────────────────────────────────────
 
