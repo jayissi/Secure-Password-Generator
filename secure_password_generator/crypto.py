@@ -443,6 +443,10 @@ def cleanup_files() -> None:
             except Exception as exc:
                 logger.error("Failed to securely remove %s: %s", file, exc)
 
+    lock_file = PASSWORD_DIR / ".vault.lock"
+    if lock_file.exists():
+        lock_file.unlink()
+
     if PASSWORD_DIR.exists():
         try:
             PASSWORD_DIR.rmdir()
