@@ -14,6 +14,7 @@ from tabulate import tabulate
 
 import secure_password_generator.constants as _constants
 from secure_password_generator.constants import (
+    COLOR_RESET,
     DEFAULT_FILE_PERMISSIONS,
 )
 from secure_password_generator.crypto import (
@@ -24,6 +25,7 @@ from secure_password_generator.crypto import (
 from secure_password_generator.generator import (
     calculate_password_strength,
     format_strength_meter,
+    get_strength_color,
 )
 from secure_password_generator.utils import (
     secure_delete_file,
@@ -65,8 +67,10 @@ def format_history_table(entries: list[dict[str, Any]]) -> str:
                 timestamp[:16] if len(timestamp) > 16 else timestamp
             )
 
+        color = get_strength_color(strength)
+        colored_score = f"{color}{strength}/10{COLOR_RESET}"
         rows.append(
-            [idx, label, password, f"{strength}/10", category, short_time]
+            [idx, label, password, colored_score, category, short_time]
         )
 
     return tabulate(rows, headers=headers, tablefmt="simple_grid")
@@ -258,3 +262,69 @@ def delete_entry_by_index(
 
     filename.chmod(DEFAULT_FILE_PERMISSIONS)
     print(f"[+] Entry {index} securely deleted")
+
+
+def update_entry_metadata(
+    index: int,
+    key: bytes,
+    label: str | None = None,
+    category: str | None = None,
+    tags: list[str] | None = None,
+    filename: Path | None = None,
+) -> None:
+    """Update metadata fields on an existing vault entry.
+
+    Only fields that are not ``None`` are changed; the rest keep their
+    existing values.
+
+    Args:
+        index: 1-based entry index (newest-first display order).
+        key: Encryption key (must decrypt the target entry).
+        label: New label, or ``None`` to keep current.
+        category: New category, or ``None`` to keep current.
+        tags: New tag list, or ``None`` to keep current.
+        filename: Path to the vault file.
+    """
+    if filename is None:
+        filename = _constants.PASSWORD_FILE
+    if not filename.exists():
+        print("No password history available")
+        return
+
+    with open(filename, "rb") as f:
+        entries = [line.strip() for line in f if line.strip()]
+    entries.reverse()
+
+    if index < 1 or index > len(entries):
+        print(f"Invalid index. Valid range: 1-{len(entries)}")
+        return
+
+    target = entries[index - 1]
+    try:
+        blob = base64.b64decode(target, validate=True)
+        rec_json = decrypt_data(blob, key)
+    except Exception:
+        logger.error("Cannot verify entry — wrong encryption key?")
+        return
+
+    rec = json.loads(rec_json)
+
+    if label is not None:
+        rec["label"] = label
+    if category is not None:
+        rec["category"] = category
+    if tags is not None:
+        rec["tags"] = tags
+
+    updated_json = json.dumps(rec, separators=(",", ":"))
+    encrypted = encrypt_data(updated_json, key)
+    entries[index - 1] = base64.b64encode(encrypted)
+
+    secure_delete_file(filename)
+
+    entries.reverse()
+    with open(filename, "wb") as f:
+        f.writelines(entry + b"\n" for entry in entries)
+
+    filename.chmod(DEFAULT_FILE_PERMISSIONS)
+    print(f"[+] Entry {index} updated")

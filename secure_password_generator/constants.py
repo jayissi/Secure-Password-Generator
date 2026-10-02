@@ -65,6 +65,7 @@ COLOR_RED = "\033[91m"
 COLOR_ORANGE = "\033[38;5;208m"
 COLOR_YELLOW = "\033[93m"
 COLOR_GREEN = "\033[92m"
+COLOR_BRIGHT_GREEN = "\033[1;92m"
 COLOR_RESET = "\033[0m"
 
 # =========================

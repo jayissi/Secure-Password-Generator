@@ -24,6 +24,7 @@ from secure_password_generator.generator import (
     build_charset,
     calculate_password_strength,
     compute_charset_size,
+    format_strength_inline,
     generate_password,
 )
 
@@ -277,3 +278,28 @@ class TestLatinExt:
             )
             latin_count = sum(1 for c in pw if ord(c) > 127)
             assert latin_count >= 2
+
+
+# ── format_strength_inline ───────────────────────────────────────────────
+
+class TestFormatStrengthInline:
+
+    def test_returns_bracketed_score(self):
+        result = format_strength_inline(8)
+        assert "[8/10]" in result
+
+    def test_contains_ansi_color(self):
+        result = format_strength_inline(8)
+        assert "\033[" in result
+
+    def test_max_score_bright_green(self):
+        result = format_strength_inline(10)
+        assert "\033[1;92m" in result  # COLOR_BRIGHT_GREEN
+
+    def test_high_score_green(self):
+        result = format_strength_inline(9)
+        assert "\033[92m" in result  # COLOR_GREEN (not bright)
+
+    def test_low_score_red(self):
+        result = format_strength_inline(1)
+        assert "\033[91m" in result  # COLOR_RED

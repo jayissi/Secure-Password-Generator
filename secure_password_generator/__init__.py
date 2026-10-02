@@ -16,6 +16,7 @@ from secure_password_generator.generator import (
     calculate_password_strength,
     compute_charset_size,
     expected_unique_chars,
+    format_strength_inline,
     format_strength_meter,
     generate_password,
 )
@@ -29,6 +30,7 @@ __all__ = [
     "decrypt_data",
     "encrypt_data",
     "expected_unique_chars",
+    "format_strength_inline",
     "format_strength_meter",
     "generate_password",
     "get_encryption_key",

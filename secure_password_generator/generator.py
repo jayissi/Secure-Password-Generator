@@ -12,6 +12,7 @@ from typing import cast
 
 from secure_password_generator.config import CharsetConfig
 from secure_password_generator.constants import (
+    COLOR_BRIGHT_GREEN,
     COLOR_GREEN,
     COLOR_ORANGE,
     COLOR_RED,
@@ -240,7 +241,9 @@ def calculate_password_strength(
 
 def get_strength_color(score: int) -> str:
     """Return an ANSI colour code based on password strength *score*."""
-    if score >= 8:
+    if score >= 10:
+        return COLOR_BRIGHT_GREEN
+    elif score >= 8:
         return COLOR_GREEN
     elif score >= 6:
         return COLOR_YELLOW
@@ -255,6 +258,12 @@ def format_strength_meter(score: int) -> str:
     color = get_strength_color(score)
     bars = "\u2588" * score + "\u2591" * (10 - score)
     return f"{color}{bars} {score}/10{COLOR_RESET}"
+
+
+def format_strength_inline(score: int) -> str:
+    """Format *score* as a compact coloured tag ``[9/10]``."""
+    color = get_strength_color(score)
+    return f"{color}[{score}/10]{COLOR_RESET}"
 
 
 # ── Password generation helpers ──────────────────────────────────────────

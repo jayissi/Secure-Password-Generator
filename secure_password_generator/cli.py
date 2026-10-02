@@ -31,6 +31,7 @@ from secure_password_generator.crypto import (
 from secure_password_generator.generator import (
     calculate_password_strength,
     compute_charset_size,
+    format_strength_inline,
     format_strength_meter,
     generate_password,
 )
@@ -158,6 +159,10 @@ def create_argument_parser() -> argparse.ArgumentParser:
             "Configure or change the master password and re-encrypt "
             "the vault"
         ),
+    )
+    basic_group.add_argument(
+        "-i", "--interactive", action="store_true",
+        help="Start interactive mode (guided password generation)",
     )
     basic_group.add_argument(
         "-v", "--verbose", action="store_true",
@@ -321,6 +326,12 @@ def main() -> None:
             ):
                 setattr(args, key, value)
 
+    if args.interactive:
+        from secure_password_generator.interactive import PwgenShell
+        shell = PwgenShell()
+        shell.cmdloop()
+        sys.exit(0)
+
     if args.help:
         parser.print_help()
         sys.exit(0)
@@ -424,6 +435,8 @@ def main() -> None:
             _require_key() if args.save_history else None
         )
 
+        scores: list[int] = []
+
         for i in range(args.count):
             password = generate_password(
                 length=args.length,
@@ -436,10 +449,10 @@ def main() -> None:
             strength = calculate_password_strength(
                 password, charset_size=pool_size
             )
-            strength_display = format_strength_meter(strength)
+            scores.append(strength)
+            inline_score = format_strength_inline(strength)
 
-            print(f"Generated Password {i + 1}: {password}")
-            print(f"Strength: {strength_display}")
+            print(f"Generated Password {i + 1}: {password}  {inline_score}")
 
             if args.clipboard:
                 if copy_to_clipboard(password):
@@ -464,6 +477,22 @@ def main() -> None:
                     tags=tags,
                     charset_size=pool_size,
                 )
+
+        if args.count > 0:
+            from collections import Counter
+            count_label = (
+                "password" if args.count == 1 else "passwords"
+            )
+            print(
+                f"\nStrength Summary: {args.count} {count_label} "
+                "generated"
+            )
+            score_counts = Counter(scores)
+            for score in sorted(score_counts, reverse=True):
+                meter = format_strength_meter(score)
+                count = score_counts[score]
+                pw_label = "password" if count == 1 else "passwords"
+                print(f"  {meter}: {count} {pw_label}")
 
         if args.save_history and args.count > 0:
             print(f"[+] Passwords securely saved to {_constants.PASSWORD_FILE}")

@@ -1,5 +1,7 @@
 # tests/ -- Test Suite Reference
 
+> Back to [main README](../README.md)
+
 This directory contains all automated tests for the Secure Password
 Generator.  Every test runs through pytest -- there are no shell scripts
 to invoke separately.
@@ -10,12 +12,13 @@ to invoke separately.
 |:-------------------------:|:-------------------:|:-------:|:--------:|
 |     `test_config.py`      |    pytest (unit)    |   14    |  < 1s    |
 |     `test_crypto.py`      |    pytest (unit)    |   16    |  < 1s    |
-|    `test_generator.py`    |    pytest (unit)    |   26    |  < 1s    |
+|    `test_generator.py`    |    pytest (unit)    |   31    |  < 1s    |
 | `test_strength_pytest.py` |    pytest (unit)    |   41    |  < 1s    |
-|     `test_history.py`     |   pytest (vault)    |   18    |  < 1s    |
-|       `test_cli.py`       |    pytest (CLI)     |   21    |  < 1s    |
+|     `test_history.py`     |   pytest (vault)    |   22    |  < 1s    |
+|   `test_interactive.py`   |  pytest (unit/CLI)  |   41    |  < 1s    |
+|       `test_cli.py`       |    pytest (CLI)     |   25    |  < 1s    |
 |  `test_entry_points.py`   | pytest (subprocess) |    3    |  < 1s    |
-|         **Total**         |                     | **139** | **< 1s** |
+|         **Total**         |                     | **193** | **< 1s** |
 
 ---
 
@@ -104,7 +107,7 @@ Module under test: `secure_password_generator.crypto`
 - Master-password complexity: too short, missing types, valid (3 and 4 types)
 - `resolve_master_password()` priority: CLI flag > env-var > file > None
 
-### `test_generator.py` -- 26 tests
+### `test_generator.py` -- 30 tests
 
 Module under test: `secure_password_generator.generator`
 
@@ -129,7 +132,7 @@ Module under test: `secure_password_generator.generator` (strength scoring)
 - `compute_charset_size` / `build_charset` sanity checks
 - Latin-ext scoring: 6-type beats 5-type, latin-ext-only no crash, pool inference adds 93, 5-type regression check
 
-### `test_history.py` -- 18 tests
+### `test_history.py` -- 22 tests
 
 Module under test: `secure_password_generator.history`
 
@@ -138,9 +141,35 @@ Module under test: `secure_password_generator.history`
   category, tags), filter (strength, category, date), limit
 - `delete_entry_by_index`: authenticated delete, wrong key rejected,
   invalid index, empty vault
+- `update_entry_metadata`: update label, preserves other fields,
+  invalid index, empty vault
 - `format_history_table`: empty input, header presence
 
-### `test_cli.py` -- 21 tests
+### `test_interactive.py` -- 41 tests
+
+Module under test: `secure_password_generator.interactive`
+
+- `TestQuickCommand`: default length, custom length, regenerate prompt,
+  inline score in output
+- `TestNewCommand`: all-defaults wizard, custom length, save with label,
+  cancel without save
+- `TestBrowseCommand`: empty vault message, populated vault shows entries,
+  view entry detail
+- `TestHealthCommand`: empty vault report, populated vault with score
+  distribution
+- `TestSessionLifecycle`: quit exits, help lists commands, unknown command
+  shows error, EOF exits, interactive flag accepted by CLI parser
+- `TestGenerateCommand`: full charset, multi-count with summary, sets
+  last password, invalid flag, quick sets last password
+- `TestSaveCommand`: save after generate, save without generate, save
+  with no flags
+- `TestHistoryCommand`: empty vault, populated vault, search, limit
+- `TestDeleteCommand`: delete entry, missing arg, invalid index
+- `TestCleanupCommand`: confirmed, cancelled, EOF cancellation
+- `TestLabelCommand`: label updates metadata, invalid index, no args,
+  generate with metadata
+
+### `test_cli.py` -- 24 tests
 
 Module under test: `secure_password_generator.cli` (via `run_cli()`)
 

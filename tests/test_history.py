@@ -28,6 +28,7 @@ from secure_password_generator.history import (
     format_history_table,
     save_password,
     show_password_history,
+    update_entry_metadata,
 )
 
 # ── Helpers ──────────────────────────────────────────────────────────────
@@ -186,6 +187,53 @@ class TestDeleteEntry:
 
     def test_empty_vault(self, vault_dir, vault_key, vault_file, capsys):
         delete_entry_by_index(1, vault_key, filename=vault_file)
+        out = capsys.readouterr().out
+        assert "No password history" in out
+
+
+# ── update_entry_metadata ────────────────────────────────────────────────
+
+class TestUpdateEntryMetadata:
+
+    def test_update_label(self, vault_dir, vault_key, vault_file, capsys):
+        save_password(
+            "pw1", vault_key, filename=vault_file,
+            label="Original", category="General", tags=["init"],
+        )
+        update_entry_metadata(
+            1, vault_key, label="Updated", filename=vault_file,
+        )
+        out = capsys.readouterr().out
+        assert "updated" in out.lower()
+
+        show_password_history(vault_key, filename=vault_file, use_table=False)
+        out2 = capsys.readouterr().out
+        assert "Updated" in out2
+
+    def test_preserves_other_fields(self, vault_dir, vault_key, vault_file, capsys):
+        save_password(
+            "pw1", vault_key, filename=vault_file,
+            label="Original", category="Work", tags=["important"],
+        )
+        update_entry_metadata(
+            1, vault_key, label="NewLabel", filename=vault_file,
+        )
+        capsys.readouterr()
+
+        show_password_history(vault_key, filename=vault_file, use_table=False)
+        out = capsys.readouterr().out
+        assert "NewLabel" in out
+        assert "Work" in out
+        assert "important" in out
+
+    def test_invalid_index(self, vault_dir, vault_key, vault_file, capsys):
+        save_password("pw1", vault_key, filename=vault_file)
+        update_entry_metadata(99, vault_key, filename=vault_file)
+        out = capsys.readouterr().out
+        assert "Invalid index" in out
+
+    def test_empty_vault(self, vault_dir, vault_key, vault_file, capsys):
+        update_entry_metadata(1, vault_key, filename=vault_file)
         out = capsys.readouterr().out
         assert "No password history" in out
 

@@ -1,5 +1,7 @@
 # benchmarks/ -- Performance Diagnostic Tools
 
+> Back to [main README](../README.md)
+
 This directory contains standalone CLI scripts that measure performance
 characteristics of the Secure Password Generator.  They are **not tests**
 -- they produce human-readable reports with no pass/fail assertions.

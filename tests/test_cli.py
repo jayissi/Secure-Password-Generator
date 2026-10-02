@@ -229,11 +229,53 @@ class TestLatinExtCLI:
         )
 
 
+# ── Strength display format ─────────────────────────────────────────────
+
+class TestStrengthDisplay:
+
+    def test_single_password_inline_score(self, vault):
+        result = run_cli("-F", "-L", "16", "-n", "-c", "1")
+        assert result.exit_code == 0
+        assert "/10]" in result.stdout
+        assert "Strength Summary: 1 password generated" in result.stdout
+
+    def test_multi_password_inline_scores(self, vault):
+        result = run_cli("-F", "-L", "16", "-n", "-c", "3")
+        assert result.exit_code == 0
+        assert result.stdout.count("/10]") == 3
+        assert "Strength Summary: 3 passwords generated" in result.stdout
+
+    def test_summary_has_meter_bar(self, vault):
+        result = run_cli("-F", "-L", "16", "-n", "-c", "2")
+        assert result.exit_code == 0
+        assert "\u2588" in result.stdout
+
+
+# ── Interactive flag ─────────────────────────────────────────────────────
+
+class TestInteractiveFlag:
+
+    def test_interactive_flag_parsed(self, vault):
+        from secure_password_generator.cli import create_argument_parser
+        parser = create_argument_parser()
+        args = parser.parse_args(["-i"])
+        assert args.interactive is True
+
+
 # ── Helpers ──────────────────────────────────────────────────────────────
 
 def _extract_password(stdout: str) -> str:
-    """Extract the password string from CLI stdout."""
+    """Extract the password string from CLI stdout.
+
+    The output line format is:
+        ``Generated Password 1: <password>  <coloured_score>``
+    Strip the trailing inline score (everything after the last ``  ``).
+    """
+    import re
     for line in stdout.splitlines():
         if "Generated Password" in line:
-            return line.split(": ", 1)[1]
+            raw = line.split(": ", 1)[1]
+            # Remove ANSI escape codes and the trailing  [score/10]
+            raw = re.sub(r"\s+\x1b\[.*$", "", raw)
+            return raw
     raise ValueError(f"No 'Generated Password' line found in:\n{stdout}")

@@ -1,5 +1,7 @@
 # secure\_password\_generator -- Package Reference
 
+> Back to [main README](../README.md)
+
 This directory contains the core Python package for the Secure Password
 Generator.  After installation (`pip install -e .`), the package provides
 the `pwgen` command-line tool and can also be invoked as
@@ -20,6 +22,13 @@ flowchart TD
     cli --> history
     cli --> clipboard
     cli --> utils
+    cli --> interactive
+    interactive --> config
+    interactive --> crypto
+    interactive --> generator
+    interactive --> history
+    interactive --> clipboard
+    interactive --> constants
     crypto --> constants
     crypto --> utils
     config --> constants
@@ -39,6 +48,8 @@ flowchart TD
   and it imports nothing from the package.
 - `cli.py` is the top-level orchestrator -- it ties all other modules
   together but no module imports from `cli`.
+- `interactive.py` is a parallel entry point to `cli.py`, reusing the
+  same generation, crypto, and history modules via a `cmd.Cmd` REPL.
 - `crypto.py` and `generator.py` are the two heaviest modules.  They are
   independent of each other; `history.py` bridges them.
 
@@ -62,7 +73,8 @@ type-checking support.
   `get_encryption_key`
 - Re-exports from `generator`: `build_charset`,
   `calculate_password_strength`, `compute_charset_size`,
-  `expected_unique_chars`, `format_strength_meter`, `generate_password`
+  `expected_unique_chars`, `format_strength_inline`,
+  `format_strength_meter`, `generate_password`
 
 **Dependencies:** `config`, `crypto`, `generator`
 
@@ -237,7 +249,9 @@ detection.
   consecutive-repeat penalty, and simple-pattern penalty.  Returns an
   integer from 1 to 10.
 - `format_strength_meter(score)` -- renders a coloured Unicode bar such as
-  `████████░░ 8/10`.
+  `████████░░ 8/10`.  Used in the strength summary footer.
+- `format_strength_inline(score)` -- renders a compact coloured tag such
+  as `[8/10]`.  Used inline next to each generated password.
 - `generate_password(length, cfg, ...)` -- main generation function.
   Reserves positions for each character type to satisfy minimums, fills
   remaining slots from the full pool, then verifies all constraints.
@@ -268,6 +282,7 @@ Base64-encoded lines in `vault.enc`.
 
 - `format_history_table(entries)` -- formats a list of decrypted records
   as a Unicode table using the `tabulate` library (format `simple_grid`).
+  Strength scores are coloured using ANSI codes (green/yellow/orange/red).
 - `save_password(password, key, ...)` -- encrypts and appends a new record
   to the vault file with metadata (label, category, tags, timestamp,
   strength score, Argon2id hash).
@@ -304,6 +319,28 @@ provides an auto-clear timer.
 **Dependencies:** `constants`
 
 **Dependents:** `cli`
+
+---
+
+### `interactive.py`
+
+**Purpose:** Interactive REPL for guided password generation.  Provides a
+`cmd.Cmd` subclass (`PwgenShell`) with commands for quick generation,
+custom wizards, vault browsing, and health reporting.
+
+**Key exports:**
+
+- `PwgenShell` -- `cmd.Cmd` subclass with prompt `pwgen> ` and commands:
+  `quick [LENGTH]` (generate with all types, default 24), `new` (guided
+  wizard), `browse` (paginated vault view), `health` (score distribution
+  and vault stats), `quit`/`exit`/EOF.
+- Session-cached encryption key (`self._key`) -- prompted once on first
+  vault operation and cleared on exit.
+
+**Dependencies:** `config`, `crypto`, `generator`, `history`, `clipboard`,
+`constants`
+
+**Dependents:** `cli` (lazy-imported when `--interactive` is passed)
 
 ---
 
@@ -358,7 +395,8 @@ package as follows:
    `generator.build_charset()` to construct the character pool and then
    fills slots with `secrets.choice()`.
 5. `cli` calls `generator.calculate_password_strength()` and
-   `generator.format_strength_meter()` to score and display the result.
+   `generator.format_strength_inline()` to display the inline score, and
+   prints a strength summary footer using `format_strength_meter()`.
 6. `cli` calls `history.save_password()`, which calls
    `crypto.argon2id_hash()` to hash the password and
    `crypto.encrypt_data()` to encrypt the record before appending it to
