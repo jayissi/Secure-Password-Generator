@@ -239,7 +239,8 @@ class TestSessionLifecycle:
 
 class TestGenerateCommand:
 
-    def test_generate_full(self, vault, capsys):
+    def test_generate_full(self, vault, capsys, monkeypatch):
+        monkeypatch.setattr("builtins.input", lambda _p="": "q")
         shell = PwgenShell()
         shell.do_generate("-F -L 20")
         out = capsys.readouterr().out
@@ -247,7 +248,8 @@ class TestGenerateCommand:
         assert "/10]" in out
         assert "Strength Summary" in out
 
-    def test_generate_count(self, vault, capsys):
+    def test_generate_count(self, vault, capsys, monkeypatch):
+        monkeypatch.setattr("builtins.input", lambda _p="": "q")
         shell = PwgenShell()
         shell.do_generate("-F -L 12 -c 3")
         out = capsys.readouterr().out
@@ -256,7 +258,8 @@ class TestGenerateCommand:
         assert out.count("/10]") >= 3
         assert "Strength Summary" in out
 
-    def test_generate_sets_last_password(self, vault):
+    def test_generate_sets_last_password(self, vault, monkeypatch):
+        monkeypatch.setattr("builtins.input", lambda _p="": "q")
         shell = PwgenShell()
         shell.do_generate("-F -L 16")
         assert shell._last_password is not None
@@ -276,44 +279,72 @@ class TestGenerateCommand:
         assert shell._last_password is not None
         assert shell._last_pool_size is not None
 
-
-# ── TestSaveCommand ──────────────────────────────────────────────────────
-
-class TestSaveCommand:
-
-    def test_save_after_generate(self, vault, capsys):
+    def test_generate_save_prompt(self, vault, capsys, monkeypatch):
+        inputs = iter(["s", "TestSave", "Testing", "a,b"])
+        monkeypatch.setattr("builtins.input", lambda _p="": next(inputs))
         shell = PwgenShell()
         shell.do_generate("-F -L 16")
-        capsys.readouterr()
-        shell.do_save("--label TestSave --category Testing --tags a,b")
         out = capsys.readouterr().out
         assert "saved to vault" in out
 
-    def test_save_without_generate(self, vault, capsys):
+    def test_generate_batch_save(self, vault, capsys, monkeypatch):
+        inputs = iter(["s", "Batch", "General", ""])
+        monkeypatch.setattr("builtins.input", lambda _p="": next(inputs))
         shell = PwgenShell()
-        shell.do_save("")
+        shell.do_generate("-F -L 12 -c 3")
         out = capsys.readouterr().out
-        assert "No password to save" in out
+        assert "3 passwords saved to vault" in out
 
-    def test_save_no_flags(self, vault, capsys):
-        shell = PwgenShell()
-        shell.do_generate("-F -L 12")
-        capsys.readouterr()
-        shell.do_save("")
-        out = capsys.readouterr().out
-        assert "saved to vault" in out
-
-    def test_save_clears_last_password(self, vault, capsys):
-        """After do_save, _last_password and _last_pool_size are None."""
+    def test_generate_copy_prompt(self, vault, capsys, monkeypatch):
+        inputs = iter(["c", "q"])
+        monkeypatch.setattr("builtins.input", lambda _p="": next(inputs))
         shell = PwgenShell()
         shell.do_generate("-F -L 12")
-        assert shell._last_password is not None
-        capsys.readouterr()
-        shell.do_save("")
         out = capsys.readouterr().out
-        assert "saved to vault" in out
+        assert "Copied" in out or "Clipboard not available" in out
+
+    def test_generate_regenerate_prompt(self, vault, capsys, monkeypatch):
+        inputs = iter(["r", "q"])
+        monkeypatch.setattr("builtins.input", lambda _p="": next(inputs))
+        shell = PwgenShell()
+        shell.do_generate("-F -L 12")
+        out = capsys.readouterr().out
+        assert out.count("Generated Password 1:") >= 2
+
+    def test_generate_no_save_flag_skips_prompt(self, vault, capsys):
+        shell = PwgenShell()
+        shell.do_generate("-F -L 12 -n")
+        out = capsys.readouterr().out
+        assert "Generated Password 1:" in out
+        assert "Strength Summary" in out
+
+    def test_generate_batch_display(self, vault, capsys, monkeypatch):
+        monkeypatch.setattr("builtins.input", lambda _p="": "q")
+        shell = PwgenShell()
+        shell.do_generate("-F -L 12 -c 3")
+        out = capsys.readouterr().out
+        assert "Generated Password 1:" in out
+        assert "Generated Password 2:" in out
+        assert "Generated Password 3:" in out
+
+    def test_generate_save_clears_last_password(self, vault, capsys, monkeypatch):
+        inputs = iter(["s", "", "", ""])
+        monkeypatch.setattr("builtins.input", lambda _p="": next(inputs))
+        shell = PwgenShell()
+        shell.do_generate("-F -L 12")
         assert shell._last_password is None
         assert shell._last_pool_size is None
+
+    def test_generate_with_metadata(self, vault, capsys, monkeypatch):
+        inputs = iter(["s", "", "", ""])
+        monkeypatch.setattr("builtins.input", lambda _p="": next(inputs))
+        shell = PwgenShell()
+        shell.do_generate("-F -L 12 --label Gmail --category Email")
+        capsys.readouterr()
+
+        shell.do_history("")
+        out = capsys.readouterr().out
+        assert "Gmail" in out
 
 
 # ── TestHistoryCommand ───────────────────────────────────────────────────
@@ -434,7 +465,9 @@ class TestLabelCommand:
             or "required" in out.lower()
         )
 
-    def test_generate_with_metadata(self, vault, capsys):
+    def test_generate_with_metadata(self, vault, capsys, monkeypatch):
+        inputs = iter(["s", "", "", ""])
+        monkeypatch.setattr("builtins.input", lambda _p="": next(inputs))
         shell = PwgenShell()
         shell.do_generate('-F -L 12 --label Gmail --category Email')
         capsys.readouterr()

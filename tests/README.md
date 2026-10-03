@@ -11,15 +11,15 @@ to invoke separately.
 |           File            |        Type         |  Tests  | Runtime  |
 |:-------------------------:|:-------------------:|:-------:|:--------:|
 |     `test_config.py`      |    pytest (unit)    |   14    |  < 1s    |
-|     `test_crypto.py`      |    pytest (unit)    |   18    |  < 1s    |
+|     `test_crypto.py`      |    pytest (unit)    |   21    |  < 1s    |
 |    `test_generator.py`    |    pytest (unit)    |   35    |  < 1s    |
-| `test_strength_pytest.py` |    pytest (unit)    |   41    |  < 1s    |
-|     `test_history.py`     |   pytest (vault)    |   25    |  < 1s    |
-|      `test_utils.py`      |    pytest (unit)    |    5    |  < 1s    |
-|   `test_interactive.py`   |  pytest (unit/CLI)  |   43    |  < 1s    |
+| `test_strength_pytest.py` |    pytest (unit)    |   43    |  < 1s    |
+|     `test_history.py`     |   pytest (vault)    |   27    |  < 1s    |
+|      `test_utils.py`      |    pytest (unit)    |   11    |  < 1s    |
+|   `test_interactive.py`   |  pytest (unit/CLI)  |   48    |  < 1s    |
 |       `test_cli.py`       |    pytest (CLI)     |   29    |  < 1s    |
 |  `test_entry_points.py`   | pytest (subprocess) |    3    |  < 1s    |
-|         **Total**         |                     | **213** | **< 1s** |
+|         **Total**         |                     | **231** | **< 1s** |
 
 ---
 
@@ -175,9 +175,9 @@ Module under test: `secure_password_generator.interactive`
   shows error, EOF exits, clear does not crash, interactive flag accepted,
   exit alias returns True, emptyline no-op
 - `TestGenerateCommand`: full charset, multi-count with summary, sets
-  last password, invalid flag, quick sets last password
-- `TestSaveCommand`: save after generate, save without generate, save
-  with no flags
+  last password, invalid flag, quick sets last password, save prompt,
+  batch save, copy prompt, regenerate prompt, no-save flag skips prompt,
+  batch display, save clears state, metadata flags
 - `TestHistoryCommand`: empty vault, populated vault, search, limit
 - `TestDeleteCommand`: delete entry, missing arg, invalid index
 - `TestCleanupCommand`: confirmed, cancelled, EOF cancellation

@@ -282,12 +282,12 @@ The test suite runs through pytest in under 2 seconds. A test-mode Argon2id prof
 |           File            | Tests | Coverage                                                   |
 |:-------------------------:|:-----:|------------------------------------------------------------|
 |     `test_config.py`      |  14   | Config loading, CharsetConfig, ConfigError                 |
-|     `test_crypto.py`      |  18   | Encrypt/decrypt, key management, master-password, argon2id |
+|     `test_crypto.py`      |  21   | Encrypt/decrypt, key management, master-password, argon2id |
 |    `test_generator.py`    |  35   | Charset, constraints, scoring, latin-ext, NFC, symbol-only |
-| `test_strength_pytest.py` |  41   | Entropy boundaries, consistency, edge cases                |
-|     `test_history.py`     |  25   | Vault CRUD, search/filter, delete, metadata, NFC save      |
-|      `test_utils.py`      |   5   | File permissions, logging configuration                    |
-|   `test_interactive.py`   |  43   | Interactive commands, session lifecycle, label             |
+| `test_strength_pytest.py` |  43   | Entropy boundaries, consistency, edge cases                |
+|     `test_history.py`     |  27   | Vault CRUD, search/filter, delete, metadata, NFC save      |
+|      `test_utils.py`      |  11   | File permissions, logging, vault lock, secure delete       |
+|   `test_interactive.py`   |  48   | Interactive commands, session lifecycle, generate prompt   |
 |       `test_cli.py`       |  29   | CLI integration, latin-ext, strength display, edge cases   |
 |  `test_entry_points.py`   |   3   | Subprocess smoke tests for pwgen and python -m             |
 

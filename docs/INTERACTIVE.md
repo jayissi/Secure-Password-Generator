@@ -47,7 +47,6 @@ pwgen>
 | Command                        | Description                                     |
 |:-------------------------------|:------------------------------------------------|
 | `generate [flags]`             | Generate passwords with CLI flags               |
-| `save [--label L] [--tags T]`  | Save the last generated password to vault       |
 | `history [--search S]`         | Show / search / filter vault history            |
 | `delete <INDEX>`               | Delete a vault entry by index                   |
 | `label <INDEX> [--label L]`    | Update metadata on a vault entry by index       |
@@ -212,22 +211,39 @@ power users the familiar flag syntax directly inside the REPL.
 
 ### `generate` — Generate with CLI Flags
 
+Generate a single password and choose what to do with it:
+
 ```text
 pwgen> generate -F -L 20
-  Xk9!mRq2Lp#wYn7@Fj4b  [9/10]
+Generated Password 1: Xk9!mRq2Lp#wYn7@Fj4b  [9/10]
+
+Strength Summary: 1 password generated
+  █████████░  9/10: 1 password
+
+[c]opy  [r]egenerate  [s]ave  [q]uit: s
+Label [Unnamed]: My API Key
+Category [General]: Development
+Tags (comma-separated) []: api,work
+[+] 1 password saved to vault
 ```
 
-Multiple passwords with a summary footer:
+Generate multiple passwords as a batch — all are displayed first,
+then you decide whether to save them all at once:
 
 ```text
-pwgen> generate -F -L 12 -c 3
-  Xk9!mRq2Lp#w  [8/10]
-  Bn4@jTf7Ys$z  [8/10]
-  Gy2#hPm5Ws!r  [9/10]
+pwgen> generate -F -L 16 -c 3
+Generated Password 1: Xk9!mRq2Lp#wYn7@  [9/10]
+Generated Password 2: bT5$jHn8Wv@zQp3!  [9/10]
+Generated Password 3: cR7&kLm4Nx#yAs2%  [9/10]
 
 Strength Summary: 3 passwords generated
-  █████████░  9/10: 1 password
-  ████████░░  8/10: 2 passwords
+  █████████░  9/10: 3 passwords
+
+[c]opy  [r]egenerate  [s]ave  [q]uit: s
+Label [Unnamed]: Gmail
+Category [General]: Email
+Tags (comma-separated) []: work
+[+] 3 passwords saved to vault
 ```
 
 #### `generate` Flags
@@ -248,19 +264,7 @@ Strength Summary: 3 passwords generated
 | `-e` | `--exclude-similar` | Exclude i/l/1/L/o/0/O            |
 | `-m` | `--min N`           | Min chars per selected type      |
 | `-p` | `--pattern P`       | Pattern (l/u/d/s/b/*)            |
-| `-n` | `--no-save`         | Just print, skip save prompt     |
-
-### `save` — Save Last Password
-
-After generating with `generate` or `quick`, save the result to the vault:
-
-```text
-pwgen> generate -F -L 20
-  Xk9!mRq2Lp#wYn7@Fj4b  [9/10]
-
-pwgen> save --label "Gmail" --category "Email" --tags "work,important"
-[+] Password saved to vault
-```
+| `-n` | `--no-save`         | Just print, skip prompt          |
 
 ### `history` — Search & Filter History
 
@@ -311,8 +315,8 @@ pwgen> label 2 --category "Finance"
 
 ### `generate` with Metadata
 
-Pass `--label`, `--category`, and `--tags` to auto-save passwords with
-metadata in a single step:
+Pass `--label`, `--category`, and `--tags` to pre-fill the save
+prompt.  The flags override anything typed at the interactive prompt:
 
 ```text
 pwgen> generate -F -L 20 --label "Gmail" --category "Email" --tags "work"
@@ -320,7 +324,12 @@ Generated Password 1: Xk9!mRq2Lp#wYn7@Fj4b  [9/10]
 
 Strength Summary: 1 password generated
   █████████░  9/10: 1 password
-[+] Passwords securely saved to ...
+
+[c]opy  [r]egenerate  [s]ave  [q]uit: s
+Label [Unnamed]:
+Category [General]:
+Tags (comma-separated) []:
+[+] 1 password saved to vault
 ```
 
 ### `cleanup` — Secure Delete All Vault Files

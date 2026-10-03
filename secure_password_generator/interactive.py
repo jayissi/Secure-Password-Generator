@@ -3,8 +3,8 @@ Interactive REPL for Secure Password Generator.
 
 Provides a ``cmd.Cmd`` shell (``PwgenShell``) with guided commands for
 password generation, vault browsing, and health reporting.  CLI-style
-commands (``generate``, ``save``, ``history``, ``delete``, ``cleanup``)
-accept the same flags as the non-interactive CLI.
+commands (``generate``, ``history``, ``delete``, ``cleanup``) accept
+the same flags as the non-interactive CLI.
 """
 
 import argparse
@@ -93,25 +93,11 @@ def _generate_parser() -> argparse.ArgumentParser:
     p.add_argument("-p", "--pattern", type=str,
                    help="Generate from pattern (l/u/d/s/b/*)")
     p.add_argument("-n", "--no-save", action="store_true",
-                   help="Just print (do not prompt to save)")
+                   help="Just print, skip prompt")
     p.add_argument("--label", type=str, help="Label for saved passwords")
     p.add_argument("--category", type=str, help="Category for saved passwords")
     p.add_argument("--tags", type=str,
                    help="Comma-separated tags for saved passwords")
-    return p
-
-
-def _save_parser() -> argparse.ArgumentParser:
-    """Build the ``save`` command parser."""
-    p = argparse.ArgumentParser(
-        prog="save",
-        description="Save the last generated password to the vault.",
-        exit_on_error=False,
-    )
-    p.add_argument("--label", type=str, help="Label for this password")
-    p.add_argument("--category", type=str, help="Category")
-    p.add_argument("--tags", type=str,
-                   help="Comma-separated tags")
     return p
 
 
@@ -500,25 +486,66 @@ class PwgenShell(cmd.Cmd):
             latin_ext=opts.latin_ext,
         )
 
+        self._generate_batch_and_prompt(opts, cfg)
+
+    def _generate_batch_and_prompt(
+        self,
+        opts: argparse.Namespace,
+        cfg: CharsetConfig,
+    ) -> None:
+        """Generate N passwords, display all, then prompt for action."""
         pool_size = compute_charset_size(cfg)
-        scores: list[int] = []
-        save = not opts.no_save
-        key: bytes | None = None
 
-        tags_list = (
-            [t.strip() for t in opts.tags.split(",") if t.strip()]
-            if opts.tags
-            else None
-        )
+        passwords, scores = self._generate_batch(opts, cfg, pool_size)
+        self._display_batch(passwords, scores, opts.count)
 
-        if save:
+        if opts.no_save:
+            return
+
+        while True:
             try:
-                key = self._require_key()
-            except Exception as exc:
-                print(f"[!] {exc}")
+                choice = input(
+                    "[c]opy  [r]egenerate  [s]ave  [q]uit: "
+                ).strip().lower()
+            except EOFError:
+                print()
                 return
 
-        for i in range(opts.count):
+            if choice == "c":
+                text = "\n".join(passwords)
+                if copy_to_clipboard(text):
+                    label = (
+                        "Copied to clipboard"
+                        if len(passwords) == 1
+                        else f"Copied {len(passwords)} passwords to clipboard"
+                    )
+                    print(f"[+] {label}")
+                    schedule_clipboard_clear()
+                else:
+                    print("[!] Clipboard not available")
+            elif choice == "r":
+                passwords, scores = self._generate_batch(
+                    opts, cfg, pool_size,
+                )
+                self._display_batch(passwords, scores, opts.count)
+            elif choice == "s":
+                self._save_batch(passwords, pool_size, opts)
+                return
+            elif choice == "q":
+                return
+            else:
+                print("Please choose c, r, s, or q.")
+
+    def _generate_batch(
+        self,
+        opts: argparse.Namespace,
+        cfg: CharsetConfig,
+        pool_size: int,
+    ) -> tuple[list[str], list[int]]:
+        """Generate a batch of passwords and return (passwords, scores)."""
+        passwords: list[str] = []
+        scores: list[int] = []
+        for _ in range(opts.count):
             password = generate_password(
                 length=opts.length,
                 cfg=cfg,
@@ -529,74 +556,79 @@ class PwgenShell(cmd.Cmd):
             strength = calculate_password_strength(
                 password, charset_size=pool_size,
             )
+            passwords.append(password)
             scores.append(strength)
+
+        self._last_password = passwords[-1] if passwords else None
+        self._last_pool_size = pool_size
+        return passwords, scores
+
+    def _display_batch(
+        self,
+        passwords: list[str],
+        scores: list[int],
+        count: int,
+    ) -> None:
+        """Display generated passwords with inline scores and summary."""
+        for i, (password, strength) in enumerate(
+            zip(passwords, scores), 1,
+        ):
             inline = format_strength_inline(strength)
-            print(f"Generated Password {i + 1}: {password}  {inline}")
+            print(f"Generated Password {i}: {password}  {inline}")
 
-            self._last_password = password
-            self._last_pool_size = pool_size
-
-            if save and key is not None:
-                save_password(
-                    password,
-                    key=key,
-                    label=opts.label,
-                    category=opts.category,
-                    tags=tags_list,
-                    charset_size=pool_size,
-                )
-
-        if opts.count > 0:
-            count_label = "password" if opts.count == 1 else "passwords"
+        if count > 0:
+            count_label = "password" if count == 1 else "passwords"
             print(
-                f"\nStrength Summary: {opts.count} {count_label} generated"
+                f"\nStrength Summary: {count} {count_label} generated"
             )
             score_counts = Counter(scores)
             for score in sorted(score_counts, reverse=True):
                 meter = format_strength_meter(score)
-                count = score_counts[score]
-                pw_label = "password" if count == 1 else "passwords"
-                print(f"  {meter}: {count} {pw_label}")
+                n = score_counts[score]
+                pw_label = "password" if n == 1 else "passwords"
+                print(f"  {meter}: {n} {pw_label}")
 
-            if save:
-                print(f"[+] Passwords securely saved to {_constants.PASSWORD_FILE}")
-
-    # ── save (CLI-style) ─────────────────────────────────────────────
-
-    def do_save(self, arg: str) -> None:
-        """Save the last generated password.
-
-        Usage: save [--label L] [--category C] [--tags T]
-        """
-        if self._last_password is None:
-            print("No password to save. Run 'generate' or 'quick' first.")
-            return
-
-        parser = _save_parser()
+    def _save_batch(
+        self,
+        passwords: list[str],
+        pool_size: int,
+        opts: argparse.Namespace,
+    ) -> None:
+        """Prompt for metadata and save all passwords in the batch."""
         try:
-            opts = parser.parse_args(shlex.split(arg))
-        except (SystemExit, argparse.ArgumentError) as exc:
-            if isinstance(exc, argparse.ArgumentError):
-                print(f"save: {exc}")
+            label = input("Label [Unnamed]: ").strip() or None
+            category = input("Category [General]: ").strip() or None
+            tags_raw = input("Tags (comma-separated) []: ").strip()
+            tags = (
+                [t.strip() for t in tags_raw.split(",") if t.strip()]
+                if tags_raw
+                else None
+            )
+        except EOFError:
+            print("\nSave cancelled.")
             return
 
-        tags = (
-            [t.strip() for t in opts.tags.split(",") if t.strip()]
-            if opts.tags
-            else None
-        )
+        if opts.label:
+            label = opts.label
+        if opts.category:
+            category = opts.category
+        if opts.tags:
+            tags = [t.strip() for t in opts.tags.split(",") if t.strip()]
 
         try:
             key = self._require_key()
-            save_password(
-                self._last_password,
-                key=key,
-                label=opts.label,
-                category=opts.category,
-                tags=tags,
-                charset_size=self._last_pool_size,
-            )
-            print("[+] Password saved to vault")
+            for password in passwords:
+                save_password(
+                    password,
+                    key=key,
+                    label=label,
+                    category=category,
+                    tags=tags,
+                    charset_size=pool_size,
+                )
+            n = len(passwords)
+            pw_label = "password" if n == 1 else "passwords"
+            print(f"[+] {n} {pw_label} saved to vault")
             self._last_password = None
             self._last_pool_size = None
         except Exception as exc:
