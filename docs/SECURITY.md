@@ -99,7 +99,7 @@ flowchart TD
 
 - **Immutable strings/bytes**: Python strings and bytes objects are immutable. Encryption keys, plaintext passwords, and derived secrets cannot be securely zeroed in memory — they persist until the garbage collector reclaims them.
 - **Process memory exposure**: Core dumps, swap files, or memory forensics tools could recover sensitive data from the process address space while it remains allocated.
-- **Mitigation**: The interactive REPL clears key caches on exit (`_cleanup()`). The `do_save` command clears the last generated password from memory immediately after saving. These reduce — but cannot eliminate — the window of exposure.
+- **Mitigation**: The interactive REPL clears key caches on exit (`_cleanup()`). The save prompt clears the last generated password from memory immediately after saving. These reduce — but cannot eliminate — the window of exposure.
 
 ### Password File Content
 

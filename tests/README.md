@@ -99,7 +99,7 @@ Module under test: `secure_password_generator.config`
 - `blank_space` key mapped to `blank`
 - `CharsetConfig` dataclass: defaults, frozen, equality, hashable
 
-### `test_crypto.py` -- 18 tests
+### `test_crypto.py` -- 21 tests
 
 Module under test: `secure_password_generator.crypto`
 
@@ -124,7 +124,7 @@ Module under test: `secure_password_generator.generator`
 - Symbol-only generation: no consecutive repeats, single symbol raises
 - NFC normalization: generate_password and pattern output are NFC-normalized
 
-### `test_strength_pytest.py` -- 41 tests
+### `test_strength_pytest.py` -- 43 tests
 
 Module under test: `secure_password_generator.generator` (strength scoring)
 
@@ -136,7 +136,7 @@ Module under test: `secure_password_generator.generator` (strength scoring)
 - `compute_charset_size` / `build_charset` sanity checks
 - Latin-ext scoring: 6-type beats 5-type, latin-ext-only no crash, pool inference adds 93, 5-type regression check
 
-### `test_history.py` -- 25 tests
+### `test_history.py` -- 27 tests
 
 Module under test: `secure_password_generator.history`
 
@@ -151,7 +151,7 @@ Module under test: `secure_password_generator.history`
   scores, timestamp format
 - NFC save normalization: combining characters normalized before storage
 
-### `test_utils.py` -- 5 tests
+### `test_utils.py` -- 11 tests
 
 Module under test: `secure_password_generator.utils`
 
@@ -159,7 +159,7 @@ Module under test: `secure_password_generator.utils`
   on correct (0600), no error on nonexistent path
 - `configure_logging()`: verbose sets DEBUG, quiet sets ERROR
 
-### `test_interactive.py` -- 43 tests
+### `test_interactive.py` -- 48 tests
 
 Module under test: `secure_password_generator.interactive`
 

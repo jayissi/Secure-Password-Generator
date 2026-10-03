@@ -332,8 +332,9 @@ custom wizards, vault browsing, and health reporting.
 
 - `PwgenShell` -- `cmd.Cmd` subclass with `pwgen>` prompt and commands:
   `quick [LENGTH]` (generate with all types, default 24), `new` (guided
-  wizard), `browse` (paginated vault view), `health` (score distribution
-  and vault stats), `quit`/`exit`/EOF.
+  wizard), `generate [flags]` (CLI-style with batch prompt), `browse`
+  (paginated vault view), `health` (score distribution and vault stats),
+  `history`, `delete`, `label`, `cleanup`, `clear`, `quit`/`exit`/EOF.
 - Session-cached encryption key (`self._key`) -- prompted once on first
   vault operation and cleared on exit.
 

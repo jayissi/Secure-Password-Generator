@@ -9,6 +9,9 @@ Covers:
 - browse command (empty vault, populated vault, view detail)
 - health command (empty vault, populated vault with distribution)
 - Session lifecycle (quit, help, unknown command, EOF, CLI flag)
+- generate command (single, batch, save prompt, copy, regenerate,
+  no-save flag, batch display, save clears state, metadata flags)
+- history, delete, cleanup, label commands
 """
 
 import io
