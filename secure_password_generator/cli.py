@@ -367,6 +367,9 @@ def main() -> None:
             sys.exit(1)
 
     if args.show_history:
+        if not _constants.PASSWORD_FILE.exists():
+            print("No password history available")
+            sys.exit(0)
         show_password_history(
             key=_require_key(),
             limit=args.limit,
@@ -379,6 +382,9 @@ def main() -> None:
         sys.exit(0)
 
     if args.delete_entry:
+        if not _constants.PASSWORD_FILE.exists():
+            print("No password history available")
+            sys.exit(0)
         delete_entry_by_index(args.delete_entry, key=_require_key())
         sys.exit(0)
 
