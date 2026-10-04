@@ -302,11 +302,24 @@ The test suite runs through pytest in under 2 seconds with automatic coverage re
 |  `test_entry_points.py`   |   3   | Subprocess smoke tests for pwgen and python -m             |
 
 ```bash
-pytest tests/ -v
-pyright
+bash << 'EOF'
+set -e
+
+echo '=== Ruff Lint ==='
 ruff check secure_password_generator/ tests/ benchmarks/
+
+echo '=== Pyright ==='
+pyright
+
+echo '=== Bandit ==='
 bandit -r secure_password_generator/ -c pyproject.toml
-pymarkdown --config .pymarkdown.json scan **/*.md
+
+echo '=== Markdown Lint ==='
+pymarkdown --config .pymarkdown.json scan '**/*.md'
+
+echo '=== Pytest ==='
+pytest tests/ -v --tb=short
+EOF
 ```
 
 See [tests/README.md](tests/README.md) for the full test architecture and

@@ -242,25 +242,36 @@ Run the full CI pipeline locally in a Podman container.  This mirrors the
 GitHub Actions workflow (`.github/workflows/ci.yml`):
 
 ```bash
-podman run --rm -v $(pwd):/workspace:Z fedora:latest bash -c "
-  cd /workspace &&
-  dnf install -y python3 python3-pip nodejs-npm > /dev/null 2>&1 &&
-  pip3 install -e . -r requirements.txt > /dev/null 2>&1 &&
-  echo '=== Ruff Lint ===' &&
-  ruff check secure_password_generator/ tests/ benchmarks/ &&
-  echo '=== Pyright ===' &&
-  pyright secure_password_generator/ tests/ &&
-  echo '=== Bandit ===' &&
-  bandit -r secure_password_generator/ -c pyproject.toml &&
-  echo '=== Markdown Lint ===' &&
-  pymarkdown --config .pymarkdown.json scan **/*.md &&
-  echo '=== Pytest ===' &&
-  pytest tests/ -v --tb=short &&
-  echo '=== Smoke Test ===' &&
-  pwgen -V &&
-  pwgen -F -L 16 -n &&
-  echo '=== ALL CHECKS PASSED ==='
-"
+podman run --rm \
+  -v "$(pwd):/workspace:Z" \
+  fedora:latest \
+  bash -e -c '
+    cd /workspace
+
+    dnf install -y python3 python3-pip nodejs-npm >/dev/null 2>&1
+    pip3 install -e . -r requirements.txt >/dev/null 2>&1
+
+    echo "=== Ruff Lint ==="
+    ruff check secure_password_generator/ tests/ benchmarks/
+
+    echo "=== Pyright ==="
+    pyright secure_password_generator/ tests/
+
+    echo "=== Bandit ==="
+    bandit -r secure_password_generator/ -c pyproject.toml
+
+    echo "=== Markdown Lint ==="
+    pymarkdown --config .pymarkdown.json scan '\''**/*.md'\''
+
+    echo "=== Pytest ==="
+    pytest tests/ -v --tb=short
+
+    echo "=== Smoke Test ==="
+    pwgen -V
+    pwgen -F -L 16 -n
+
+    echo "=== ALL CHECKS PASSED ==="
+  '
 ```
 
 > **Note:** `nodejs-npm` is required because `pyright` is a Node.js binary.
