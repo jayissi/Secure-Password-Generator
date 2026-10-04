@@ -49,10 +49,10 @@ A robust, powerful, and secure command-line utility for generating **cryptograph
 |    `PyYAML`    | YAML config file support              |
 |   `tabulate`   | Formatted history table output        |
 |    `bandit`    | Security linter (dev dependency)      |
-| `pymarkdownlnt`| Markdown linter (dev dependency)     |
+| `pymarkdownlnt`| Markdown linter (dev dependency)      |
 |   `pyright`    | Static type checking (dev dependency) |
 |    `pytest`    | Test suite (dev dependency)           |
-| `pytest-cov`   | Test coverage (dev dependency)       |
+| `pytest-cov`   | Test coverage (dev dependency)        |
 |     `ruff`     | Linter (dev dependency)               |
 
 **System/RPM dependencies** are listed in `requirements-rpm.txt`:
