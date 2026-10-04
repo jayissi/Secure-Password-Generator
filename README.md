@@ -80,15 +80,17 @@ dnf install coreutils
 2. Install the package:
 
     ```bash
-    pip install -e .
+    python -m pip install -e .
     ```
 
     This installs all Python dependencies and creates the `pwgen` command.
 
-    For development (includes linters, type checker, test tools):
+    For development, use a virtual environment:
 
     ```bash
-    pip install -e . -r requirements-dev.txt
+    python -m venv .venv
+    source .venv/bin/activate
+    python -m pip install -e . -r requirements-dev.txt
     ```
 
 3. Verify installation:
@@ -303,6 +305,12 @@ The test suite runs through pytest in under 2 seconds with automatic coverage re
 |  `test_entry_points.py`   |   3   | Subprocess smoke tests for pwgen and python -m             |
 
 ```bash
+# Build the virtual environment
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e . -r requirements-dev.txt
+
+# Run the linters
 bash << 'EOF'
 set -e
 
@@ -321,6 +329,9 @@ pymarkdown --config .pymarkdown.json scan '**/*.md'
 echo '=== Pytest ==='
 pytest tests/ -v --tb=short
 EOF
+
+# Exit the virtual environment
+deactivate
 ```
 
 See [tests/README.md](tests/README.md) for the full test architecture and

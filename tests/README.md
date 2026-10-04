@@ -26,10 +26,12 @@ to invoke separately.
 
 ## Prerequisites
 
-Install the package in editable mode with development dependencies:
+Set up a virtual environment with development dependencies:
 
 ```bash
-pip install -e . -r requirements-dev.txt
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e . -r requirements-dev.txt
 ```
 
 System dependencies (`shred`) should be available -- see
@@ -249,7 +251,7 @@ podman run --rm \
     cd /workspace
 
     dnf install -y python3 python3-pip nodejs-npm >/dev/null 2>&1
-    pip3 install -e . -r requirements-dev.txt >/dev/null 2>&1
+    python -m pip install -e . -r requirements-dev.txt >/dev/null 2>&1
 
     echo "=== Ruff Lint ==="
     ruff check secure_password_generator/ tests/ benchmarks/
@@ -275,6 +277,6 @@ podman run --rm \
 ```
 
 > **Note:** `nodejs-npm` is required because `pyright` is a Node.js binary.
-> The `pip install pyright` wrapper downloads Node automatically in most
+> The `python -m pip install pyright` wrapper downloads Node automatically in most
 > environments, but Fedora containers may not have `node` pre-installed.
 > See `requirements-rpm.txt` for all system dependencies.

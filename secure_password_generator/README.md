@@ -3,7 +3,7 @@
 > Back to [main README](../README.md)
 
 This directory contains the core Python package for the Secure Password
-Generator.  After installation (`pip install -e .`), the package provides
+Generator.  After installation (`python -m pip install -e .`), the package provides
 the `pwgen` command-line tool and can also be invoked as
 `python -m secure_password_generator`.
 

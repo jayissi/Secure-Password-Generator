@@ -161,7 +161,7 @@ Cryptographic Operations: Timing Benchmark
 ## Notes
 
 - These scripts import from the installed `secure_password_generator`
-  package.  Run `pip install -e .` first.
+  package.  Run `python -m pip install -e .` first.
 - `benchmark_crypto.py` uses production Argon2id by default and can take
   30+ seconds.  Use `SPG_TEST_KDF=1` for quick runs.
 - All scripts accept `-n` to set the iteration count and `-c` to select
