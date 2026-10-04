@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
-      - run: pip install -e . -r requirements.txt
+      - run: pip install -e . -r requirements-dev.txt
       - run: ruff check secure_password_generator/ tests/ benchmarks/
       - run: pyright secure_password_generator/ tests/
       - run: bandit -r secure_password_generator/ -c pyproject.toml
@@ -38,7 +38,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           allow-prereleases: true
-      - run: pip install -e . -r requirements.txt
+      - run: pip install -e . -r requirements-dev.txt
       - run: pytest tests/ -v --tb=short
 
   smoke:

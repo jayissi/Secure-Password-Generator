@@ -29,7 +29,7 @@ to invoke separately.
 Install the package in editable mode with development dependencies:
 
 ```bash
-pip install -e . -r requirements.txt
+pip install -e . -r requirements-dev.txt
 ```
 
 System dependencies (`shred`) should be available -- see
@@ -249,7 +249,7 @@ podman run --rm \
     cd /workspace
 
     dnf install -y python3 python3-pip nodejs-npm >/dev/null 2>&1
-    pip3 install -e . -r requirements.txt >/dev/null 2>&1
+    pip3 install -e . -r requirements-dev.txt >/dev/null 2>&1
 
     echo "=== Ruff Lint ==="
     ruff check secure_password_generator/ tests/ benchmarks/

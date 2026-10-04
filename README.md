@@ -88,7 +88,7 @@ dnf install coreutils
     For development (includes linters, type checker, test tools):
 
     ```bash
-    pip install -e . -r requirements.txt
+    pip install -e . -r requirements-dev.txt
     ```
 
 3. Verify installation:
@@ -114,7 +114,8 @@ Secure-Password-Generator/
 │   ├── workflows/ci.yml              # CI: lint, test, smoke test
 │   └── dependabot.yml                # Automated dependency updates
 ├── pyproject.toml                    # PEP 621 metadata and entry points
-├── requirements.txt                  # pip install -r compatibility
+├── requirements.txt                  # Runtime Python dependencies
+├── requirements-dev.txt              # Dev Python dependencies (linters, tests)
 ├── requirements-rpm.txt              # System/RPM dependencies
 ├── config-sample.yaml                # Example YAML config
 ├── config-example.json               # Example JSON config
