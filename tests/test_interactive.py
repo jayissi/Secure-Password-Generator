@@ -478,3 +478,218 @@ class TestLabelCommand:
         shell.do_history('')
         out = capsys.readouterr().out
         assert "Gmail" in out
+
+
+# ── TestBrowseExtended ───────────────────────────────────────────────────
+
+class TestBrowseExtended:
+
+    def test_browse_next_prev(self, vault, key, capsys, monkeypatch):
+        """Test pagination: next, prev, then quit."""
+        from secure_password_generator.crypto import initialize_security_files
+        initialize_security_files()
+        for i in range(7):
+            save_password(f"pw{i}", key=key, label=f"Entry{i}")
+        inputs = iter(["n", "p", "q"])
+        monkeypatch.setattr("builtins.input", lambda _p="": next(inputs))
+        shell = PwgenShell()
+        shell._key = key
+        shell.do_browse("")
+        out = capsys.readouterr().out
+        assert "Page 1/" in out
+
+    def test_browse_search(self, populated_vault, key, capsys, monkeypatch):
+        inputs = iter(["s", "gmail", "q"])
+        monkeypatch.setattr("builtins.input", lambda _p="": next(inputs))
+        shell = PwgenShell()
+        shell._key = key
+        shell.do_browse("")
+        out = capsys.readouterr().out
+        assert "match" in out.lower()
+
+    def test_browse_invalid_entry(self, populated_vault, key, capsys, monkeypatch):
+        inputs = iter(["v 99", "q"])
+        monkeypatch.setattr("builtins.input", lambda _p="": next(inputs))
+        shell = PwgenShell()
+        shell._key = key
+        shell.do_browse("")
+        out = capsys.readouterr().out
+        assert "Invalid entry" in out
+
+    def test_browse_view_copy_back(
+        self, populated_vault, key, capsys, monkeypatch,
+    ):
+        inputs = iter(["v 1", "c", "b", "q"])
+        monkeypatch.setattr("builtins.input", lambda _p="": next(inputs))
+        shell = PwgenShell()
+        shell._key = key
+        shell.do_browse("")
+        out = capsys.readouterr().out
+        assert "Password:" in out
+        assert "Copied" in out or "Clipboard not available" in out
+
+    def test_browse_eof(self, populated_vault, key, capsys, monkeypatch):
+        call_count = [0]
+        def _eof_on_second(_p=""):
+            call_count[0] += 1
+            if call_count[0] > 1:
+                raise EOFError
+            return "q"
+        monkeypatch.setattr("builtins.input", _eof_on_second)
+        shell = PwgenShell()
+        shell._key = key
+        shell.do_browse("")
+
+    def test_browse_invalid_choice(
+        self, populated_vault, key, capsys, monkeypatch,
+    ):
+        inputs = iter(["x", "q"])
+        monkeypatch.setattr("builtins.input", lambda _p="": next(inputs))
+        shell = PwgenShell()
+        shell._key = key
+        shell.do_browse("")
+        out = capsys.readouterr().out
+        assert "Please choose" in out
+
+    def test_browse_view_number_prompt(
+        self, populated_vault, key, capsys, monkeypatch,
+    ):
+        inputs = iter(["v", "1", "b", "q"])
+        monkeypatch.setattr("builtins.input", lambda _p="": next(inputs))
+        shell = PwgenShell()
+        shell._key = key
+        shell.do_browse("")
+        out = capsys.readouterr().out
+        assert "Password:" in out
+
+    def test_browse_search_no_match(
+        self, populated_vault, key, capsys, monkeypatch,
+    ):
+        inputs = iter(["s", "zzzznonexistent", "q"])
+        monkeypatch.setattr("builtins.input", lambda _p="": next(inputs))
+        shell = PwgenShell()
+        shell._key = key
+        shell.do_browse("")
+        out = capsys.readouterr().out
+        assert "No matches" in out
+
+    def test_browse_already_last_page(
+        self, populated_vault, key, capsys, monkeypatch,
+    ):
+        inputs = iter(["n", "q"])
+        monkeypatch.setattr("builtins.input", lambda _p="": next(inputs))
+        shell = PwgenShell()
+        shell._key = key
+        shell.do_browse("")
+        out = capsys.readouterr().out
+        assert "last page" in out.lower()
+
+    def test_browse_already_first_page(
+        self, populated_vault, key, capsys, monkeypatch,
+    ):
+        inputs = iter(["p", "q"])
+        monkeypatch.setattr("builtins.input", lambda _p="": next(inputs))
+        shell = PwgenShell()
+        shell._key = key
+        shell.do_browse("")
+        out = capsys.readouterr().out
+        assert "first page" in out.lower()
+
+    def test_browse_invalid_view_number(
+        self, populated_vault, key, capsys, monkeypatch,
+    ):
+        inputs = iter(["v abc", "q"])
+        monkeypatch.setattr("builtins.input", lambda _p="": next(inputs))
+        shell = PwgenShell()
+        shell._key = key
+        shell.do_browse("")
+        out = capsys.readouterr().out
+        assert "Invalid number" in out
+
+
+# ── TestHealthExtended ───────────────────────────────────────────────────
+
+class TestHealthExtended:
+
+    def test_health_weak_warning(self, vault, key, capsys):
+        from secure_password_generator.crypto import initialize_security_files
+        initialize_security_files()
+        save_password("a", key=key, label="Weak")
+        shell = PwgenShell()
+        shell._key = key
+        shell.do_health("")
+        out = capsys.readouterr().out
+        assert "below 5/10" in out
+
+    def test_health_duplicate_labels(self, vault, key, capsys):
+        from secure_password_generator.crypto import initialize_security_files
+        initialize_security_files()
+        save_password("pw1", key=key, label="Dupe")
+        save_password("pw2", key=key, label="Dupe")
+        shell = PwgenShell()
+        shell._key = key
+        shell.do_health("")
+        out = capsys.readouterr().out
+        assert "Duplicate labels" in out
+
+
+# ── TestQuickExtended ────────────────────────────────────────────────────
+
+class TestQuickExtended:
+
+    def test_quick_copy(self, vault, capsys, monkeypatch):
+        inputs = iter(["c", "q"])
+        monkeypatch.setattr("builtins.input", lambda _p="": next(inputs))
+        shell = PwgenShell()
+        shell.do_quick("")
+        out = capsys.readouterr().out
+        assert "Copied" in out or "Clipboard not available" in out
+
+    def test_quick_save(self, vault, capsys, monkeypatch):
+        inputs = iter(["s", "QuickLabel", "QuickCat", "tag1"])
+        monkeypatch.setattr("builtins.input", lambda _p="": next(inputs))
+        shell = PwgenShell()
+        shell.do_quick("")
+        out = capsys.readouterr().out
+        assert "saved to vault" in out
+
+    def test_quick_eof(self, vault, capsys, monkeypatch):
+        def _raise_eof(_p=""):
+            raise EOFError
+        monkeypatch.setattr("builtins.input", _raise_eof)
+        shell = PwgenShell()
+        shell.do_quick("")
+
+    def test_quick_invalid_then_quit(self, vault, capsys, monkeypatch):
+        inputs = iter(["z", "q"])
+        monkeypatch.setattr("builtins.input", lambda _p="": next(inputs))
+        shell = PwgenShell()
+        shell.do_quick("")
+        out = capsys.readouterr().out
+        assert "Please choose" in out
+
+
+# ── TestGenerateExtended ─────────────────────────────────────────────────
+
+class TestGenerateExtended:
+
+    def test_generate_save_batch_eof(self, vault, capsys, monkeypatch):
+        call_count = [0]
+        def _save_then_eof(_p=""):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return "s"
+            raise EOFError
+        monkeypatch.setattr("builtins.input", _save_then_eof)
+        shell = PwgenShell()
+        shell.do_generate("-F -L 12")
+        out = capsys.readouterr().out
+        assert "cancelled" in out.lower()
+
+    def test_generate_batch_copy_multi(self, vault, capsys, monkeypatch):
+        inputs = iter(["c", "q"])
+        monkeypatch.setattr("builtins.input", lambda _p="": next(inputs))
+        shell = PwgenShell()
+        shell.do_generate("-F -L 12 -c 3")
+        out = capsys.readouterr().out
+        assert "Copied" in out or "Clipboard not available" in out

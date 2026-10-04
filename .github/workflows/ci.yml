@@ -23,6 +23,8 @@ jobs:
       - run: pip install -e . -r requirements.txt
       - run: ruff check secure_password_generator/ tests/ benchmarks/
       - run: pyright secure_password_generator/ tests/
+      - run: bandit -r secure_password_generator/ -c pyproject.toml
+      - run: pymarkdown --config .pymarkdown.json scan **/*.md
 
   test:
     name: Test (Python ${{ matrix.python-version }})

@@ -8,6 +8,7 @@ import getpass
 import logging
 import os
 import secrets
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -47,7 +48,7 @@ logger = logging.getLogger("secure_password_generator")
 # ---------------------------------------------------------------------------
 _KEY_CACHE: dict[str, tuple[bytes, float]] = {}
 _FINAL_KEY_CACHE: dict[str, bytes] = {}
-_SESSION_TOKEN: str | None = None
+_crypto_state: dict[str, str | None] = {"session_token": None}
 
 
 # ---------------------------------------------------------------------------
@@ -190,7 +191,7 @@ def combine_keys(derived: bytes, file_key: bytes) -> bytes:
     """XOR a master-password-derived key with the on-disk encryption key."""
     if len(derived) != len(file_key):
         raise ValueError("Derived key and file key must be the same length")
-    return bytes(a ^ b for a, b in zip(derived, file_key))
+    return bytes(a ^ b for a, b in zip(derived, file_key, strict=True))
 
 
 # ---------------------------------------------------------------------------
@@ -208,22 +209,22 @@ def get_encryption_key(master_password: str | None = None) -> bytes:
     ``derived_key XOR file_key`` (two-factor encryption).  Otherwise the
     on-disk file key is used alone.
     """
-    global _SESSION_TOKEN
-
     file_key = get_file_encryption_key()
 
     if is_master_password_enabled():
         if master_password is None:
             raise ValueError("Master password required but not provided")
 
-        if _SESSION_TOKEN and _SESSION_TOKEN in _FINAL_KEY_CACHE:
-            return _FINAL_KEY_CACHE[_SESSION_TOKEN]
+        token = _crypto_state["session_token"]
+        if token and token in _FINAL_KEY_CACHE:
+            return _FINAL_KEY_CACHE[token]
 
         derived = derive_master_key(master_password)
         final_key = combine_keys(derived, file_key)
 
-        _SESSION_TOKEN = secrets.token_hex(16)
-        _FINAL_KEY_CACHE[_SESSION_TOKEN] = final_key
+        new_token = secrets.token_hex(16)
+        _crypto_state["session_token"] = new_token
+        _FINAL_KEY_CACHE[new_token] = final_key
         return final_key
 
     return file_key
@@ -399,8 +400,7 @@ def set_master_password(
         # Invalidate cached keys so new salt is used
         _KEY_CACHE.clear()
         _FINAL_KEY_CACHE.clear()
-        global _SESSION_TOKEN
-        _SESSION_TOKEN = None
+        _crypto_state["session_token"] = None
 
         derived = derive_master_key(new_password, salt=salt)
         file_key = get_file_encryption_key()
@@ -440,7 +440,7 @@ def cleanup_files() -> None:
                 secure_delete_file(file)
                 print(f"[+] Securely removed: {file}")
                 removed_any = True
-            except Exception as exc:
+            except (OSError, subprocess.SubprocessError) as exc:
                 logger.error("Failed to securely remove %s: %s", file, exc)
 
     lock_file = PASSWORD_DIR / ".vault.lock"

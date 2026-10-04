@@ -89,7 +89,7 @@ class TestMasterPassword:
         import secure_password_generator.crypto as _crypto
         _crypto._KEY_CACHE.clear()
         _crypto._FINAL_KEY_CACHE.clear()
-        _crypto._SESSION_TOKEN = None
+        _crypto._crypto_state["session_token"] = None
 
         result = run_cli("-H", "--master-password", "WrongPassw0rd!")
         assert "Secret" not in result.stdout
@@ -312,3 +312,43 @@ def _extract_password(stdout: str) -> str:
             raw = re.sub(r"\s+\x1b\[.*$", "", raw)
             return raw
     raise ValueError(f"No 'Generated Password' line found in:\n{stdout}")
+
+
+# ── TestCLIConfigError ───────────────────────────────────────────────────
+
+class TestCLIConfigError:
+
+    def test_invalid_config_file(self, vault_dir, tmp_path):
+        bad_config = tmp_path / "bad.yaml"
+        bad_config.write_text("not: [valid: yaml: {")
+        result = run_cli("-F", "-L", "12", "-n", "-f", str(bad_config))
+        assert result.exit_code != 0 or "Error" in result.stderr
+
+    def test_config_missing_file(self, vault_dir):
+        result = run_cli("-F", "-L", "12", "-n", "-f", "/nonexistent.yaml")
+        assert result.exit_code != 0
+
+
+# ── TestCLIClipboard ─────────────────────────────────────────────────────
+
+class TestCLIClipboard:
+
+    def test_clipboard_flag(self, vault_dir):
+        from unittest.mock import patch as mock_patch
+        with mock_patch(
+            "secure_password_generator.cli.copy_to_clipboard",
+            return_value=True,
+        ), mock_patch(
+            "secure_password_generator.cli.schedule_clipboard_clear",
+        ):
+            result = run_cli("-F", "-L", "12", "-n", "-X")
+        assert "copied to clipboard" in result.stdout.lower()
+
+    def test_clipboard_unavailable(self, vault_dir):
+        from unittest.mock import patch as mock_patch
+        with mock_patch(
+            "secure_password_generator.cli.copy_to_clipboard",
+            return_value=False,
+        ):
+            result = run_cli("-F", "-L", "12", "-n", "-X")
+        assert "could not copy" in result.stdout.lower()

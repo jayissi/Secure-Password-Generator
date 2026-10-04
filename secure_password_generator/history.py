@@ -3,13 +3,15 @@ Vault CRUD operations, table formatting, and search/filter.
 """
 
 import base64
+import binascii
 import json
 import logging
 import unicodedata
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from cryptography.exceptions import InvalidTag
 from tabulate import tabulate
 
 import secure_password_generator.constants as _constants
@@ -61,7 +63,7 @@ def format_history_table(entries: list[dict[str, Any]]) -> str:
 
         try:
             dt = datetime.strptime(
-                timestamp, "%a, %b %d, %Y %I:%M:%S:%f %p"
+                timestamp, "%a, %b %d, %Y %I:%M:%S:%f %p %z"
             )
             short_time = dt.strftime("%Y-%m-%d %H:%M")
         except ValueError:
@@ -97,8 +99,8 @@ def save_password(
             password, charset_size=charset_size
         )
         record = {
-            "timestamp": datetime.now().strftime(
-                "%a, %b %d, %Y %I:%M:%S:%f %p"
+            "timestamp": datetime.now(tz=UTC).strftime(
+                "%a, %b %d, %Y %I:%M:%S:%f %p %z"
             ),
             "password": password,
             "strength": strength,
@@ -115,7 +117,7 @@ def save_password(
             with open(filename, "ab") as f:
                 f.write(line)
             filename.chmod(DEFAULT_FILE_PERMISSIONS)
-    except Exception as exc:
+    except (OSError, ValueError) as exc:
         logger.error("Error saving password: %s", exc)
         raise
 
@@ -175,10 +177,12 @@ def show_password_history(
 
                 if since:
                     try:
-                        since_dt = datetime.strptime(since, "%Y-%m-%d")
+                        since_dt = datetime.strptime(
+                            since, "%Y-%m-%d"
+                        ).replace(tzinfo=UTC)
                         entry_dt = datetime.strptime(
                             rec.get("timestamp", ""),
-                            "%a, %b %d, %Y %I:%M:%S:%f %p",
+                            "%a, %b %d, %Y %I:%M:%S:%f %p %z",
                         )
                         if entry_dt < since_dt:
                             continue
@@ -186,7 +190,9 @@ def show_password_history(
                         pass
 
                 filtered_entries.append(rec)
-            except Exception as exc:
+            except (
+                ValueError, binascii.Error, InvalidTag, json.JSONDecodeError,
+            ) as exc:
                 logger.debug("Skipping unreadable vault entry: %s", exc)
                 skipped_count += 1
                 continue
@@ -221,7 +227,7 @@ def show_password_history(
                     print(f"   Tags: {', '.join(tags)}")
                 print(f"   Timestamp: {timestamp}\n")
             print("-" * 80)
-    except Exception as exc:
+    except (OSError, ValueError) as exc:
         logger.error("Error reading history: %s", exc)
 
 
@@ -259,7 +265,7 @@ def delete_entry_by_index(
         try:
             blob = base64.b64decode(target, validate=True)
             decrypt_data(blob, key, aad=VAULT_AAD)
-        except Exception:
+        except (ValueError, binascii.Error, InvalidTag):
             logger.error("Cannot verify entry — wrong encryption key?")
             return
 
@@ -315,7 +321,7 @@ def update_entry_metadata(
         try:
             blob = base64.b64decode(target, validate=True)
             rec_json = decrypt_data(blob, key, aad=VAULT_AAD)
-        except Exception:
+        except (ValueError, binascii.Error, InvalidTag):
             logger.error("Cannot verify entry — wrong encryption key?")
             return
 

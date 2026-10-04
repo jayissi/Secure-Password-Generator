@@ -9,11 +9,15 @@ the same flags as the non-interactive CLI.
 
 import argparse
 import base64
+import binascii
 import cmd
 import json
+import logging
 import shlex
 from collections import Counter
 from types import SimpleNamespace
+
+from cryptography.exceptions import InvalidTag
 
 import secure_password_generator.constants as _constants
 from secure_password_generator.clipboard import (
@@ -43,6 +47,8 @@ from secure_password_generator.history import (
     show_password_history,
     update_entry_metadata,
 )
+
+logger = logging.getLogger("secure_password_generator")
 
 FULL_CFG = CharsetConfig(
     use_upper=True,
@@ -145,7 +151,10 @@ def _decrypt_vault(key: bytes) -> list[dict]:
             blob = base64.b64decode(line, validate=True)
             rec = json.loads(decrypt_data(blob, key, aad=VAULT_AAD))
             entries.append(rec)
-        except Exception:
+        except (
+            ValueError, binascii.Error, InvalidTag, json.JSONDecodeError,
+        ) as exc:
+            logger.debug("Skipping unreadable vault entry: %s", exc)
             continue
     return entries
 
@@ -242,7 +251,7 @@ class PwgenShell(cmd.Cmd):
                         charset_size=pool_size,
                     )
                     print("[+] Password saved to vault")
-                except Exception as exc:
+                except (ValueError, OSError) as exc:
                     print(f"[!] Save failed: {exc}")
                 return
             elif choice == "q":
@@ -285,7 +294,7 @@ class PwgenShell(cmd.Cmd):
         """Browse saved passwords (paginated)."""
         try:
             key = self._require_key()
-        except Exception as exc:
+        except (ValueError, OSError) as exc:
             print(f"[!] {exc}")
             return
 
@@ -408,7 +417,7 @@ class PwgenShell(cmd.Cmd):
         """Show vault health report."""
         try:
             key = self._require_key()
-        except Exception as exc:
+        except (ValueError, OSError) as exc:
             print(f"[!] {exc}")
             return
 
@@ -571,7 +580,7 @@ class PwgenShell(cmd.Cmd):
     ) -> None:
         """Display generated passwords with inline scores and summary."""
         for i, (password, strength) in enumerate(
-            zip(passwords, scores), 1,
+            zip(passwords, scores, strict=True), 1,
         ):
             inline = format_strength_inline(strength)
             print(f"Generated Password {i}: {password}  {inline}")
@@ -631,7 +640,7 @@ class PwgenShell(cmd.Cmd):
             print(f"[+] {n} {pw_label} saved to vault")
             self._last_password = None
             self._last_pool_size = None
-        except Exception as exc:
+        except (ValueError, OSError) as exc:
             print(f"[!] Save failed: {exc}")
 
     # ── history (CLI-style) ──────────────────────────────────────────
@@ -659,7 +668,7 @@ class PwgenShell(cmd.Cmd):
                 since=opts.since,
                 limit=opts.limit,
             )
-        except Exception as exc:
+        except (ValueError, OSError) as exc:
             print(f"[!] {exc}")
 
     # ── delete (CLI-style) ───────────────────────────────────────────
@@ -680,7 +689,7 @@ class PwgenShell(cmd.Cmd):
         try:
             key = self._require_key()
             delete_entry_by_index(index, key)
-        except Exception as exc:
+        except (ValueError, OSError) as exc:
             print(f"[!] {exc}")
 
     # ── label (CLI-style) ────────────────────────────────────────────
@@ -713,7 +722,7 @@ class PwgenShell(cmd.Cmd):
                 category=opts.category,
                 tags=tags,
             )
-        except Exception as exc:
+        except (ValueError, OSError) as exc:
             print(f"[!] {exc}")
 
     # ── cleanup (CLI-style) ──────────────────────────────────────────
@@ -738,7 +747,7 @@ class PwgenShell(cmd.Cmd):
         _KEY_CACHE.clear()
         _FINAL_KEY_CACHE.clear()
         import secure_password_generator.crypto as _crypto
-        _crypto._SESSION_TOKEN = None
+        _crypto._crypto_state["session_token"] = None
         print("[+] Session key cleared")
 
     # ── clear ────────────────────────────────────────────────────────
@@ -771,7 +780,7 @@ class PwgenShell(cmd.Cmd):
         _KEY_CACHE.clear()
         _FINAL_KEY_CACHE.clear()
         import secure_password_generator.crypto as _crypto
-        _crypto._SESSION_TOKEN = None
+        _crypto._crypto_state["session_token"] = None
 
     # ── error handling ───────────────────────────────────────────────
 

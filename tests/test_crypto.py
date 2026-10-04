@@ -228,3 +228,58 @@ class TestArgon2idHash:
         result1 = argon2id_hash("test")
         result2 = argon2id_hash("test")
         assert result1["salt_b64"] != result2["salt_b64"]
+
+
+# ── set_master_password ──────────────────────────────────────────────────
+
+class TestSetMasterPassword:
+
+    def test_set_master_password_explicit(self, vault_dir):
+        from secure_password_generator.crypto import (
+            is_master_password_enabled,
+            set_master_password,
+        )
+        initialize_security_files()
+        assert not is_master_password_enabled()
+        set_master_password(new_password="StrongPass1!xx")
+        assert is_master_password_enabled()
+
+    def test_set_master_password_reencrypt(self, vault_dir):
+        from secure_password_generator.crypto import (
+            get_encryption_key,
+            set_master_password,
+        )
+        from secure_password_generator.history import save_password
+        initialize_security_files()
+        key = get_encryption_key()
+        save_password("testpw", key=key, label="Before")
+
+        set_master_password(new_password="StrongPass1!xx")
+        new_key = get_encryption_key("StrongPass1!xx")
+        assert new_key != key
+
+    def test_set_master_password_empty_raises(self, vault_dir):
+        from secure_password_generator.crypto import set_master_password
+        initialize_security_files()
+        with pytest.raises(ValueError, match="cannot be empty"):
+            set_master_password(new_password="")
+
+
+# ── cleanup_files ────────────────────────────────────────────────────────
+
+class TestCleanupFiles:
+
+    def test_cleanup_error_handling(self, vault_dir, caplog):
+        from unittest.mock import patch as mock_patch
+
+        from secure_password_generator.crypto import cleanup_files
+        initialize_security_files()
+        with (
+            mock_patch(
+                "secure_password_generator.crypto.secure_delete_file",
+                side_effect=OSError("mocked"),
+            ),
+            caplog.at_level("ERROR"),
+        ):
+            cleanup_files()
+        assert "Failed to securely remove" in caplog.text

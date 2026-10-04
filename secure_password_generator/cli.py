@@ -348,7 +348,7 @@ def main() -> None:
             set_master_password(
                 new_password=new_pw, current_password=current_pw
             )
-        except Exception as exc:
+        except (ValueError, OSError) as exc:
             print(f"[!] Error: {exc}", file=sys.stderr)
             sys.exit(1)
         sys.exit(0)
@@ -362,7 +362,7 @@ def main() -> None:
         try:
             master_pw = resolve_master_password(args)
             return get_encryption_key(master_pw)
-        except Exception as exc:
+        except (ValueError, OSError) as exc:
             print(f"[!] Error: {exc}", file=sys.stderr)
             sys.exit(1)
 
@@ -502,6 +502,6 @@ def main() -> None:
 
         if args.save_history and args.count > 0:
             print(f"[+] Passwords securely saved to {_constants.PASSWORD_FILE}")
-    except Exception as exc:
+    except (ValueError, OSError) as exc:
         print(f"[!] Error: {exc}", file=sys.stderr)
         sys.exit(1)

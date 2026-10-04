@@ -255,7 +255,7 @@ class TestFormatHistoryTable:
             "password": "abc123",
             "strength": 5,
             "category": "General",
-            "timestamp": "Mon, Jan 01, 2024 12:00:00:000000 PM",
+            "timestamp": "Mon, Jan 01, 2024 12:00:00:000000 PM +0000",
         }]
         table = format_history_table(entries)
         assert "Label" in table
@@ -270,7 +270,7 @@ class TestFormatHistoryTable:
             "password": "abc123",
             "strength": 5,
             "category": "General",
-            "timestamp": "Mon, Jan 01, 2024 12:00:00:000000 PM",
+            "timestamp": "Mon, Jan 01, 2024 12:00:00:000000 PM +0000",
         }]
         table = format_history_table(entries)
         assert "\033[" in table
@@ -281,7 +281,7 @@ class TestFormatHistoryTable:
             "password": "abc123",
             "strength": 5,
             "category": "General",
-            "timestamp": "Mon, Jan 01, 2024 12:00:00:000000 PM",
+            "timestamp": "Mon, Jan 01, 2024 12:00:00:000000 PM +0000",
         }]
         table = format_history_table(entries)
         assert "2024-01-01" in table

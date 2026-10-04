@@ -310,8 +310,8 @@ provides an auto-clear timer.
 **Key exports:**
 
 - `copy_to_clipboard(password)` -- copies a string to the system
-  clipboard.  Returns `True` on success, `False` otherwise.  Tries
-  `pyperclip` first, then falls back to `xclip`.
+  clipboard via `pyperclip`.  Returns `True` on success, `False`
+  otherwise.
 - `schedule_clipboard_clear()` -- starts a daemon thread that overwrites
   the clipboard with an empty string after `CLIPBOARD_CLEAR_SECONDS`
   (default 60).

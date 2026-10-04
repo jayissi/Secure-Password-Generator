@@ -9,8 +9,5 @@
 # Provides shred for secure file deletion
 coreutils
 
-# Optional: clipboard support (xclip fallback when pyperclip is unavailable)
-#xclip
-
 # Optional: Node.js runtime required by pyright type checker (dev dependency)
 #nodejs-npm

@@ -29,7 +29,7 @@ A robust, powerful, and secure command-line utility for generating **cryptograph
 - **Metadata & Organization** — labels, categories, comma-separated tags, automatic timestamps
 - **History Management** — table view, search, filter by strength/category/date, authenticated deletion
 - **Config File Support** — YAML or JSON defaults; CLI args always override
-- **Clipboard Support** — copy via `pyperclip` or `xclip` with configurable auto-clear (default 60 s)
+- **Clipboard Support** — copy via `pyperclip` with configurable auto-clear (default 60 s)
 - **Master Password Security** — env-var, password file, or interactive prompt with complexity enforcement
 - **Structured Logging** — `--verbose` / `--quiet` flags via Python `logging`
 
@@ -48,8 +48,11 @@ A robust, powerful, and secure command-line utility for generating **cryptograph
 |  `pyperclip`   | Clipboard support                     |
 |    `PyYAML`    | YAML config file support              |
 |   `tabulate`   | Formatted history table output        |
+|    `bandit`    | Security linter (dev dependency)      |
+| `pymarkdownlnt`| Markdown linter (dev dependency)     |
 |   `pyright`    | Static type checking (dev dependency) |
 |    `pytest`    | Test suite (dev dependency)           |
+| `pytest-cov`   | Test coverage (dev dependency)       |
 |     `ruff`     | Linter (dev dependency)               |
 
 **System/RPM dependencies** are listed in `requirements-rpm.txt`:
@@ -57,13 +60,12 @@ A robust, powerful, and secure command-line utility for generating **cryptograph
 |    Package    | Purpose                      | Required? |
 |:-------------:|------------------------------|:---------:|
 |  `coreutils`  | Provides `shred`             |    Yes    |
-|    `xclip`    | Clipboard fallback           | Optional  |
 | `nodejs-npm`  | Required by pyright (dev)    | Optional  |
 
 Install system dependencies on Fedora / RHEL:
 
 ```bash
-dnf install coreutils xclip
+dnf install coreutils
 ```
 
 ### 🛠️ Installation
@@ -138,6 +140,7 @@ Secure-Password-Generator/
 │   ├── test_utils.py                 # Utils module tests
 │   ├── test_interactive.py           # Interactive mode tests
 │   ├── test_cli.py                   # CLI integration tests (in-process)
+│   ├── test_clipboard.py             # Clipboard module tests
 │   └── test_entry_points.py          # Subprocess smoke tests
 └── benchmarks/                       # Performance diagnostic tools
     ├── benchmark_strength.py         # Scoring consistency
@@ -277,23 +280,27 @@ For a full tutorial and recipes, see [docs/EXAMPLES.md](docs/EXAMPLES.md).
 
 ## 🧪 Testing
 
-The test suite runs through pytest in under 2 seconds. A test-mode Argon2id profile is applied automatically by `conftest.py`. Static type checking is handled by pyright.
+The test suite runs through pytest in under 2 seconds with automatic coverage reporting. A test-mode Argon2id profile is applied automatically by `conftest.py`. Static type checking (pyright), security scanning (bandit), and markdown linting (pymarkdownlnt) run alongside ruff.
 
 |           File            | Tests | Coverage                                                   |
 |:-------------------------:|:-----:|------------------------------------------------------------|
 |     `test_config.py`      |  14   | Config loading, CharsetConfig, ConfigError                 |
-|     `test_crypto.py`      |  21   | Encrypt/decrypt, key management, master-password, argon2id |
+|     `test_crypto.py`      |  25   | Encrypt/decrypt, key management, master-password, argon2id |
 |    `test_generator.py`    |  35   | Charset, constraints, scoring, latin-ext, NFC, symbol-only |
 | `test_strength_pytest.py` |  43   | Entropy boundaries, consistency, edge cases                |
 |     `test_history.py`     |  27   | Vault CRUD, search/filter, delete, metadata, NFC save      |
 |      `test_utils.py`      |  11   | File permissions, logging, vault lock, secure delete       |
-|   `test_interactive.py`   |  48   | Interactive commands, session lifecycle, generate prompt   |
-|       `test_cli.py`       |  29   | CLI integration, latin-ext, strength display, edge cases   |
+|   `test_interactive.py`   |  67   | Interactive commands, browse, health, generate prompt      |
+|       `test_cli.py`       |  33   | CLI integration, config error, clipboard, edge cases       |
+|   `test_clipboard.py`     |   3   | Clipboard copy, failure, auto-clear timer                  |
 |  `test_entry_points.py`   |   3   | Subprocess smoke tests for pwgen and python -m             |
 
 ```bash
 pytest tests/ -v
-pyright secure_password_generator/ tests/
+pyright
+ruff check secure_password_generator/ tests/ benchmarks/
+bandit -r secure_password_generator/ -c pyproject.toml
+pymarkdown --config .pymarkdown.json scan **/*.md
 ```
 
 See [tests/README.md](tests/README.md) for the full test architecture and

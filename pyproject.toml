@@ -22,8 +22,11 @@ pwgen = "secure_password_generator.cli:main"
 
 [dependency-groups]
 dev = [
+    "bandit>=1.7.0",
+    "pymarkdownlnt>=0.9.0",
     "pyright>=1.1.0",
     "pytest>=8.0.0",
+    "pytest-cov>=6.0.0",
     "ruff>=0.9.0",
 ]
 
@@ -39,6 +42,7 @@ dev = [
 # No environment variable needs to be set manually.
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "--cov=secure_password_generator --cov-report=term-missing"
 
 # ── Ruff Linter Configuration ──────────────────────────────────────────
 # Run: ruff check secure_password_generator/ tests/ benchmarks/
@@ -48,14 +52,15 @@ line-length = 88
 
 [tool.ruff.lint]
 select = ["E", "F", "UP", "B", "SIM", "I", "FURB", "RUF", "PLW", "EXE"]
-ignore = [
-    "BLE001",   # Blind except -- intentional in security/clipboard code
-    "S110",     # try-except-pass -- intentional for clipboard fallbacks
-    "SIM105",   # contextlib.suppress -- keep explicit try/except for clarity
-    "DTZ005",   # datetime.now without tz -- local display timestamps
-    "DTZ007",   # strptime without %z -- parsing stored timestamps
-    "PLW0603",  # global statement -- intentional for clipboard/key caching
-    "B905",     # zip without strict -- length pre-validated in combine_keys
+
+# ── Bandit Security Linter Configuration ───────────────────────────────
+# Run: bandit -r secure_password_generator/ -c pyproject.toml
+[tool.bandit]
+exclude_dirs = ["tests", "benchmarks"]
+skips = [
+    "B105",     # Hardcoded password -- ENV_MASTER_PASSWORD is a var name, not a value
+    "B404",     # import subprocess -- needed for shred secure deletion
+    "B603",     # subprocess without shell -- hardcoded command array, no injection
 ]
 
 # ── Pyright Type-Checking Configuration ────────────────────────────────

@@ -5,6 +5,7 @@
     "Argon",
     "ASIC",
     "argcomplete",
+    "bandit",
     "bindep",
     "alllowercase",
     "caplog",
@@ -23,6 +24,7 @@
     "FURB",
     "getpass",
     "initialisation",
+    "jsonc",
     "journaled",
     "journaling",
     "llbuubddbss",
@@ -42,6 +44,8 @@
     "penalise",
     "penalised",
     "pycache",
+    "pymarkdown",
+    "pymarkdownlnt",
     "pyperclip",
     "pyright",
     "qxmtbfjwrsgk",
@@ -63,7 +67,6 @@
     "uuuullllddddssss",
     "venv",
     "vuxzn",
-    "ñéüßøæ",
-    "xclip"
+    "ñéüßøæ"
   ]
 }

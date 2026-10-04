@@ -11,15 +11,16 @@ to invoke separately.
 |           File            |        Type         |  Tests  | Runtime  |
 |:-------------------------:|:-------------------:|:-------:|:--------:|
 |     `test_config.py`      |    pytest (unit)    |   14    |  < 1s    |
-|     `test_crypto.py`      |    pytest (unit)    |   21    |  < 1s    |
+|     `test_crypto.py`      |    pytest (unit)    |   25    |  < 1s    |
 |    `test_generator.py`    |    pytest (unit)    |   35    |  < 1s    |
 | `test_strength_pytest.py` |    pytest (unit)    |   43    |  < 1s    |
 |     `test_history.py`     |   pytest (vault)    |   27    |  < 1s    |
 |      `test_utils.py`      |    pytest (unit)    |   11    |  < 1s    |
-|   `test_interactive.py`   |  pytest (unit/CLI)  |   48    |  < 1s    |
-|       `test_cli.py`       |    pytest (CLI)     |   29    |  < 1s    |
+|   `test_interactive.py`   |  pytest (unit/CLI)  |   67    |  < 1s    |
+|       `test_cli.py`       |    pytest (CLI)     |   33    |  < 1s    |
+|   `test_clipboard.py`     |    pytest (unit)    |    3    |  < 1s    |
 |  `test_entry_points.py`   | pytest (subprocess) |    3    |  < 1s    |
-|         **Total**         |                     | **231** | **< 1s** |
+|         **Total**         |                     | **261** | **< 1s** |
 
 ---
 
@@ -31,8 +32,8 @@ Install the package in editable mode with development dependencies:
 pip install -e '.[dev]'
 ```
 
-System dependencies (`shred`, optionally `xclip`) should be available --
-see `requirements-rpm.txt` in the project root.
+System dependencies (`shred`) should be available -- see
+`requirements-rpm.txt` in the project root.
 
 ---
 
@@ -99,15 +100,18 @@ Module under test: `secure_password_generator.config`
 - `blank_space` key mapped to `blank`
 - `CharsetConfig` dataclass: defaults, frozen, equality, hashable
 
-### `test_crypto.py` -- 21 tests
+### `test_crypto.py` -- 25 tests
 
 Module under test: `secure_password_generator.crypto`
 
 - Encrypt/decrypt round-trip (correct key, wrong key, short blob, empty)
+- AAD: mismatched AAD raises InvalidTag, None AAD round-trip
 - `combine_keys()` XOR identity, self-XOR, length mismatch
 - Master-password complexity: too short, missing types, valid (3 and 4 types)
 - `resolve_master_password()` priority: CLI flag > env-var > file > None
 - `argon2id_hash()` return structure and unique salts
+- `set_master_password()` explicit, re-encryption, empty raises
+- `cleanup_files()` error handling (mocked secure_delete_file)
 
 ### `test_generator.py` -- 35 tests
 
@@ -159,7 +163,7 @@ Module under test: `secure_password_generator.utils`
   on correct (0600), no error on nonexistent path
 - `configure_logging()`: verbose sets DEBUG, quiet sets ERROR
 
-### `test_interactive.py` -- 48 tests
+### `test_interactive.py` -- 67 tests
 
 Module under test: `secure_password_generator.interactive`
 
@@ -183,8 +187,14 @@ Module under test: `secure_password_generator.interactive`
 - `TestCleanupCommand`: confirmed, cancelled, EOF cancellation
 - `TestLabelCommand`: label updates metadata, invalid index, no args,
   generate with metadata
+- `TestBrowseExtended`: pagination next/prev, search, invalid entry,
+  view copy back, EOF, invalid choice, view number prompt, search no
+  match, already last/first page, invalid view number
+- `TestHealthExtended`: weak password warning, duplicate labels
+- `TestQuickExtended`: copy, save, EOF, invalid then quit
+- `TestGenerateExtended`: save batch EOF, batch copy multi
 
-### `test_cli.py` -- 29 tests
+### `test_cli.py` -- 33 tests
 
 Module under test: `secure_password_generator.cli` (via `run_cli()`)
 
@@ -199,6 +209,16 @@ Module under test: `secure_password_generator.cli` (via `run_cli()`)
 - Latin-ext: `-x -l` produces non-ASCII, `-F -x` combined works
 - CLI edge cases: `--version` flag, `--delete-entry` integration,
   passphrase save mode, history search filter
+- Config error: invalid config file, missing config file
+- Clipboard: `-X` flag success (mocked), clipboard unavailable (mocked)
+
+### `test_clipboard.py` -- 3 tests
+
+Module under test: `secure_password_generator.clipboard`
+
+- `copy_to_clipboard()` success (mocked pyperclip.copy)
+- `copy_to_clipboard()` failure (mocked PyperclipException)
+- `schedule_clipboard_clear()` timer starts (mocked threading.Timer)
 
 ### `test_entry_points.py` -- 3 tests
 
@@ -230,6 +250,10 @@ podman run --rm -v $(pwd):/workspace:Z fedora:latest bash -c "
   ruff check secure_password_generator/ tests/ benchmarks/ &&
   echo '=== Pyright ===' &&
   pyright secure_password_generator/ tests/ &&
+  echo '=== Bandit ===' &&
+  bandit -r secure_password_generator/ -c pyproject.toml &&
+  echo '=== Markdown Lint ===' &&
+  pymarkdown --config .pymarkdown.json scan **/*.md &&
   echo '=== Pytest ===' &&
   pytest tests/ -v --tb=short &&
   echo '=== Smoke Test ===' &&
