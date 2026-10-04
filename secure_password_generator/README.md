@@ -303,9 +303,8 @@ Base64-encoded lines in `vault.enc`.
 
 ### `clipboard.py`
 
-**Purpose:** System clipboard integration for RHEL/Fedora Linux.  Detects
-and caches the best available clipboard method once per process, and
-provides an auto-clear timer.
+**Purpose:** System clipboard integration via `pyperclip`.  Provides
+copy-to-clipboard and a configurable auto-clear timer.
 
 **Key exports:**
 

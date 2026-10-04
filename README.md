@@ -77,13 +77,19 @@ dnf install coreutils
     cd Secure-Password-Generator
     ```
 
-2. Install the package (editable mode recommended for development):
+2. Install the package:
 
     ```bash
     pip install -e .
     ```
 
     This installs all Python dependencies and creates the `pwgen` command.
+
+    For development (includes linters, type checker, test tools):
+
+    ```bash
+    pip install -e . -r requirements.txt
+    ```
 
 3. Verify installation:
 

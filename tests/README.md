@@ -29,7 +29,7 @@ to invoke separately.
 Install the package in editable mode with development dependencies:
 
 ```bash
-pip install -e '.[dev]'
+pip install -e . -r requirements.txt
 ```
 
 System dependencies (`shred`) should be available -- see
