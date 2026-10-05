@@ -16,11 +16,12 @@ to invoke separately.
 | `test_strength_pytest.py` |    pytest (unit)    |   43    |  < 1s    |
 |     `test_history.py`     |   pytest (vault)    |   27    |  < 1s    |
 |      `test_utils.py`      |    pytest (unit)    |   11    |  < 1s    |
-|   `test_interactive.py`   |  pytest (unit/CLI)  |   67    |  < 1s    |
-|       `test_cli.py`       |    pytest (CLI)     |   33    |  < 1s    |
+|   `test_interactive.py`   |  pytest (unit/CLI)  |   71    |  < 1s    |
+|       `test_cli.py`       |    pytest (CLI)     |   36    |  < 1s    |
 |   `test_clipboard.py`     |    pytest (unit)    |    3    |  < 1s    |
+|    `test_qrcode.py`       |    pytest (unit)    |    3    |  < 1s    |
 |  `test_entry_points.py`   | pytest (subprocess) |    3    |  < 1s    |
-|         **Total**         |                     | **261** | **< 1s** |
+|         **Total**         |                     | **271** | **< 1s** |
 
 ---
 
@@ -165,7 +166,7 @@ Module under test: `secure_password_generator.utils`
   on correct (0600), no error on nonexistent path
 - `configure_logging()`: verbose sets DEBUG, quiet sets ERROR
 
-### `test_interactive.py` -- 67 tests
+### `test_interactive.py` -- 71 tests
 
 Module under test: `secure_password_generator.interactive`
 
@@ -195,8 +196,10 @@ Module under test: `secure_password_generator.interactive`
 - `TestHealthExtended`: weak password warning, duplicate labels
 - `TestQuickExtended`: copy, save, EOF, invalid then quit
 - `TestGenerateExtended`: save batch EOF, batch copy multi
+- `TestQRCodeInteractive`: quick QR, generate QR, batch QR, browse
+  view QR
 
-### `test_cli.py` -- 33 tests
+### `test_cli.py` -- 36 tests
 
 Module under test: `secure_password_generator.cli` (via `run_cli()`)
 
@@ -213,6 +216,8 @@ Module under test: `secure_password_generator.cli` (via `run_cli()`)
   passphrase save mode, history search filter
 - Config error: invalid config file, missing config file
 - Clipboard: `-X` flag success (mocked), clipboard unavailable (mocked)
+- QR code: `-q` flag (mocked), `--qr-file` file creation, multi-count
+  indexed files
 
 ### `test_clipboard.py` -- 3 tests
 
@@ -221,6 +226,14 @@ Module under test: `secure_password_generator.clipboard`
 - `copy_to_clipboard()` success (mocked pyperclip.copy)
 - `copy_to_clipboard()` failure (mocked PyperclipException)
 - `schedule_clipboard_clear()` timer starts (mocked threading.Timer)
+
+### `test_qrcode.py` -- 3 tests
+
+Module under test: `secure_password_generator.qrcode`
+
+- `display_qr()` calls segno.make().terminal(compact=True)
+- `save_qr()` calls segno.make().save() with path and scale
+- `save_qr()` custom scale parameter
 
 ### `test_entry_points.py` -- 3 tests
 

@@ -352,3 +352,33 @@ class TestCLIClipboard:
         ):
             result = run_cli("-F", "-L", "12", "-n", "-X")
         assert "could not copy" in result.stdout.lower()
+
+
+# ── TestCLIQRCode ────────────────────────────────────────────────────────
+
+class TestCLIQRCode:
+
+    def test_qr_flag(self, vault_dir):
+        from unittest.mock import patch as mock_patch
+        with mock_patch("secure_password_generator.cli.display_qr") as mock_qr:
+            result = run_cli("-F", "-L", "12", "-n", "-q")
+        assert result.exit_code == 0
+        mock_qr.assert_called_once()
+
+    def test_qr_file_flag(self, vault_dir, tmp_path):
+        qr_file = tmp_path / "test_qr.png"
+        result = run_cli("-F", "-L", "12", "-n", "--qr-file", str(qr_file))
+        assert result.exit_code == 0
+        assert qr_file.exists()
+        assert "QR code saved to" in result.stdout
+
+    def test_qr_file_multi(self, vault_dir, tmp_path):
+        qr_file = tmp_path / "test_qr.png"
+        result = run_cli(
+            "-F", "-L", "12", "-n", "-c", "3",
+            "--qr-file", str(qr_file),
+        )
+        assert result.exit_code == 0
+        assert (tmp_path / "test_qr_1.png").exists()
+        assert (tmp_path / "test_qr_2.png").exists()
+        assert (tmp_path / "test_qr_3.png").exists()

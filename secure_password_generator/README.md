@@ -21,6 +21,7 @@ flowchart TD
     cli --> generator
     cli --> history
     cli --> clipboard
+    cli --> qrcode
     cli --> utils
     cli --> interactive
     interactive --> config
@@ -28,6 +29,7 @@ flowchart TD
     interactive --> generator
     interactive --> history
     interactive --> clipboard
+    interactive --> qrcode
     interactive --> constants
     crypto --> constants
     crypto --> utils
@@ -317,7 +319,25 @@ copy-to-clipboard and a configurable auto-clear timer.
 
 **Dependencies:** `constants`
 
-**Dependents:** `cli`
+**Dependents:** `cli`, `interactive`
+
+---
+
+### `qrcode.py`
+
+**Purpose:** QR code generation for passwords via `segno`.  Provides
+terminal display and PNG file save.
+
+**Key exports:**
+
+- `display_qr(text)` -- prints a QR code to the terminal using Unicode
+  blocks (`segno.make().terminal(compact=True)`).
+- `save_qr(text, path, scale)` -- saves a QR code as a PNG file with
+  configurable scale (default 5).
+
+**Dependencies:** `segno` (external)
+
+**Dependents:** `cli`, `interactive`
 
 ---
 

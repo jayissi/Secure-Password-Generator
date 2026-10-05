@@ -693,3 +693,53 @@ class TestGenerateExtended:
         shell.do_generate("-F -L 12 -c 3")
         out = capsys.readouterr().out
         assert "Copied" in out or "Clipboard not available" in out
+
+
+# ── TestQRCodeInteractive ───────────────────────────────────────────────
+
+class TestQRCodeInteractive:
+
+    def test_quick_qr(self, vault, capsys, monkeypatch):
+        from unittest.mock import patch as mock_patch
+        inputs = iter(["Q", "q"])
+        monkeypatch.setattr("builtins.input", lambda _p="": next(inputs))
+        with mock_patch(
+            "secure_password_generator.interactive.display_qr"
+        ) as mock_qr:
+            shell = PwgenShell()
+            shell.do_quick("")
+        mock_qr.assert_called_once()
+
+    def test_generate_qr(self, vault, capsys, monkeypatch):
+        from unittest.mock import patch as mock_patch
+        inputs = iter(["Q", "q"])
+        monkeypatch.setattr("builtins.input", lambda _p="": next(inputs))
+        with mock_patch(
+            "secure_password_generator.interactive.display_qr"
+        ) as mock_qr:
+            shell = PwgenShell()
+            shell.do_generate("-F -L 12")
+        mock_qr.assert_called_once()
+
+    def test_generate_batch_qr(self, vault, capsys, monkeypatch):
+        from unittest.mock import patch as mock_patch
+        inputs = iter(["Q", "q"])
+        monkeypatch.setattr("builtins.input", lambda _p="": next(inputs))
+        with mock_patch(
+            "secure_password_generator.interactive.display_qr"
+        ) as mock_qr:
+            shell = PwgenShell()
+            shell.do_generate("-F -L 12 -c 3")
+        assert mock_qr.call_count == 3
+
+    def test_browse_view_qr(self, populated_vault, key, capsys, monkeypatch):
+        from unittest.mock import patch as mock_patch
+        inputs = iter(["v 1", "Q", "b", "q"])
+        monkeypatch.setattr("builtins.input", lambda _p="": next(inputs))
+        with mock_patch(
+            "secure_password_generator.interactive.display_qr"
+        ) as mock_qr:
+            shell = PwgenShell()
+            shell._key = key
+            shell.do_browse("")
+        mock_qr.assert_called_once()

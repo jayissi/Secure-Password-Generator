@@ -39,11 +39,15 @@ from secure_password_generator.utils import (
 logger = logging.getLogger("secure_password_generator")
 
 
-def format_history_table(entries: list[dict[str, Any]]) -> str:
+def format_history_table(
+    entries: list[dict[str, Any]],
+    start_index: int = 1,
+) -> str:
     """Format password history as a table using ``tabulate``.
 
     Args:
         entries: List of password record dictionaries.
+        start_index: Starting number for the ``#`` column.
 
     Returns:
         Formatted table string.
@@ -54,7 +58,7 @@ def format_history_table(entries: list[dict[str, Any]]) -> str:
     headers = ["#", "Label", "Password", "Strength", "Category", "Created"]
     rows: list[list[Any]] = []
 
-    for idx, entry in enumerate(entries, 1):
+    for idx, entry in enumerate(entries, start_index):
         label = str(entry.get("label", "N/A"))
         password = str(entry.get("password", "?"))
         strength = entry.get("strength", 0)
@@ -120,6 +124,83 @@ def save_password(
     except (OSError, ValueError) as exc:
         logger.error("Error saving password: %s", exc)
         raise
+
+
+def get_decrypted_entries(
+    key: bytes,
+    filename: Path | None = None,
+    limit: int | None = None,
+    search: str | None = None,
+    filter_strength: int | None = None,
+    filter_category: str | None = None,
+    since: str | None = None,
+) -> list[dict[str, Any]]:
+    """Decrypt and filter vault entries, returning a list of dicts."""
+    if filename is None:
+        filename = _constants.PASSWORD_FILE
+    if not filename.exists():
+        return []
+
+    verify_file_permissions(filename)
+
+    with open(filename, "rb") as f:
+        lines = [line.strip() for line in f if line.strip()]
+    lines.reverse()
+
+    filtered: list[dict[str, Any]] = []
+    for line in lines:
+        try:
+            blob = base64.b64decode(line, validate=True)
+            rec_json = decrypt_data(blob, key, aad=VAULT_AAD)
+            rec = json.loads(rec_json)
+
+            if search:
+                search_lower = search.lower()
+                if (
+                    search_lower not in rec.get("label", "").lower()
+                    and search_lower not in rec.get("category", "").lower()
+                    and search_lower
+                    not in " ".join(rec.get("tags", [])).lower()
+                ):
+                    continue
+
+            if (
+                filter_strength is not None
+                and rec.get("strength", 0) < filter_strength
+            ):
+                continue
+
+            if (
+                filter_category
+                and rec.get("category", "").lower()
+                != filter_category.lower()
+            ):
+                continue
+
+            if since:
+                try:
+                    since_dt = datetime.strptime(
+                        since, "%Y-%m-%d"
+                    ).replace(tzinfo=UTC)
+                    entry_dt = datetime.strptime(
+                        rec.get("timestamp", ""),
+                        "%a, %b %d, %Y %I:%M:%S:%f %p %z",
+                    )
+                    if entry_dt < since_dt:
+                        continue
+                except ValueError:
+                    pass
+
+            filtered.append(rec)
+        except (
+            ValueError, binascii.Error, InvalidTag, json.JSONDecodeError,
+        ):
+            continue
+
+    if limit:
+        filtered = filtered[:limit]
+
+    return filtered
 
 
 def show_password_history(

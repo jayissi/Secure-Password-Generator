@@ -464,6 +464,24 @@ pwgen -f team-config.yaml -c 3
 pwgen -P "MyCustomPhrase!" --label "Shared Secret" --category "Team" --tags "manual"
 ```
 
+**Generate a password and display as QR code:**
+
+```bash
+pwgen -F -L 20 -n -q
+```
+
+**Save a QR code to a PNG file:**
+
+```bash
+pwgen -F -L 20 -n --qr-file password_qr.png
+```
+
+**View history with inline QR codes:**
+
+```bash
+pwgen -H -q
+```
+
 **Start interactive mode for guided generation:**
 
 ```bash

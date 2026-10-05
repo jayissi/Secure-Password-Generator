@@ -118,6 +118,11 @@ flowchart TD
 - `shred` cannot guarantee erasure on SSDs (wear-levelling), copy-on-write filesystems (btrfs, ZFS), or filesystems with data journaling (`ext4 data=journal`).
 - The manual-overwrite fallback (used when `shred` is not installed) provides best-effort overwriting but shares the same filesystem-level limitations.
 
+### QR Code Security
+
+- QR code images saved via `--qr-file` contain the plaintext password. Treat them with the same care as the password itself — do not leave them on shared filesystems or send them over insecure channels.
+- QR codes displayed in the terminal are visible to anyone with line-of-sight to the screen or access to terminal scrollback history.
+
 ---
 
 > [!CAUTION]

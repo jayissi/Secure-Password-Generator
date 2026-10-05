@@ -47,6 +47,7 @@ from secure_password_generator.history import (
     show_password_history,
     update_entry_metadata,
 )
+from secure_password_generator.qrcode import display_qr
 
 logger = logging.getLogger("secure_password_generator")
 
@@ -216,25 +217,29 @@ class PwgenShell(cmd.Cmd):
 
         while True:
             try:
-                choice = input("[c]opy  [r]egenerate  [s]ave  [q]uit: ").strip().lower()
+                choice = input(
+                    "[c]opy  [Q]R  [r]egenerate  [s]ave  [q]uit: "
+                ).strip()
             except EOFError:
                 print()
                 return
 
-            if choice == "c":
+            if choice == "Q":
+                display_qr(password)
+            elif choice.lower() == "c":
                 if copy_to_clipboard(password):
                     print("[+] Copied to clipboard")
                     schedule_clipboard_clear()
                 else:
                     print("[!] Clipboard not available")
-            elif choice == "r":
+            elif choice.lower() == "r":
                 password = generate_password(length=length, cfg=cfg, no_repeats=True)
                 strength = calculate_password_strength(password, charset_size=pool_size)
                 inline = format_strength_inline(strength)
                 self._last_password = password
                 self._last_pool_size = pool_size
                 print(f"\n  {password}  {inline}\n")
-            elif choice == "s":
+            elif choice.lower() == "s":
                 try:
                     label = input("Label [Unnamed]: ").strip() or None
                     category = input("Category [General]: ").strip() or None
@@ -254,10 +259,10 @@ class PwgenShell(cmd.Cmd):
                 except (ValueError, OSError) as exc:
                     print(f"[!] Save failed: {exc}")
                 return
-            elif choice == "q":
+            elif choice.lower() == "q":
                 return
             else:
-                print("Please choose c, r, s, or q.")
+                print("Please choose c, Q, r, s, or q.")
 
     # ── new ──────────────────────────────────────────────────────────
 
@@ -395,21 +400,23 @@ class PwgenShell(cmd.Cmd):
 
         while True:
             try:
-                choice = input("[c]opy  [b]ack: ").strip().lower()
+                choice = input("[c]opy  [Q]R  [b]ack: ").strip()
             except EOFError:
                 print()
                 return
-            if choice == "c":
+            if choice == "Q":
+                display_qr(entry.get("password", ""))
+            elif choice.lower() == "c":
                 pw = entry.get("password", "")
                 if copy_to_clipboard(pw):
                     print("[+] Copied to clipboard")
                     schedule_clipboard_clear()
                 else:
                     print("[!] Clipboard not available")
-            elif choice == "b":
+            elif choice.lower() == "b":
                 return
             else:
-                print("Please choose c or b.")
+                print("Please choose c, Q, or b.")
 
     # ── health ───────────────────────────────────────────────────────
 
@@ -514,13 +521,16 @@ class PwgenShell(cmd.Cmd):
         while True:
             try:
                 choice = input(
-                    "[c]opy  [r]egenerate  [s]ave  [q]uit: "
-                ).strip().lower()
+                    "[c]opy  [Q]R  [r]egenerate  [s]ave  [q]uit: "
+                ).strip()
             except EOFError:
                 print()
                 return
 
-            if choice == "c":
+            if choice == "Q":
+                for pw in passwords:
+                    display_qr(pw)
+            elif choice.lower() == "c":
                 text = "\n".join(passwords)
                 if copy_to_clipboard(text):
                     label = (
@@ -532,18 +542,18 @@ class PwgenShell(cmd.Cmd):
                     schedule_clipboard_clear()
                 else:
                     print("[!] Clipboard not available")
-            elif choice == "r":
+            elif choice.lower() == "r":
                 passwords, scores = self._generate_batch(
                     opts, cfg, pool_size,
                 )
                 self._display_batch(passwords, scores, opts.count)
-            elif choice == "s":
+            elif choice.lower() == "s":
                 self._save_batch(passwords, pool_size, opts)
                 return
-            elif choice == "q":
+            elif choice.lower() == "q":
                 return
             else:
-                print("Please choose c, r, s, or q.")
+                print("Please choose c, Q, r, s, or q.")
 
     def _generate_batch(
         self,

@@ -47,6 +47,7 @@ A robust, powerful, and secure command-line utility for generating **cryptograph
 | `cryptography` | AES-GCM-SIV encryption, Argon2id KDF  |
 |  `pyperclip`   | Clipboard support                     |
 |    `PyYAML`    | YAML config file support              |
+|    `segno`     | QR code generation                    |
 |   `tabulate`   | Formatted history table output        |
 |    `bandit`    | Security linter (dev dependency)      |
 | `pymarkdownlnt`| Markdown linter (dev dependency)      |
@@ -136,6 +137,7 @@ Secure-Password-Generator/
 │   ├── generator.py                  # Password generation, strength scoring
 │   ├── history.py                    # Vault CRUD, table formatting
 │   ├── clipboard.py                  # Clipboard operations
+│   ├── qrcode.py                     # QR code generation (segno)
 │   ├── utils.py                      # Secure deletion, file permissions, logging
 │   ├── interactive.py                # Interactive REPL (PwgenShell)
 │   └── cli.py                        # Argument parser, main()
@@ -150,6 +152,7 @@ Secure-Password-Generator/
 │   ├── test_interactive.py           # Interactive mode tests
 │   ├── test_cli.py                   # CLI integration tests (in-process)
 │   ├── test_clipboard.py             # Clipboard module tests
+│   ├── test_qrcode.py                # QR code module tests
 │   └── test_entry_points.py          # Subprocess smoke tests
 └── benchmarks/                       # Performance diagnostic tools
     ├── benchmark_strength.py         # Scoring consistency
@@ -185,6 +188,8 @@ python -m secure_password_generator -h
 |      `--passphrase`      | `-P`  | Custom passphrase (supersedes other options)  |  None   |
 |        `--config`        | `-f`  | Load defaults from YAML/JSON config file      |  None   |
 |      `--clipboard`       | `-X`  | Copy password to clipboard (auto-clears)      |  False  |
+|          `--qr`          | `-q`  | Display password as QR code in terminal       |  False  |
+|       `--qr-file`        |       | Save password QR code to a PNG file           |  None   |
 |     `--interactive`      | `-i`  | Start interactive mode (guided prompts)       |  False  |
 |        `--unlock`        | `-U`  | Explicitly unlock vault with master password  |  False  |
 |   `--master-password`    |       | Master password for scripting/CI              |  None   |
@@ -260,6 +265,12 @@ Generate and save with metadata:
 pwgen -F -L 16 --label "Gmail" --category "Email" --tags "work"
 ```
 
+Generate and display as QR code:
+
+```bash
+pwgen -F -L 20 -n -q
+```
+
 View saved passwords:
 
 ```bash
@@ -299,9 +310,10 @@ The test suite runs through pytest in under 2 seconds with automatic coverage re
 | `test_strength_pytest.py` |  43   | Entropy boundaries, consistency, edge cases                |
 |     `test_history.py`     |  27   | Vault CRUD, search/filter, delete, metadata, NFC save      |
 |      `test_utils.py`      |  11   | File permissions, logging, vault lock, secure delete       |
-|   `test_interactive.py`   |  67   | Interactive commands, browse, health, generate prompt      |
-|       `test_cli.py`       |  33   | CLI integration, config error, clipboard, edge cases       |
+|   `test_interactive.py`   |  71   | Interactive commands, browse, health, generate, QR prompt  |
+|       `test_cli.py`       |  36   | CLI integration, config error, clipboard, QR, edge cases   |
 |   `test_clipboard.py`     |   3   | Clipboard copy, failure, auto-clear timer                  |
+|    `test_qrcode.py`       |   3   | QR code display, save, custom scale                        |
 |  `test_entry_points.py`   |   3   | Subprocess smoke tests for pwgen and python -m             |
 
 ```bash

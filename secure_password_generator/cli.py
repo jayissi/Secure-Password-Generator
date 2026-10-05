@@ -4,6 +4,7 @@ Command-line interface for Secure Password Generator.
 """
 
 import argparse
+import os
 import sys
 
 import argcomplete
@@ -40,6 +41,7 @@ from secure_password_generator.history import (
     save_password,
     show_password_history,
 )
+from secure_password_generator.qrcode import display_qr, save_qr
 from secure_password_generator.utils import configure_logging
 
 # ── Argument parser ──────────────────────────────────────────────────────
@@ -131,6 +133,14 @@ def create_argument_parser() -> argparse.ArgumentParser:
     basic_group.add_argument(
         "-X", "--clipboard", action="store_true",
         help="Copy password to clipboard",
+    )
+    basic_group.add_argument(
+        "-q", "--qr", action="store_true",
+        help="Display password as QR code in the terminal",
+    )
+    basic_group.add_argument(
+        "--qr-file", type=str, metavar="PATH",
+        help="Save password QR code to a PNG file",
     )
     basic_group.add_argument(
         "-U", "--unlock", action="store_true",
@@ -370,15 +380,39 @@ def main() -> None:
         if not _constants.PASSWORD_FILE.exists():
             print("No password history available")
             sys.exit(0)
-        show_password_history(
-            key=_require_key(),
-            limit=args.limit,
-            search=args.search,
-            filter_strength=args.filter_strength,
-            filter_category=args.filter_category,
-            since=args.since,
-            use_table=True,
-        )
+        key = _require_key()
+        if args.qr:
+            from secure_password_generator.history import (
+                format_history_table,
+                get_decrypted_entries,
+            )
+            entries = get_decrypted_entries(
+                key=key,
+                limit=args.limit,
+                search=args.search,
+                filter_strength=args.filter_strength,
+                filter_category=args.filter_category,
+                since=args.since,
+            )
+            if not entries:
+                print("No password history available")
+            for idx, entry in enumerate(entries, 1):
+                print("\n" + format_history_table(
+                    [entry], start_index=idx,
+                ))
+                label = entry.get("label", "Unnamed")
+                print(f"\nQR: {label}")
+                display_qr(entry.get("password", ""))
+        else:
+            show_password_history(
+                key=key,
+                limit=args.limit,
+                search=args.search,
+                filter_strength=args.filter_strength,
+                filter_category=args.filter_category,
+                since=args.since,
+                use_table=True,
+            )
         sys.exit(0)
 
     if args.delete_entry:
@@ -473,6 +507,18 @@ def main() -> None:
                         "[*] Could not copy to clipboard "
                         "(install pyperclip for better support)"
                     )
+
+            if args.qr:
+                display_qr(password)
+
+            if args.qr_file:
+                if args.count > 1:
+                    base, ext = os.path.splitext(args.qr_file)
+                    qr_path = f"{base}_{i + 1}{ext}"
+                else:
+                    qr_path = args.qr_file
+                save_qr(password, qr_path)
+                print(f"[+] QR code saved to {qr_path}")
 
             if args.save_history and key is not None:
                 save_password(

@@ -72,7 +72,7 @@ characters.
 pwgen> quick
   Xk9!mRq2Lp#wYn7@Fj4&bC5  [9/10]
 
-[c]opy  [r]egenerate  [s]ave  [q]uit: s
+[c]opy  [Q]R  [r]egenerate  [s]ave  [q]uit: s
 Label [Unnamed]: My API Key
 Category [General]: Development
 Tags (comma-separated) []: api,work
@@ -85,9 +85,9 @@ Specify a custom length:
 pwgen> quick 32
   Gy7@jPm1Ws#rKf9&Lx2!Bv3$hTz8Qc!e  [10/10]
 
-[c]opy  [r]egenerate  [s]ave  [q]uit: c
+[c]opy  [Q]R  [r]egenerate  [s]ave  [q]uit: c
 [+] Copied to clipboard
-[c]opy  [r]egenerate  [s]ave  [q]uit: q
+[c]opy  [Q]R  [r]egenerate  [s]ave  [q]uit: q
 ```
 
 ### Action Prompt
@@ -97,6 +97,7 @@ After generating, you can:
 | Key | Action                                    |
 |:---:|:------------------------------------------|
 | `c` | Copy password to clipboard                |
+| `Q` | Display password as QR code in terminal   |
 | `r` | Regenerate a new password (same settings) |
 | `s` | Save to vault with label/category/tags    |
 | `q` | Return to the `pwgen>` prompt             |
@@ -117,7 +118,7 @@ Include symbols? [Y/n]: n
 
   Xk9mRq2Lp3wYn7F  [7/10]
 
-[c]opy  [r]egenerate  [s]ave  [q]uit:
+[c]opy  [Q]R  [r]egenerate  [s]ave  [q]uit:
 ```
 
 Press Enter to accept defaults.  Type `n` to skip a character type.
@@ -148,7 +149,7 @@ pwgen> browse
   Tags:     finance, important
   Created:  Mon, Nov 15, 2025 08:55:12:000000 AM
 
-[c]opy  [b]ack:
+[c]opy  [Q]R  [b]ack:
 ```
 
 ### Browse Actions
@@ -163,10 +164,11 @@ pwgen> browse
 
 ### Entry Detail Actions
 
-| Key | Action                |
-|:---:|:----------------------|
-| `c` | Copy password         |
-| `b` | Back to browse list   |
+| Key | Action                          |
+|:---:|:--------------------------------|
+| `c` | Copy password                   |
+| `Q` | Display password as QR code     |
+| `b` | Back to browse list             |
 
 ---
 
@@ -220,7 +222,7 @@ Generated Password 1: Xk9!mRq2Lp#wYn7@Fj4b  [9/10]
 Strength Summary: 1 password generated
   █████████░  9/10: 1 password
 
-[c]opy  [r]egenerate  [s]ave  [q]uit: s
+[c]opy  [Q]R  [r]egenerate  [s]ave  [q]uit: s
 Label [Unnamed]: My API Key
 Category [General]: Development
 Tags (comma-separated) []: api,work
@@ -239,7 +241,7 @@ Generated Password 3: cR7&kLm4Nx#yAs2%  [9/10]
 Strength Summary: 3 passwords generated
   █████████░  9/10: 3 passwords
 
-[c]opy  [r]egenerate  [s]ave  [q]uit: s
+[c]opy  [Q]R  [r]egenerate  [s]ave  [q]uit: s
 Label [Unnamed]: Gmail
 Category [General]: Email
 Tags (comma-separated) []: work
@@ -325,7 +327,7 @@ Generated Password 1: Xk9!mRq2Lp#wYn7@Fj4b  [9/10]
 Strength Summary: 1 password generated
   █████████░  9/10: 1 password
 
-[c]opy  [r]egenerate  [s]ave  [q]uit: s
+[c]opy  [Q]R  [r]egenerate  [s]ave  [q]uit: s
 Label [Unnamed]:
 Category [General]:
 Tags (comma-separated) []:
