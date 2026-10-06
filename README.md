@@ -49,6 +49,7 @@ A robust, powerful, and secure command-line utility for generating **cryptograph
 |    `PyYAML`    | YAML config file support              |
 |    `segno`     | QR code generation                    |
 |   `tabulate`   | Formatted history table output        |
+|   `textual`    | Graphical terminal UI (TUI)           |
 |    `bandit`    | Security linter (dev dependency)      |
 | `pymarkdownlnt`| Markdown linter (dev dependency)      |
 |   `pyright`    | Static type checking (dev dependency) |
@@ -138,6 +139,8 @@ Secure-Password-Generator/
 │   ├── history.py                    # Vault CRUD, table formatting
 │   ├── clipboard.py                  # Clipboard operations
 │   ├── qrcode.py                     # QR code generation (segno)
+│   ├── tui.py                        # Textual TUI application
+│   ├── tui.tcss                      # TUI stylesheet
 │   ├── utils.py                      # Secure deletion, file permissions, logging
 │   ├── interactive.py                # Interactive REPL (PwgenShell)
 │   └── cli.py                        # Argument parser, main()
@@ -153,6 +156,7 @@ Secure-Password-Generator/
 │   ├── test_cli.py                   # CLI integration tests (in-process)
 │   ├── test_clipboard.py             # Clipboard module tests
 │   ├── test_qrcode.py                # QR code module tests
+│   ├── test_tui.py                   # Textual TUI tests
 │   └── test_entry_points.py          # Subprocess smoke tests
 └── benchmarks/                       # Performance diagnostic tools
     ├── benchmark_strength.py         # Scoring consistency
@@ -191,6 +195,7 @@ python -m secure_password_generator -h
 |          `--qr`          | `-q`  | Display password as QR code in terminal       |  False  |
 |       `--qr-file`        |       | Save password QR code to a PNG file           |  None   |
 |     `--interactive`      | `-i`  | Start interactive mode (guided prompts)       |  False  |
+|         `--tui`          | `-t`  | Start graphical terminal UI                   |  False  |
 |        `--unlock`        | `-U`  | Explicitly unlock vault with master password  |  False  |
 |   `--master-password`    |       | Master password for scripting/CI              |  None   |
 | `--master-password-file` |       | Read master password from file (first line)   |  None   |
@@ -283,6 +288,12 @@ Start interactive mode:
 pwgen -i
 ```
 
+Start the graphical terminal UI:
+
+```bash
+pwgen -t
+```
+
 For a full tutorial and recipes, see [docs/EXAMPLES.md](docs/EXAMPLES.md).
 
 ---
@@ -314,6 +325,7 @@ The test suite runs through pytest in under 2 seconds with automatic coverage re
 |       `test_cli.py`       |  36   | CLI integration, config error, clipboard, QR, edge cases   |
 |   `test_clipboard.py`     |   3   | Clipboard copy, failure, auto-clear timer                  |
 |    `test_qrcode.py`       |   3   | QR code display, save, custom scale                        |
+|      `test_tui.py`        |  20   | TUI app, tabs, generate, history, status, config, quit     |
 |  `test_entry_points.py`   |   3   | Subprocess smoke tests for pwgen and python -m             |
 
 ```bash

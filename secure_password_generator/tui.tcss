@@ -1,0 +1,176 @@
+/* Secure Password Generator -- TUI Stylesheet */
+
+/* --- Layout --- */
+
+GeneratePane, HistoryPane, StatusPane, ConfigPane {
+    padding: 1 2;
+}
+
+/* --- Generate pane --- */
+
+#gen-top-row {
+    height: auto;
+    margin-bottom: 1;
+}
+
+#gen-length-box, #gen-count-box, #gen-min-box {
+    width: 1fr;
+    height: auto;
+    margin-right: 1;
+}
+
+#gen-charsets, #gen-options {
+    height: auto;
+    margin-bottom: 1;
+}
+
+#gen-charsets Checkbox, #gen-options Checkbox {
+    margin-right: 2;
+}
+
+#gen-allowed-symbols {
+    margin-bottom: 1;
+}
+
+#gen-actions {
+    height: auto;
+    margin: 1 0;
+}
+
+#gen-actions Button {
+    margin-right: 1;
+}
+
+#gen-output {
+    height: auto;
+    min-height: 3;
+    margin: 1 0;
+    padding: 1 2;
+    border: solid green;
+}
+
+.hidden {
+    display: none;
+}
+
+/* --- History pane --- */
+
+#hist-search {
+    margin-bottom: 1;
+}
+
+#hist-table {
+    height: 1fr;
+    min-height: 8;
+}
+
+#hist-detail {
+    height: auto;
+    margin: 1 0;
+}
+
+#hist-actions {
+    height: auto;
+    margin-top: 1;
+}
+
+#hist-actions Button {
+    margin-right: 1;
+}
+
+/* --- Status pane --- */
+
+#status-output {
+    height: auto;
+    padding: 1 2;
+    margin-top: 1;
+}
+
+/* --- Config pane --- */
+
+#cfg-version {
+    margin-bottom: 1;
+}
+
+#cfg-info {
+    height: auto;
+    padding: 1 2;
+    margin-bottom: 1;
+}
+
+#cfg-new-pw, #cfg-confirm-pw {
+    margin-bottom: 1;
+    width: 50;
+}
+
+/* --- Modal dialogs --- */
+
+MasterPasswordModal, ConfirmModal, SaveModal, QRModal {
+    align: center middle;
+}
+
+#qr-dialog {
+    height: auto;
+    max-height: 90%;
+    padding: 1 2;
+    border: thick $accent;
+    background: $surface;
+}
+
+#qr-close {
+    margin-top: 1;
+}
+
+#save-dialog {
+    width: 60;
+    height: auto;
+    padding: 2 4;
+    border: thick $accent;
+    background: $surface;
+}
+
+#save-title {
+    text-align: center;
+    margin-bottom: 1;
+    text-style: bold;
+}
+
+#save-dialog Input {
+    margin-bottom: 1;
+}
+
+#save-buttons {
+    height: auto;
+    align-horizontal: center;
+}
+
+#save-buttons Button {
+    margin: 0 1;
+}
+
+#auth-dialog, #confirm-dialog {
+    width: 65;
+    height: auto;
+    padding: 2 4;
+    border: thick $accent;
+    background: $surface;
+}
+
+#auth-title, #confirm-msg {
+    text-align: center;
+    margin-bottom: 1;
+    text-style: bold;
+}
+
+#auth-input {
+    margin-bottom: 1;
+}
+
+#auth-buttons, #confirm-buttons {
+    height: auto;
+    align-horizontal: center;
+}
+
+#auth-buttons Button, #confirm-buttons Button {
+    margin: 0 1;
+}

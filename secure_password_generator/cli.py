@@ -175,6 +175,10 @@ def create_argument_parser() -> argparse.ArgumentParser:
         help="Start interactive mode (guided password generation)",
     )
     basic_group.add_argument(
+        "-t", "--tui", action="store_true",
+        help="Start the graphical terminal UI",
+    )
+    basic_group.add_argument(
         "-v", "--verbose", action="store_true",
         help="Enable verbose (debug) output",
     )
@@ -335,6 +339,12 @@ def main() -> None:
                 defaults, cfg_key
             ):
                 setattr(args, cfg_key, value)
+
+    if args.tui:
+        from secure_password_generator.tui import PwgenTUI
+        app = PwgenTUI()
+        app.run()
+        sys.exit(0)
 
     if args.interactive:
         from secure_password_generator.interactive import PwgenShell

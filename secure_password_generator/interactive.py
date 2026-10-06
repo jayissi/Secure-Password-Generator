@@ -32,6 +32,8 @@ from secure_password_generator.crypto import (
     cleanup_files,
     decrypt_data,
     get_encryption_key,
+    is_master_password_enabled,
+    prompt_master_password,
     resolve_master_password,
 )
 from secure_password_generator.generator import (
@@ -175,6 +177,16 @@ class PwgenShell(cmd.Cmd):
         self._key: bytes | None = None
         self._last_password: str | None = None
         self._last_pool_size: int | None = None
+
+    def preloop(self) -> None:
+        """Authenticate on startup if master password is enabled."""
+        if is_master_password_enabled():
+            try:
+                master_pw = prompt_master_password()
+                self._key = get_encryption_key(master_pw)
+            except (ValueError, KeyboardInterrupt, EOFError):
+                print("Authentication failed. Exiting.")
+                raise SystemExit(1)  # noqa: B904
 
     def _require_key(self) -> bytes:
         """Resolve and cache the encryption key for the session."""

@@ -20,8 +20,9 @@ to invoke separately.
 |       `test_cli.py`       |    pytest (CLI)     |   36    |  < 1s    |
 |   `test_clipboard.py`     |    pytest (unit)    |    3    |  < 1s    |
 |    `test_qrcode.py`       |    pytest (unit)    |    3    |  < 1s    |
+|      `test_tui.py`        |   pytest (async)    |   20    |  < 9s    |
 |  `test_entry_points.py`   | pytest (subprocess) |    3    |  < 1s    |
-|         **Total**         |                     | **271** | **< 1s** |
+|         **Total**         |                     | **291** | **< 15s** |
 
 ---
 
@@ -234,6 +235,22 @@ Module under test: `secure_password_generator.qrcode`
 - `display_qr()` calls segno.make().terminal(compact=True)
 - `save_qr()` calls segno.make().save() with path and scale
 - `save_qr()` custom scale parameter
+
+### `test_tui.py` -- 20 tests
+
+Module under test: `secure_password_generator.tui`
+
+Uses Textual's headless `App.run_test()` for async testing:
+
+- `TestAppStartup`: app composes, 4 tabs exist, footer visible
+- `TestGeneratePane`: generate button, count, copy, QR, save modal,
+  output cleared after save, allowed symbols, min chars
+- `TestHistoryPane`: refresh populated, empty vault guard (no files)
+- `TestStatusPane`: load report, empty vault, vault guard (no files)
+- `TestConfigPane`: info display
+- `TestStartupAuth`: no modal without master password
+- `TestEventDrivenRefresh`: save auto-refreshes history
+- `TestQuitBinding`: Q key exits
 
 ### `test_entry_points.py` -- 3 tests
 

@@ -24,6 +24,12 @@ flowchart TD
     cli --> qrcode
     cli --> utils
     cli --> interactive
+    cli --> tui
+    tui --> config
+    tui --> crypto
+    tui --> generator
+    tui --> history
+    tui --> clipboard
     interactive --> config
     interactive --> crypto
     interactive --> generator
@@ -337,7 +343,25 @@ terminal display and PNG file save.
 
 **Dependencies:** `segno` (external)
 
-**Dependents:** `cli`, `interactive`
+**Dependents:** `cli`, `interactive`, `tui`
+
+---
+
+### `tui.py`
+
+**Purpose:** Graphical terminal UI via Textual.  Provides a tabbed
+application with Generate, History, and Health panes, master-password
+modal, and keyboard navigation.  Launch with `pwgen -t`.
+
+**Key exports:**
+
+- `PwgenTUI` -- `textual.App` subclass with three tabbed panes and
+  a master-password modal dialog.
+
+**Dependencies:** `textual` (external), `config`, `crypto`, `generator`,
+`history`, `clipboard`
+
+**Dependents:** `cli` (lazy-imported when `--tui` is passed)
 
 ---
 

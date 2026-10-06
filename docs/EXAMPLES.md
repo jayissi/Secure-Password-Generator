@@ -482,7 +482,16 @@ pwgen -F -L 20 -n --qr-file password_qr.png
 pwgen -H -q
 ```
 
-**Start interactive mode for guided generation:**
+**Start the graphical terminal UI:**
+
+```bash
+pwgen -t
+```
+
+The TUI provides four tabbed screens -- Generate (g), History (h),
+Status (s), and Config (c) -- with keyboard navigation and mouse support.
+
+**Start interactive REPL for guided generation:**
 
 ```bash
 pwgen --interactive

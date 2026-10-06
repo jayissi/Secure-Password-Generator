@@ -6,6 +6,13 @@ Interactive mode provides a guided REPL (Read-Eval-Print Loop) for
 password generation and vault management.  It is designed for users who
 prefer step-by-step prompts over memorising CLI flags.
 
+> For a graphical terminal interface with tabs and mouse support,
+> use `pwgen -t`.  For this lightweight text REPL, use `pwgen -i`.
+>
+> **Authentication:** If a master password is configured, you will be
+> prompted to enter it before the REPL starts.  Cancel or wrong password
+> exits immediately.
+
 ---
 
 ## Starting Interactive Mode
