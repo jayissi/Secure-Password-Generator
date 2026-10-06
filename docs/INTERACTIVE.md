@@ -272,7 +272,7 @@ Tags (comma-separated) []: work
 | `-r` | `--no-repeats`      | No consecutive duplicates        |
 | `-e` | `--exclude-similar` | Exclude i/l/1/L/o/0/O            |
 | `-m` | `--min N`           | Min chars per selected type      |
-| `-p` | `--pattern P`       | Pattern (l/u/d/s/b/*)            |
+| `-p` | `--pattern P`       | Pattern (l/u/d/s/b/x/*)          |
 | `-n` | `--no-save`         | Just print, skip prompt          |
 
 ### `history` — Search & Filter History

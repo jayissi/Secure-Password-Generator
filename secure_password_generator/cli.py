@@ -226,7 +226,8 @@ def create_argument_parser() -> argparse.ArgumentParser:
         "-p", "--pattern", type=str,
         help=(
             "Generate password from pattern "
-            "(l=lower, u=upper, d=digit, s=symbol, b=blank, *=any)"
+            "(l=lower, u=upper, d=digit, s=symbol, b=blank, "
+            "x=latin-ext, *=any)"
         ),
     )
     char_group.add_argument(
@@ -479,7 +480,7 @@ def main() -> None:
             latin_ext=args.latin_ext,
         )
 
-        pool_size = compute_charset_size(cfg)
+        pool_size = None if args.pattern else compute_charset_size(cfg)
 
         key: bytes | None = (
             _require_key() if args.save_history else None

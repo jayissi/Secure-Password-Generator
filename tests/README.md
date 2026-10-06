@@ -20,9 +20,9 @@ to invoke separately.
 |       `test_cli.py`       |    pytest (CLI)     |   36    |  < 1s    |
 |   `test_clipboard.py`     |    pytest (unit)    |    3    |  < 1s    |
 |    `test_qrcode.py`       |    pytest (unit)    |    3    |  < 1s    |
-|      `test_tui.py`        |   pytest (async)    |   20    |  < 9s    |
+|      `test_tui.py`        |   pytest (async)    |   27    |  < 9s    |
 |  `test_entry_points.py`   | pytest (subprocess) |    3    |  < 1s    |
-|         **Total**         |                     | **291** | **< 15s** |
+|         **Total**         |                     | **298** | **< 15s** |
 
 ---
 
@@ -236,7 +236,7 @@ Module under test: `secure_password_generator.qrcode`
 - `save_qr()` calls segno.make().save() with path and scale
 - `save_qr()` custom scale parameter
 
-### `test_tui.py` -- 20 tests
+### `test_tui.py` -- 27 tests
 
 Module under test: `secure_password_generator.tui`
 
@@ -250,6 +250,8 @@ Uses Textual's headless `App.run_test()` for async testing:
 - `TestConfigPane`: info display
 - `TestStartupAuth`: no modal without master password
 - `TestEventDrivenRefresh`: save auto-refreshes history
+- `TestStructuredSearch`: parse label, category, tags, strength,
+  combined, empty, plain text
 - `TestQuitBinding`: Q key exits
 
 ### `test_entry_points.py` -- 3 tests

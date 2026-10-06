@@ -11,6 +11,7 @@ from __future__ import annotations
 import contextlib
 import io
 from collections import Counter
+from collections.abc import Callable
 from types import SimpleNamespace
 from typing import ClassVar
 
@@ -201,6 +202,29 @@ class QRModal(ModalScreen[None]):
 
 
 # ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _strength_color(score: int) -> str:
+    """Return a Rich colour name for the given strength score."""
+    if score >= 10:
+        return "bright_green"
+    if score >= 8:
+        return "green"
+    if score >= 6:
+        return "yellow"
+    if score >= 4:
+        return "dark_orange"
+    return "red"
+
+
+def _escape_markup(text: str) -> str:
+    """Escape brackets for Textual/Rich markup."""
+    return text.replace("[", r"\[")
+
+
+# ---------------------------------------------------------------------------
 # Generate pane
 # ---------------------------------------------------------------------------
 
@@ -316,8 +340,9 @@ class GeneratePane(Static):
                     no_repeats=no_repeats,
                 )
             except (ValueError, RuntimeError) as exc:
+                safe_msg = _escape_markup(str(exc))
                 self.query_one("#gen-output", Static).update(
-                    f"[red]{exc}[/red]"
+                    f"[red]{safe_msg}[/red]"
                 )
                 return
 
@@ -325,10 +350,12 @@ class GeneratePane(Static):
                 pw, charset_size=pool_size,
             )
             bar = "\u2588" * strength + "\u2591" * (10 - strength)
+            color = _strength_color(strength)
             passwords.append(pw)
-            safe_pw = pw.replace("[", r"\[")
+            safe_pw = _escape_markup(pw)
             lines.append(
-                f"  {i + 1}. [bold]{safe_pw}[/bold]  {bar} {strength}/10"
+                f"  {i + 1}. [bold]{safe_pw}[/bold]"
+                f"  [{color}]{bar} {strength}/10[/{color}]"
             )
 
         self._passwords = passwords
@@ -507,11 +534,25 @@ class HistoryPane(Static):
         self, key: bytes, search: str | None = None,
     ) -> None:
         filters = self._parse_search(search)
+        search_val: str | None = (
+            str(filters["search"]) if "search" in filters else None
+        )
+        raw_strength = filters.get("filter_strength")
+        strength_val: int | None = (
+            int(raw_strength)
+            if raw_strength is not None
+            else None
+        )
+        category_val: str | None = (
+            str(filters["filter_category"])
+            if "filter_category" in filters
+            else None
+        )
         self._entries = get_decrypted_entries(
             key,
-            search=filters.get("search"),  # type: ignore[arg-type]
-            filter_strength=filters.get("filter_strength"),  # type: ignore[arg-type]
-            filter_category=filters.get("filter_category"),  # type: ignore[arg-type]
+            search=search_val,
+            filter_strength=strength_val,
+            filter_category=category_val,
         )
         self._refresh_table()
 
@@ -524,11 +565,12 @@ class HistoryPane(Static):
                 if self._revealed
                 else "\u2022" * 8
             )
+            strength = entry.get("strength", 0)
             table.add_row(
                 str(idx),
                 entry.get("label", "N/A"),
                 pw,
-                f"{entry.get('strength', 0)}/10",
+                f"{strength}/10",
                 entry.get("category", "N/A"),
             )
 
@@ -701,7 +743,11 @@ class StatusPane(Static):
         lines.append("  Score distribution:")
         for score in sorted(dist, reverse=True):
             bar = "\u2588" * score + "\u2591" * (10 - score)
-            lines.append(f"    {bar} {score}/10: {dist[score]}")
+            color = _strength_color(score)
+            lines.append(
+                f"    [{color}]{bar} {score}/10[/{color}]"
+                f": {dist[score]}"
+            )
 
         weak = sum(1 for s in scores if s < 5)
         if weak:
@@ -973,7 +1019,7 @@ class PwgenTUI(App):
             self._refresh_history_status()
 
     def require_key(
-        self, callback: callable,  # type: ignore[type-arg]
+        self, callback: Callable[[bytes], None],
     ) -> None:
         """Resolve the encryption key (creates files if needed)."""
         if self._key is not None:
@@ -1018,8 +1064,8 @@ class PwgenTUI(App):
 
     def require_key_readonly(
         self,
-        callback: callable,  # type: ignore[type-arg]
-        empty_callback: callable | None = None,  # type: ignore[type-arg]
+        callback: Callable[[bytes], None],
+        empty_callback: Callable[[], None] | None = None,
     ) -> None:
         """Resolve key only if vault exists (no file creation)."""
         if self._key is not None:

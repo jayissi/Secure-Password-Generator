@@ -350,7 +350,7 @@ terminal display and PNG file save.
 ### `tui.py`
 
 **Purpose:** Graphical terminal UI via Textual.  Provides a tabbed
-application with Generate, History, and Health panes, master-password
+application with Generate, History, Status, and Config panes, master-password
 modal, and keyboard navigation.  Launch with `pwgen -t`.
 
 **Key exports:**

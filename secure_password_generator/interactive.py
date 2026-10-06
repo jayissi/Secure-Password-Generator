@@ -100,7 +100,7 @@ def _generate_parser() -> argparse.ArgumentParser:
     p.add_argument("-m", "--min", type=int, dest="min_chars", default=1,
                    help="Minimum characters per selected type")
     p.add_argument("-p", "--pattern", type=str,
-                   help="Generate from pattern (l/u/d/s/b/*)")
+                   help="Generate from pattern (l/u/d/s/b/x/*)")
     p.add_argument("-n", "--no-save", action="store_true",
                    help="Just print, skip prompt")
     p.add_argument("--label", type=str, help="Label for saved passwords")
@@ -522,7 +522,9 @@ class PwgenShell(cmd.Cmd):
         cfg: CharsetConfig,
     ) -> None:
         """Generate N passwords, display all, then prompt for action."""
-        pool_size = compute_charset_size(cfg)
+        pool_size = (
+            None if opts.pattern else compute_charset_size(cfg)
+        )
 
         passwords, scores = self._generate_batch(opts, cfg, pool_size)
         self._display_batch(passwords, scores, opts.count)

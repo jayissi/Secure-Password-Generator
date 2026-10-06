@@ -217,7 +217,7 @@ python -m secure_password_generator -h
 | `--allowed-symbols` | `-a`  | Custom allowed symbols (implies --symbols) |  None   |
 |      `--blank`      | `-b`  | Include space (never first/last)           |  False  |
 |    `--latin-ext`    | `-x`  | Include Latin-1 Supplement characters      |  False  |
-|     `--pattern`     | `-p`  | Pattern string (l/u/d/s/b/* codes)         |  None   |
+|     `--pattern`     | `-p`  | Pattern string (l/u/d/s/b/x/* codes)       |  None   |
 
 #### Advanced Options
 
@@ -325,7 +325,7 @@ The test suite runs through pytest in under 2 seconds with automatic coverage re
 |       `test_cli.py`       |  36   | CLI integration, config error, clipboard, QR, edge cases   |
 |   `test_clipboard.py`     |   3   | Clipboard copy, failure, auto-clear timer                  |
 |    `test_qrcode.py`       |   3   | QR code display, save, custom scale                        |
-|      `test_tui.py`        |  20   | TUI app, tabs, generate, history, status, config, quit     |
+|      `test_tui.py`        |  27   | TUI app, generate, history, status, config, search, quit   |
 |  `test_entry_points.py`   |   3   | Subprocess smoke tests for pwgen and python -m             |
 
 ```bash

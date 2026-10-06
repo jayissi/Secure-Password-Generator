@@ -385,8 +385,8 @@ def generate_password_from_pattern(
     """Generate a password based on a pattern string.
 
     Pattern codes: ``l`` = lower, ``u`` = upper, ``d`` = digit,
-    ``s`` = symbol, ``b`` = blank, ``*`` = random from all types.
-    Other characters are used literally.
+    ``s`` = symbol, ``b`` = blank, ``x`` = Latin-1 extended,
+    ``*`` = random from all types.  Other characters are used literally.
 
     Args:
         pattern: Pattern string.
@@ -408,6 +408,7 @@ def generate_password_from_pattern(
         "d": string.digits,
         "s": allowed_symbols,
         "b": " ",
+        "x": LATIN_EXT_CHARS,
         "*": string.ascii_letters + string.digits + allowed_symbols,
     }
 
