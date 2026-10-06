@@ -573,7 +573,7 @@ class PwgenShell(cmd.Cmd):
         self,
         opts: argparse.Namespace,
         cfg: CharsetConfig,
-        pool_size: int,
+        pool_size: int | None,
     ) -> tuple[list[str], list[int]]:
         """Generate a batch of passwords and return (passwords, scores)."""
         passwords: list[str] = []
@@ -624,7 +624,7 @@ class PwgenShell(cmd.Cmd):
     def _save_batch(
         self,
         passwords: list[str],
-        pool_size: int,
+        pool_size: int | None,
         opts: argparse.Namespace,
     ) -> None:
         """Prompt for metadata and save all passwords in the batch."""
