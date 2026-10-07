@@ -287,12 +287,14 @@ class TestFormatHistoryTable:
         assert "2024-01-01" in table
 
 
-# ── Corrupt vault entry warning ──────────────────────────────────────────
+# ── Corrupt vault entry handling ─────────────────────────────────────────
 
-class TestCorruptEntryWarning:
+class TestCorruptEntryHandling:
 
-    def test_skipped_entry_warning(self, vault_dir, vault_key, vault_file, capsys):
-        """A corrupt entry triggers a visible warning in show_password_history."""
+    def test_corrupt_entry_skipped_valid_shown(
+        self, vault_dir, vault_key, vault_file, capsys,
+    ):
+        """Corrupt entries are silently skipped; valid entries still appear."""
         save_password("GoodPassword1!", vault_key, filename=vault_file)
 
         with open(vault_file, "ab") as f:
@@ -301,11 +303,12 @@ class TestCorruptEntryWarning:
 
         show_password_history(vault_key, filename=vault_file)
         out = capsys.readouterr().out
-        assert "1 vault entry(ies) could not be decrypted" in out
         assert "GoodPassword1!" in out
 
-    def test_multiple_corrupt_entries(self, vault_dir, vault_key, vault_file, capsys):
-        """Multiple corrupt entries are counted."""
+    def test_multiple_corrupt_entries_skipped(
+        self, vault_dir, vault_key, vault_file, capsys,
+    ):
+        """Multiple corrupt entries are skipped; valid entry still appears."""
         save_password("ValidPw!", vault_key, filename=vault_file)
 
         corrupt = base64.b64encode(b"\xde\xad\xbe\xef" * 8) + b"\n"
@@ -314,7 +317,104 @@ class TestCorruptEntryWarning:
 
         show_password_history(vault_key, filename=vault_file)
         out = capsys.readouterr().out
-        assert "3 vault entry(ies) could not be decrypted" in out
+        assert "ValidPw!" in out
+
+    def test_all_corrupt_shows_empty(
+        self, vault_dir, vault_key, vault_file, capsys,
+    ):
+        """When all entries are corrupt, the table is still rendered (empty)."""
+        corrupt = base64.b64encode(b"\xde\xad\xbe\xef" * 8) + b"\n"
+        with open(vault_file, "wb") as f:
+            f.writelines(corrupt for _ in range(3))
+
+        show_password_history(vault_key, filename=vault_file)
+        out = capsys.readouterr().out
+        assert "ValidPw!" not in out
+
+
+# ── TOCTOU: delete_entry_by_index ────────────────────────────────────────
+
+class TestDeleteEntryTOCTOU:
+
+    def test_delete_nonexistent_vault(self, vault_dir, vault_key, capsys):
+        """delete_entry_by_index on missing file prints message."""
+        from secure_password_generator.constants import PASSWORD_FILE
+        delete_entry_by_index(1, vault_key, filename=PASSWORD_FILE)
+        out = capsys.readouterr().out
+        assert "No password history" in out
+
+    def test_delete_invalid_index(
+        self, vault_dir, vault_key, vault_file, capsys,
+    ):
+        save_password("pw1", vault_key, filename=vault_file)
+        delete_entry_by_index(99, vault_key, filename=vault_file)
+        out = capsys.readouterr().out
+        assert "Invalid index" in out
+
+
+# ── TOCTOU: update_entry_metadata ────────────────────────────────────────
+
+class TestUpdateEntryTOCTOU:
+
+    def test_update_nonexistent_vault(self, vault_dir, vault_key, capsys):
+        """update_entry_metadata on missing file prints message."""
+        from secure_password_generator.constants import PASSWORD_FILE
+        update_entry_metadata(
+            1, vault_key, label="New", filename=PASSWORD_FILE,
+        )
+        out = capsys.readouterr().out
+        assert "No password history" in out
+
+    def test_update_invalid_index(
+        self, vault_dir, vault_key, vault_file, capsys,
+    ):
+        save_password("pw1", vault_key, filename=vault_file)
+        update_entry_metadata(
+            99, vault_key, label="New", filename=vault_file,
+        )
+        out = capsys.readouterr().out
+        assert "Invalid index" in out
+
+
+# ── show_password_history dedup path ─────────────────────────────────────
+
+class TestShowHistoryDedup:
+
+    def test_delegates_to_get_decrypted_entries(
+        self, vault_dir, vault_key, vault_file, capsys,
+    ):
+        """show_password_history uses get_decrypted_entries internally."""
+        save_password(
+            "TestPw!", vault_key, filename=vault_file,
+            label="DedupTest", category="Test",
+        )
+        show_password_history(vault_key, filename=vault_file)
+        out = capsys.readouterr().out
+        assert "DedupTest" in out
+        assert "TestPw!" in out
+
+    def test_non_table_mode(
+        self, vault_dir, vault_key, vault_file, capsys,
+    ):
+        """show_password_history with use_table=False outputs text format."""
+        save_password(
+            "TextMode!", vault_key, filename=vault_file,
+            label="TextTest", category="Dev",
+        )
+        show_password_history(
+            vault_key, filename=vault_file, use_table=False,
+        )
+        out = capsys.readouterr().out
+        assert "Password History:" in out
+        assert "TextTest" in out
+        assert "TextMode!" in out
+
+    def test_no_vault_file(self, vault_dir, vault_key, capsys):
+        """show_password_history on missing file prints a message."""
+        from secure_password_generator.constants import PASSWORD_FILE
+        show_password_history(vault_key, filename=PASSWORD_FILE)
+        out = capsys.readouterr().out
+        assert "No password history" in out
 
 
 # ── NFC save normalization ───────────────────────────────────────────────

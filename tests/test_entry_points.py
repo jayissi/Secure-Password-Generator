@@ -51,6 +51,26 @@ class TestEntryPoints:
         assert "Generated Password 1:" in result.stdout
 
 
+class TestDunderMain:
+
+    def test_dunder_main_calls_main(self):
+        """``python -m secure_password_generator`` invokes cli.main()."""
+        import importlib
+        from unittest.mock import patch
+
+        with patch(
+            "secure_password_generator.cli.main",
+            side_effect=SystemExit(0),
+        ) as mock_main:
+            with pytest.raises(SystemExit):
+                import secure_password_generator.__main__  # noqa: F401
+
+                importlib.reload(
+                    __import__("secure_password_generator.__main__"),
+                )
+            mock_main.assert_called()
+
+
 class TestSystemDependencies:
 
     def test_shred_available(self):

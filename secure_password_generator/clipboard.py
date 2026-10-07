@@ -9,6 +9,8 @@ import pyperclip
 
 from secure_password_generator.constants import CLIPBOARD_CLEAR_SECONDS
 
+_clipboard_state: dict[str, threading.Timer | None] = {"timer": None}
+
 
 def copy_to_clipboard(text: str) -> bool:
     """Copy *text* to the system clipboard.
@@ -24,7 +26,13 @@ def copy_to_clipboard(text: str) -> bool:
 
 
 def schedule_clipboard_clear() -> None:
-    """Schedule a daemon timer to clear the clipboard after the configured delay."""
+    """Schedule a daemon timer to clear the clipboard after the configured delay.
+
+    Cancels any previously scheduled timer before starting a new one.
+    """
+    prev = _clipboard_state["timer"]
+    if prev is not None:
+        prev.cancel()
 
     def _clear() -> None:
         with contextlib.suppress(pyperclip.PyperclipException):
@@ -33,3 +41,4 @@ def schedule_clipboard_clear() -> None:
     timer = threading.Timer(CLIPBOARD_CLEAR_SECONDS, _clear)
     timer.daemon = True
     timer.start()
+    _clipboard_state["timer"] = timer

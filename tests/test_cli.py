@@ -354,6 +354,113 @@ class TestCLIClipboard:
         assert "could not copy" in result.stdout.lower()
 
 
+# ── TestCLISetMasterPassword ─────────────────────────────────────────────
+
+class TestCLISetMasterPassword:
+
+    def test_set_master_error(self, vault):
+        from unittest.mock import patch as mock_patch
+        with mock_patch(
+            "secure_password_generator.cli.set_master_password",
+            side_effect=ValueError("bad password"),
+        ):
+            result = run_cli(
+                "--set-master-password",
+                "--master-password", "StrongPass1!xx",
+            )
+        assert result.exit_code == 1
+        assert "Error" in result.stderr
+
+    def test_cleanup_flag(self, vault):
+        result = run_cli("-C")
+        assert result.exit_code == 0
+
+
+# ── TestCLIHistoryEdgeCases ──────────────────────────────────────────────
+
+class TestCLIHistoryEdgeCases:
+
+    def test_show_history_empty(self, vault):
+        result = run_cli("-H")
+        assert "No password history" in result.stdout
+
+    def test_delete_entry_empty(self, vault):
+        result = run_cli("--delete-entry", "1")
+        assert "No password history" in result.stdout
+
+    def test_show_history_qr_mode(self, vault):
+        run_cli("-F", "-L", "12", "--label", "QRTest")
+        from unittest.mock import patch as mock_patch
+        with mock_patch(
+            "secure_password_generator.cli.display_qr",
+        ) as mock_qr:
+            result = run_cli("-H", "-q")
+        assert result.exit_code == 0
+        mock_qr.assert_called()
+
+    def test_show_history_qr_empty(self, vault):
+        result = run_cli("-H", "-q")
+        assert "No password history" in result.stdout
+
+
+# ── TestCLIPassphrase ────────────────────────────────────────────────────
+
+class TestCLIPassphrase:
+
+    def test_passphrase_no_save(self, vault):
+        result = run_cli("-P", "MyPhrase!", "-n")
+        assert result.exit_code == 0
+        assert "not saved" in result.stdout
+
+    def test_passphrase_with_tags(self, vault):
+        result = run_cli(
+            "-P", "MyPhrase!",
+            "--label", "TagTest",
+            "--tags", "work,personal",
+        )
+        assert result.exit_code == 0
+
+    def test_generation_error(self, vault):
+        result = run_cli(
+            "-F", "-L", "8", "-m", "99",
+        )
+        assert result.exit_code == 1
+
+
+# ── TestCLITUIFlag ───────────────────────────────────────────────────────
+
+class TestCLITUIFlag:
+
+    def test_tui_flag_parsed(self, vault):
+        from secure_password_generator.cli import create_argument_parser
+        parser = create_argument_parser()
+        args = parser.parse_args(["-t"])
+        assert args.tui is True
+
+
+# ── TestCLIAllowedSymbols ────────────────────────────────────────────────
+
+class TestCLIAllowedSymbols:
+
+    def test_allowed_symbols_enables_symbols(self, vault):
+        result = run_cli(
+            "-u", "-l", "-L", "12", "-n",
+            "--allowed-symbols", "@#$",
+        )
+        assert result.exit_code == 0
+        assert "Generated Password 1:" in result.stdout
+
+
+# ── TestCLIHistoryQREdge ─────────────────────────────────────────────────
+
+class TestCLIHistoryQREdge:
+
+    def test_qr_history_no_entries(self, vault):
+        """--qr with --history on empty vault."""
+        result = run_cli("-H", "-q")
+        assert "No password history" in result.stdout
+
+
 # ── TestCLIQRCode ────────────────────────────────────────────────────────
 
 class TestCLIQRCode:

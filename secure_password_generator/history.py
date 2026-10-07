@@ -216,100 +216,42 @@ def show_password_history(
     """Display password history with optional filtering."""
     if filename is None:
         filename = _constants.PASSWORD_FILE
-    try:
-        if not filename.exists():
-            print("No password history available")
-            return
+    if not filename.exists():
+        print("No password history available")
+        return
 
-        verify_file_permissions(filename)
+    filtered_entries = get_decrypted_entries(
+        key,
+        filename=filename,
+        limit=limit,
+        search=search,
+        filter_strength=filter_strength,
+        filter_category=filter_category,
+        since=since,
+    )
 
-        with open(filename, "rb") as f:
-            entries = [line.strip() for line in f if line.strip()]
-        entries.reverse()
+    if use_table:
+        print("\n" + format_history_table(filtered_entries))
+    else:
+        print("\nPassword History:")
+        print("-" * 80)
+        for idx, entry in enumerate(filtered_entries, 1):
+            timestamp = entry.get("timestamp", "?")
+            password = entry.get("password", "?")
+            strength = entry.get("strength", 0)
+            strength_display = format_strength_meter(strength)
+            label = entry.get("label", "N/A")
+            category = entry.get("category", "N/A")
+            tags = entry.get("tags", [])
 
-        filtered_entries: list[dict[str, Any]] = []
-        skipped_count = 0
-        for line in entries:
-            try:
-                blob = base64.b64decode(line, validate=True)
-                rec_json = decrypt_data(blob, key, aad=VAULT_AAD)
-                rec = json.loads(rec_json)
-
-                if search:
-                    search_lower = search.lower()
-                    if (
-                        search_lower
-                        not in rec.get("label", "").lower()
-                        and search_lower
-                        not in rec.get("category", "").lower()
-                        and search_lower
-                        not in " ".join(rec.get("tags", [])).lower()
-                    ):
-                        continue
-
-                if (filter_strength is not None
-                        and rec.get("strength", 0) < filter_strength):
-                    continue
-
-                if (filter_category
-                        and rec.get("category", "").lower()
-                        != filter_category.lower()):
-                    continue
-
-                if since:
-                    try:
-                        since_dt = datetime.strptime(
-                            since, "%Y-%m-%d"
-                        ).replace(tzinfo=UTC)
-                        entry_dt = datetime.strptime(
-                            rec.get("timestamp", ""),
-                            "%a, %b %d, %Y %I:%M:%S:%f %p %z",
-                        )
-                        if entry_dt < since_dt:
-                            continue
-                    except ValueError:
-                        pass
-
-                filtered_entries.append(rec)
-            except (
-                ValueError, binascii.Error, InvalidTag, json.JSONDecodeError,
-            ) as exc:
-                logger.debug("Skipping unreadable vault entry: %s", exc)
-                skipped_count += 1
-                continue
-
-        if skipped_count > 0:
-            print(
-                f"[!] {skipped_count} vault entry(ies) could not be decrypted"
-            )
-
-        if limit:
-            filtered_entries = filtered_entries[:limit]
-
-        if use_table:
-            print("\n" + format_history_table(filtered_entries))
-        else:
-            print("\nPassword History:")
-            print("-" * 80)
-            for idx, entry in enumerate(filtered_entries, 1):
-                timestamp = entry.get("timestamp", "?")
-                password = entry.get("password", "?")
-                strength = entry.get("strength", 0)
-                strength_display = format_strength_meter(strength)
-                label = entry.get("label", "N/A")
-                category = entry.get("category", "N/A")
-                tags = entry.get("tags", [])
-
-                print(f"{idx}. Label: {label}")
-                print(f"   Password: {password}")
-                print(f"   Strength: {strength_display}")
-                print(f"   Category: {category}")
-                if tags:
-                    print(f"   Tags: {', '.join(tags)}")
-                print(f"   Timestamp: {timestamp}\n")
-            print("-" * 80)
-    except (OSError, ValueError) as exc:
-        logger.error("Error reading history: %s", exc)
+            print(f"{idx}. Label: {label}")
+            print(f"   Password: {password}")
+            print(f"   Strength: {strength_display}")
+            print(f"   Category: {category}")
+            if tags:
+                print(f"   Tags: {', '.join(tags)}")
+            print(f"   Timestamp: {timestamp}\n")
+        print("-" * 80)
 
 
 def delete_entry_by_index(
@@ -329,11 +271,12 @@ def delete_entry_by_index(
     """
     if filename is None:
         filename = _constants.PASSWORD_FILE
-    if not filename.exists():
-        print("No password history available")
-        return
 
     with vault_lock():
+        if not filename.exists():
+            print("No password history available")
+            return
+
         with open(filename, "rb") as f:
             entries = [line.strip() for line in f if line.strip()]
         entries.reverse()
@@ -385,11 +328,12 @@ def update_entry_metadata(
     """
     if filename is None:
         filename = _constants.PASSWORD_FILE
-    if not filename.exists():
-        print("No password history available")
-        return
 
     with vault_lock():
+        if not filename.exists():
+            print("No password history available")
+            return
+
         with open(filename, "rb") as f:
             entries = [line.strip() for line in f if line.strip()]
         entries.reverse()

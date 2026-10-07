@@ -82,6 +82,7 @@ def vault_dir(tmp_path):
 
     import secure_password_generator.crypto as _crypto
     _crypto._crypto_state["session_token"] = None
+    _crypto._crypto_state["files_initialized"] = False
 
     yield tmp_path
 
@@ -91,6 +92,7 @@ def vault_dir(tmp_path):
     _KEY_CACHE.clear()
     _FINAL_KEY_CACHE.clear()
     _crypto._crypto_state["session_token"] = None
+    _crypto._crypto_state["files_initialized"] = False
 
 
 # ---------------------------------------------------------------------------

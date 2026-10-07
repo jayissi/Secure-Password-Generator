@@ -48,7 +48,10 @@ logger = logging.getLogger("secure_password_generator")
 # ---------------------------------------------------------------------------
 _KEY_CACHE: dict[str, tuple[bytes, float]] = {}
 _FINAL_KEY_CACHE: dict[str, bytes] = {}
-_crypto_state: dict[str, str | None] = {"session_token": None}
+_crypto_state: dict[str, str | bool | None] = {
+    "session_token": None,
+    "files_initialized": False,
+}
 
 
 # ---------------------------------------------------------------------------
@@ -56,6 +59,8 @@ _crypto_state: dict[str, str | None] = {"session_token": None}
 # ---------------------------------------------------------------------------
 def initialize_security_files() -> None:
     """Ensure secure directory and encryption/pepper key files exist."""
+    if _crypto_state["files_initialized"]:
+        return
     if not PASSWORD_DIR.exists():
         PASSWORD_DIR.mkdir(mode=DEFAULT_DIR_PERMISSIONS)
         PASSWORD_DIR.chmod(DEFAULT_DIR_PERMISSIONS)
@@ -67,6 +72,8 @@ def initialize_security_files() -> None:
     if not PEPPER_FILE.exists():
         PEPPER_FILE.write_bytes(secrets.token_bytes(32))
         PEPPER_FILE.chmod(DEFAULT_FILE_PERMISSIONS)
+
+    _crypto_state["files_initialized"] = True
 
 
 def _get_cached_key(file_path: Path, cache_key: str) -> bytes:
@@ -409,15 +416,22 @@ def set_master_password(
         # Re-encrypt vault with new key
         if plaintext_entries:
             temp_path = PASSWORD_FILE.with_suffix(".enc.tmp")
-            with open(temp_path, "wb") as f:
-                for plaintext in plaintext_entries:
-                    encrypted = encrypt_data(plaintext, new_key, aad=VAULT_AAD)
-                    f.write(base64.b64encode(encrypted) + b"\n")
-            temp_path.chmod(DEFAULT_FILE_PERMISSIONS)
-            if PASSWORD_FILE.exists():
-                secure_delete_file(PASSWORD_FILE)
-            temp_path.rename(PASSWORD_FILE)
-            PASSWORD_FILE.chmod(DEFAULT_FILE_PERMISSIONS)
+            try:
+                with open(temp_path, "wb") as f:
+                    for plaintext in plaintext_entries:
+                        encrypted = encrypt_data(
+                            plaintext, new_key, aad=VAULT_AAD,
+                        )
+                        f.write(base64.b64encode(encrypted) + b"\n")
+                temp_path.chmod(DEFAULT_FILE_PERMISSIONS)
+                if PASSWORD_FILE.exists():
+                    secure_delete_file(PASSWORD_FILE)
+                temp_path.rename(PASSWORD_FILE)
+                PASSWORD_FILE.chmod(DEFAULT_FILE_PERMISSIONS)
+            except (OSError, ValueError):
+                if temp_path.exists():
+                    temp_path.unlink()
+                raise
 
     print(f"[+] Master password configured. Salt stored at {MASTER_SALT_FILE}")
     print(
@@ -443,6 +457,10 @@ def cleanup_files() -> None:
             except (OSError, subprocess.SubprocessError) as exc:
                 logger.error("Failed to securely remove %s: %s", file, exc)
 
+    temp_file = PASSWORD_FILE.with_suffix(".enc.tmp")
+    if temp_file.exists():
+        temp_file.unlink()
+
     lock_file = PASSWORD_DIR / ".vault.lock"
     if lock_file.exists():
         lock_file.unlink()
@@ -454,6 +472,8 @@ def cleanup_files() -> None:
             removed_any = True
         except OSError:
             logger.warning("Directory not empty, keeping: %s", PASSWORD_DIR)
+
+    _crypto_state["files_initialized"] = False
 
     if not removed_any:
         print("[*] Vault is already clean. No files to remove.")
