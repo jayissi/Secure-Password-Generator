@@ -381,6 +381,8 @@ def generate_symbol_only_password(length: int, symbols: str) -> str:
 def generate_password_from_pattern(
     pattern: str,
     allowed_symbols: str = string.punctuation,
+    no_repeats: bool = False,
+    exclude_similar: bool = False,
 ) -> str:
     """Generate a password based on a pattern string.
 
@@ -391,6 +393,8 @@ def generate_password_from_pattern(
     Args:
         pattern: Pattern string.
         allowed_symbols: Symbols to use for the ``s`` code.
+        no_repeats: Prevent consecutive duplicate characters.
+        exclude_similar: Remove similar-looking characters.
 
     Returns:
         Generated password string.
@@ -402,14 +406,18 @@ def generate_password_from_pattern(
         )
         pattern = pattern + "*" * (MIN_PASSWORD_LENGTH - len(pattern))
 
+    _fs = _filter_similar_chars
     char_sets = {
-        "l": string.ascii_lowercase,
-        "u": string.ascii_uppercase,
-        "d": string.digits,
-        "s": allowed_symbols,
+        "l": _fs(string.ascii_lowercase, exclude_similar),
+        "u": _fs(string.ascii_uppercase, exclude_similar),
+        "d": _fs(string.digits, exclude_similar),
+        "s": _fs(allowed_symbols, exclude_similar),
         "b": " ",
         "x": LATIN_EXT_CHARS,
-        "*": string.ascii_letters + string.digits + allowed_symbols,
+        "*": _fs(
+            string.ascii_letters + string.digits + allowed_symbols,
+            exclude_similar,
+        ),
     }
 
     password: list[str] = []
@@ -420,6 +428,13 @@ def generate_password_from_pattern(
                 raise ValueError(
                     f"No characters available for pattern code '{code}'"
                 )
+            if no_repeats and password:
+                chars = chars.replace(password[-1], "")
+                if not chars:
+                    raise ValueError(
+                        "Cannot avoid consecutive repeats for pattern "
+                        f"code '{code}' — only 1 character available"
+                    )
             password.append(secrets.choice(chars))
         else:
             password.append(code)
@@ -457,7 +472,11 @@ def generate_password(
         effective_symbols = (
             cfg.allowed_symbols or string.punctuation
         )
-        return generate_password_from_pattern(pattern, effective_symbols)
+        return generate_password_from_pattern(
+            pattern, effective_symbols,
+            no_repeats=no_repeats,
+            exclude_similar=cfg.exclude_similar,
+        )
 
     if length < MIN_PASSWORD_LENGTH:
         logger.warning(

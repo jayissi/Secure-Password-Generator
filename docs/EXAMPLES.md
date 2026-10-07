@@ -287,6 +287,7 @@ string:
 |  `d` | Digit                     |
 |  `s` | Symbol                    |
 |  `b` | Blank (space)             |
+|  `x` | Latin-1 extended          |
 |  `*` | Any (letter/digit/symbol) |
 
 ```bash
@@ -298,6 +299,15 @@ pwgen -p 'uuuu-dddd-llll' -n   # literal hyphens kept as-is
 
 If the pattern is shorter than 8 characters, it is padded with `*` to
 meet the minimum length.
+
+Pattern mode respects `-r` (no consecutive repeats) and `-e` (exclude
+similar characters):
+
+```bash
+pwgen -p 'ssssssssssss' -a '%@!' -r -n  # symbols, no repeats
+pwgen -p 'llllllllllll' -e -n            # lowercase, no i/l/o
+pwgen -p 'lluuddss' -r -e -n            # pattern + both flags
+```
 
 ---
 

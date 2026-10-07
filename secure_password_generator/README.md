@@ -266,9 +266,12 @@ detection.
   Retries up to `MAX_GENERATION_ATTEMPTS` times.  Supports pattern-based
   generation when the `pattern` argument is provided, with automatic
   padding to `MIN_PASSWORD_LENGTH`.
-- `generate_password_from_pattern(pattern, allowed_symbols)` -- generates
-  a password from a pattern string (`l`=lower, `u`=upper, `d`=digit,
-  `s`=symbol, `b`=blank, `*`=any).
+- `generate_password_from_pattern(pattern, allowed_symbols, no_repeats,
+  exclude_similar)` -- generates a password from a pattern string
+  (`l`=lower, `u`=upper, `d`=digit, `s`=symbol, `b`=blank,
+  `x`=Latin-1 extended, `*`=any).  Supports `no_repeats` (prevents
+  consecutive duplicate characters) and `exclude_similar` (removes
+  similar-looking characters like `i`, `l`, `1`, `O`, `0`).
 - `generate_symbol_only_password(length, symbols)` -- special-case
   generator for symbol-only passwords with no consecutive repeats.
 
