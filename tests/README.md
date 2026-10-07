@@ -10,19 +10,19 @@ to invoke separately.
 
 |           File            |        Type         |  Tests  |  Runtime  |
 |:-------------------------:|:-------------------:|:-------:|:---------:|
-|     `test_config.py`      |    pytest (unit)    |   14    |  < 1s     |
+|     `test_config.py`      |    pytest (unit)    |   19    |  < 1s     |
 |     `test_crypto.py`      |    pytest (unit)    |   44    |  < 1s     |
 |    `test_generator.py`    |    pytest (unit)    |   35    |  < 1s     |
 | `test_strength_pytest.py` |    pytest (unit)    |   43    |  < 1s     |
 |     `test_history.py`     |   pytest (vault)    |   35    |  < 1s     |
 |      `test_utils.py`      |    pytest (unit)    |   11    |  < 1s     |
 |   `test_interactive.py`   |  pytest (unit/CLI)  |  123    |  < 1s     |
-|       `test_cli.py`       |    pytest (CLI)     |   48    |  < 1s     |
+|       `test_cli.py`       |    pytest (CLI)     |   52    |  < 1s     |
 |   `test_clipboard.py`     |    pytest (unit)    |    7    |  < 1s     |
 |    `test_qrcode.py`       |    pytest (unit)    |    3    |  < 1s     |
 |      `test_tui.py`        |   pytest (async)    |   74    | < 30s     |
 |  `test_entry_points.py`   | pytest (subprocess) |    4    |  < 1s     |
-|         **Total**         |                     | **441** | **< 35s** |
+|         **Total**         |                     | **450** | **< 35s** |
 
 ---
 
@@ -120,7 +120,7 @@ Each test gets a fresh, empty vault.
 - `run_cli(*args)` -- helper that calls `cli.main()` in-process, captures
   stdout/stderr, and returns a `CLIResult` dataclass.
 
-### `test_config.py` -- 14 tests
+### `test_config.py` -- 19 tests
 
 Module under test: `secure_password_generator.config`
 
@@ -128,6 +128,7 @@ Module under test: `secure_password_generator.config`
   extension, invalid YAML/JSON, non-dict YAML, unknown keys
 - YAML and JSON round-trip (values read back correctly)
 - `blank_space` key mapped to `blank`
+- New config keys accepted: pattern, count, clipboard, qr, qr\_file
 - `CharsetConfig` dataclass: defaults, frozen, equality, hashable
 
 ### `test_crypto.py` -- 44 tests
@@ -243,14 +244,15 @@ Module under test: `secure_password_generator.interactive`
   `TestBrowseSearchEOF`, `TestHistoryCommandError`,
   `TestDeleteCommandError`, `TestLabelCommandError`
 
-### `test_cli.py` -- 48 tests
+### `test_cli.py` -- 52 tests
 
 Module under test: `secure_password_generator.cli` (via `run_cli()`)
 
 - `TestMasterPassword`: set, reject without, env-var, password-file, wrong
 - `TestGenerationModes`: `-F` full, `-c 3` multi, `-P` passphrase, pattern
 - `TestCLIPlumbing`: `-h`, no-args, YAML/JSON config, CLI override,
-  `--no-save-history`
+  `--no-save-history`, config pattern, config blank pattern fallback,
+  config count, config QR (mocked)
 - `TestCleanup`: files removed, vault empty after
 - `TestNoMasterPassword`: backward compat
 - `TestLatinExtCLI`: `-x -l` non-ASCII, `-F -x` combined
