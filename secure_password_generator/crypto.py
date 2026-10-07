@@ -23,7 +23,7 @@ from secure_password_generator.constants import (
     ARGON2_MEMORY_COST,
     DEFAULT_DIR_PERMISSIONS,
     DEFAULT_FILE_PERMISSIONS,
-    ENV_MASTER_PASSWORD,
+    ENV_MASTER_CREDENTIAL,
     KEY_FILE,
     MASTER_KDF_LENGTH,
     MASTER_PASSWORD_MIN_LENGTH,
@@ -49,7 +49,7 @@ logger = logging.getLogger("secure_password_generator")
 _KEY_CACHE: dict[str, tuple[bytes, float]] = {}
 _FINAL_KEY_CACHE: dict[str, bytes] = {}
 _crypto_state: dict[str, str | bool | None] = {
-    "session_token": None,
+    "session_id": None,
     "files_initialized": False,
 }
 
@@ -156,7 +156,7 @@ def prompt_master_password(prompt: str = "Master password: ") -> str:
         raise ValueError(
             "Master password required but stdin is not a TTY. "
             "Use --master-password, --master-password-file, or "
-            f"{ENV_MASTER_PASSWORD} for non-interactive use."
+            f"{ENV_MASTER_CREDENTIAL} for non-interactive use."
         )
     password = getpass.getpass(prompt)
     if not password:
@@ -222,7 +222,7 @@ def get_encryption_key(master_password: str | None = None) -> bytes:
         if master_password is None:
             raise ValueError("Master password required but not provided")
 
-        token = _crypto_state["session_token"]
+        token = _crypto_state["session_id"]
         if token and token in _FINAL_KEY_CACHE:
             return _FINAL_KEY_CACHE[token]
 
@@ -230,7 +230,7 @@ def get_encryption_key(master_password: str | None = None) -> bytes:
         final_key = combine_keys(derived, file_key)
 
         new_token = secrets.token_hex(16)
-        _crypto_state["session_token"] = new_token
+        _crypto_state["session_id"] = new_token
         _FINAL_KEY_CACHE[new_token] = final_key
         return final_key
 
@@ -304,7 +304,7 @@ def resolve_master_password(args: Any) -> str | None:
 
     Resolution order:
       1. ``--master-password VALUE`` (warns about process-list exposure)
-      2. ``SPG_MASTER_PASSWORD`` env-var (warns about /proc exposure)
+      2. ``SPG_MASTER_CREDENTIAL`` env-var (warns about /proc exposure)
       3. ``--master-password-file PATH`` (reads first line, no warning)
       4. Interactive prompt when ``master_salt.bin`` exists
       5. ``None`` when master password is not configured
@@ -318,13 +318,13 @@ def resolve_master_password(args: Any) -> str | None:
         return args.master_password
 
     # 2. Environment variable (consumed on first read)
-    env_pw = os.environ.pop(ENV_MASTER_PASSWORD, None)
+    env_pw = os.environ.pop(ENV_MASTER_CREDENTIAL, None)
     if env_pw:
         logger.warning(
             "%s is set. Environment variables may be visible via "
             "/proc on Linux. Prefer interactive -U/--unlock or "
             "--master-password-file for better security.",
-            ENV_MASTER_PASSWORD,
+            ENV_MASTER_CREDENTIAL,
         )
         return env_pw
 
@@ -407,7 +407,7 @@ def set_master_password(
         # Invalidate cached keys so new salt is used
         _KEY_CACHE.clear()
         _FINAL_KEY_CACHE.clear()
-        _crypto_state["session_token"] = None
+        _crypto_state["session_id"] = None
 
         derived = derive_master_key(new_password, salt=salt)
         file_key = get_file_encryption_key()

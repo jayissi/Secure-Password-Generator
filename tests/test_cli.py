@@ -59,9 +59,9 @@ class TestMasterPassword:
     def test_env_var_auth(self, vault_with_master):
         env_clean = {
             k: v for k, v in os.environ.items()
-            if k != "SPG_MASTER_PASSWORD"
+            if k != "SPG_MASTER_CREDENTIAL"
         }
-        env_with_mp = {**env_clean, "SPG_MASTER_PASSWORD": MASTER_PW}
+        env_with_mp = {**env_clean, "SPG_MASTER_CREDENTIAL": MASTER_PW}
         with patch.dict(os.environ, env_with_mp, clear=True):
             result = run_cli("-F", "-L", "12", "-n")
         assert result.exit_code == 0
@@ -89,7 +89,7 @@ class TestMasterPassword:
         import secure_password_generator.crypto as _crypto
         _crypto._KEY_CACHE.clear()
         _crypto._FINAL_KEY_CACHE.clear()
-        _crypto._crypto_state["session_token"] = None
+        _crypto._crypto_state["session_id"] = None
 
         result = run_cli("-H", "--master-password", "WrongPassw0rd!")
         assert "Secret" not in result.stdout

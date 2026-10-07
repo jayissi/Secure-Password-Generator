@@ -412,7 +412,7 @@ pwgen --set-master-password
 **Unlock vault with environment variable (CI/automation):**
 
 ```bash
-export SPG_MASTER_PASSWORD='YourMasterSecret'
+export SPG_MASTER_CREDENTIAL='YourMasterSecret'
 pwgen --show-history --limit 5
 ```
 

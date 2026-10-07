@@ -130,7 +130,7 @@ module hard-codes magic numbers.
 - ANSI colours: `COLOR_RED`, `COLOR_ORANGE`, `COLOR_YELLOW`,
   `COLOR_GREEN`, `COLOR_BRIGHT_GREEN`, `COLOR_RESET`
 - Config-file support: `VALID_CONFIG_KEYS`, `CONFIG_KEY_MAP`
-- Environment variables: `ENV_MASTER_PASSWORD` (`SPG_MASTER_PASSWORD`)
+- Environment variables: `ENV_MASTER_CREDENTIAL` (`SPG_MASTER_CREDENTIAL`)
 
 **Dependencies:** none (standard library `pathlib` only)
 
@@ -215,7 +215,7 @@ This is the security core of the application.
   using a random session token (no fast hash of the password is stored).
 - `resolve_master_password(args)` -- resolves the master password using a
   five-level priority chain: (1) `--master-password` CLI flag,
-  (2) `SPG_MASTER_PASSWORD` environment variable, (3)
+  (2) `SPG_MASTER_CREDENTIAL` environment variable, (3)
   `--master-password-file`, (4) interactive `getpass` prompt, (5) `None`.
 - `set_master_password(new_password, current_password)` -- configures or
   rotates the master password.  Decrypts the vault with the old key,

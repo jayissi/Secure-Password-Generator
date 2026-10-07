@@ -771,7 +771,7 @@ class PwgenShell(cmd.Cmd):
         _KEY_CACHE.clear()
         _FINAL_KEY_CACHE.clear()
         import secure_password_generator.crypto as _crypto
-        _crypto._crypto_state["session_token"] = None
+        _crypto._crypto_state["session_id"] = None
         print("[+] Session key cleared")
 
     # ── clear ────────────────────────────────────────────────────────
@@ -804,7 +804,7 @@ class PwgenShell(cmd.Cmd):
         _KEY_CACHE.clear()
         _FINAL_KEY_CACHE.clear()
         import secure_password_generator.crypto as _crypto
-        _crypto._crypto_state["session_token"] = None
+        _crypto._crypto_state["session_id"] = None
 
     # ── error handling ───────────────────────────────────────────────
 

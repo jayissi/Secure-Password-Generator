@@ -86,7 +86,7 @@ CONFIG_KEY_MAP = {
 # =========================
 # Environment Variables
 # =========================
-ENV_MASTER_PASSWORD = "SPG_MASTER_PASSWORD"
+ENV_MASTER_CREDENTIAL = "SPG_MASTER_CREDENTIAL"
 
 # =========================
 # Associated Authenticated Data

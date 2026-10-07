@@ -63,7 +63,6 @@ select = ["E", "F", "UP", "B", "SIM", "I", "FURB", "RUF", "PLW", "EXE"]
 [tool.bandit]
 exclude_dirs = ["tests", "benchmarks"]
 skips = [
-    "B105",     # Hardcoded password -- ENV_MASTER_PASSWORD is a var name, not a value
     "B404",     # import subprocess -- needed for shred secure deletion
     "B603",     # subprocess without shell -- hardcoded command array, no injection
 ]

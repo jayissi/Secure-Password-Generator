@@ -131,7 +131,7 @@ class TestResolveMasterPassword:
             master_password_file=None,
         )
         env = os.environ.copy()
-        env["SPG_MASTER_PASSWORD"] = "EnvValue"
+        env["SPG_MASTER_CREDENTIAL"] = "EnvValue"
         with (
             patch.dict(os.environ, env, clear=True),
             patch(
@@ -141,7 +141,7 @@ class TestResolveMasterPassword:
         ):
             result = resolve_master_password(args)
             assert result == "EnvValue"
-            assert "SPG_MASTER_PASSWORD" not in os.environ
+            assert "SPG_MASTER_CREDENTIAL" not in os.environ
 
     def test_env_var_consumed_on_read(self):
         args = types.SimpleNamespace(
@@ -149,7 +149,7 @@ class TestResolveMasterPassword:
             master_password_file=None,
         )
         env = os.environ.copy()
-        env["SPG_MASTER_PASSWORD"] = "OnceOnly"
+        env["SPG_MASTER_CREDENTIAL"] = "OnceOnly"
         with (
             patch.dict(os.environ, env, clear=True),
             patch(
@@ -174,7 +174,7 @@ class TestResolveMasterPassword:
         env_clean = {
             k: v
             for k, v in os.environ.items()
-            if k != "SPG_MASTER_PASSWORD"
+            if k != "SPG_MASTER_CREDENTIAL"
         }
         with (
             patch.dict(os.environ, env_clean, clear=True),
@@ -194,7 +194,7 @@ class TestResolveMasterPassword:
         env_clean = {
             k: v
             for k, v in os.environ.items()
-            if k != "SPG_MASTER_PASSWORD"
+            if k != "SPG_MASTER_CREDENTIAL"
         }
         with (
             patch.dict(os.environ, env_clean, clear=True),
@@ -416,7 +416,7 @@ class TestGetEncryptionKey:
         initialize_security_files()
         token = "test-token-123"
         cached_key = secrets.token_bytes(32)
-        _crypto_state["session_token"] = token
+        _crypto_state["session_id"] = token
         _FINAL_KEY_CACHE[token] = cached_key
         with patch(
             "secure_password_generator.crypto.is_master_password_enabled",
@@ -437,7 +437,7 @@ class TestResolveMasterPasswordEdge:
         )
         env_clean = {
             k: v for k, v in os.environ.items()
-            if k != "SPG_MASTER_PASSWORD"
+            if k != "SPG_MASTER_CREDENTIAL"
         }
         with (
             patch.dict(os.environ, env_clean, clear=True),
@@ -459,7 +459,7 @@ class TestResolveMasterPasswordEdge:
         )
         env_clean = {
             k: v for k, v in os.environ.items()
-            if k != "SPG_MASTER_PASSWORD"
+            if k != "SPG_MASTER_CREDENTIAL"
         }
         with (
             patch.dict(os.environ, env_clean, clear=True),
@@ -478,7 +478,7 @@ class TestResolveMasterPasswordEdge:
         )
         env_clean = {
             k: v for k, v in os.environ.items()
-            if k != "SPG_MASTER_PASSWORD"
+            if k != "SPG_MASTER_CREDENTIAL"
         }
         with (
             patch.dict(os.environ, env_clean, clear=True),

@@ -865,7 +865,7 @@ class ConfigPane(Static):
             app._key = None
             _KEY_CACHE.clear()
             _FINAL_KEY_CACHE.clear()
-            _crypto_state["session_token"] = None
+            _crypto_state["session_id"] = None
             app.notify("Vault files securely deleted")
             self._refresh_info()
             self.post_message(VaultChanged())
@@ -1094,4 +1094,4 @@ class PwgenTUI(App):
         self._key = None
         _KEY_CACHE.clear()
         _FINAL_KEY_CACHE.clear()
-        _crypto_state["session_token"] = None
+        _crypto_state["session_id"] = None

@@ -23,7 +23,7 @@ This tool is designed with security as a top priority.
 
 - **Two-Factor Encryption**: When a master password is configured, the final AES-256 key is `Argon2id(master_password, master_salt) XOR encryption.key`. Stealing the vault directory alone is not enough.
 - **Master Password Complexity**: Enforced minimum 12 characters with at least 3 of 4 character types (uppercase, lowercase, digit, special character).
-- **Master Password Input**: Supports interactive prompt (default), environment variable (`SPG_MASTER_PASSWORD`), password file (`--master-password-file`), and direct CLI flag. Each method documents its security trade-offs.
+- **Master Password Input**: Supports interactive prompt (default), environment variable (`SPG_MASTER_CREDENTIAL`), password file (`--master-password-file`), and direct CLI flag. Each method documents its security trade-offs.
 - **Startup Authentication**: When a master password is configured, both the TUI (`pwgen -t`) and interactive REPL (`pwgen -i`) prompt for the master password before granting access. Cancel or wrong password exits the session.
 - **Authenticated Deletion**: Entry deletion (`--delete-entry`) requires the encryption key, preventing unauthenticated vault modification.
 - **Randomness**: Uses Python's `secrets` module, not `random`, ensuring cryptographic quality randomness.
