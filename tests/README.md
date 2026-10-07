@@ -8,20 +8,20 @@ to invoke separately.
 
 **Summary:**
 
-|           File            |        Type         |  Tests  | Runtime  |
-|:-------------------------:|:-------------------:|:-------:|:--------:|
-|     `test_config.py`      |    pytest (unit)    |   14    |  < 1s    |
-|     `test_crypto.py`      |    pytest (unit)    |   44    |  < 1s    |
-|    `test_generator.py`    |    pytest (unit)    |   35    |  < 1s    |
-| `test_strength_pytest.py` |    pytest (unit)    |   43    |  < 1s    |
-|     `test_history.py`     |   pytest (vault)    |   35    |  < 1s    |
-|      `test_utils.py`      |    pytest (unit)    |   11    |  < 1s    |
-|   `test_interactive.py`   |  pytest (unit/CLI)  |  123    |  < 1s    |
-|       `test_cli.py`       |    pytest (CLI)     |   48    |  < 1s    |
-|   `test_clipboard.py`     |    pytest (unit)    |    7    |  < 1s    |
-|    `test_qrcode.py`       |    pytest (unit)    |    3    |  < 1s    |
-|      `test_tui.py`        |   pytest (async)    |   74    | < 30s    |
-|  `test_entry_points.py`   | pytest (subprocess) |    4    |  < 1s    |
+|           File            |        Type         |  Tests  |  Runtime  |
+|:-------------------------:|:-------------------:|:-------:|:---------:|
+|     `test_config.py`      |    pytest (unit)    |   14    |  < 1s     |
+|     `test_crypto.py`      |    pytest (unit)    |   44    |  < 1s     |
+|    `test_generator.py`    |    pytest (unit)    |   35    |  < 1s     |
+| `test_strength_pytest.py` |    pytest (unit)    |   43    |  < 1s     |
+|     `test_history.py`     |   pytest (vault)    |   35    |  < 1s     |
+|      `test_utils.py`      |    pytest (unit)    |   11    |  < 1s     |
+|   `test_interactive.py`   |  pytest (unit/CLI)  |  123    |  < 1s     |
+|       `test_cli.py`       |    pytest (CLI)     |   48    |  < 1s     |
+|   `test_clipboard.py`     |    pytest (unit)    |    7    |  < 1s     |
+|    `test_qrcode.py`       |    pytest (unit)    |    3    |  < 1s     |
+|      `test_tui.py`        |   pytest (async)    |   74    | < 30s     |
+|  `test_entry_points.py`   | pytest (subprocess) |    4    |  < 1s     |
 |         **Total**         |                     | **441** | **< 35s** |
 
 ---
