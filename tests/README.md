@@ -11,18 +11,18 @@ to invoke separately.
 |           File            |        Type         |  Tests  | Runtime  |
 |:-------------------------:|:-------------------:|:-------:|:--------:|
 |     `test_config.py`      |    pytest (unit)    |   14    |  < 1s    |
-|     `test_crypto.py`      |    pytest (unit)    |   25    |  < 1s    |
+|     `test_crypto.py`      |    pytest (unit)    |   44    |  < 1s    |
 |    `test_generator.py`    |    pytest (unit)    |   35    |  < 1s    |
 | `test_strength_pytest.py` |    pytest (unit)    |   43    |  < 1s    |
-|     `test_history.py`     |   pytest (vault)    |   27    |  < 1s    |
+|     `test_history.py`     |   pytest (vault)    |   35    |  < 1s    |
 |      `test_utils.py`      |    pytest (unit)    |   11    |  < 1s    |
-|   `test_interactive.py`   |  pytest (unit/CLI)  |   71    |  < 1s    |
-|       `test_cli.py`       |    pytest (CLI)     |   36    |  < 1s    |
-|   `test_clipboard.py`     |    pytest (unit)    |    3    |  < 1s    |
+|   `test_interactive.py`   |  pytest (unit/CLI)  |  123    |  < 1s    |
+|       `test_cli.py`       |    pytest (CLI)     |   48    |  < 1s    |
+|   `test_clipboard.py`     |    pytest (unit)    |    7    |  < 1s    |
 |    `test_qrcode.py`       |    pytest (unit)    |    3    |  < 1s    |
-|      `test_tui.py`        |   pytest (async)    |   27    |  < 9s    |
-|  `test_entry_points.py`   | pytest (subprocess) |    3    |  < 1s    |
-|         **Total**         |                     | **298** | **< 15s** |
+|      `test_tui.py`        |   pytest (async)    |   74    | < 30s    |
+|  `test_entry_points.py`   | pytest (subprocess) |    4    |  < 1s    |
+|         **Total**         |                     | **441** | **< 35s** |
 
 ---
 
@@ -33,11 +33,37 @@ Set up a virtual environment with development dependencies:
 ```bash
 python -m venv .venv
 source .venv/bin/activate
+python -m pip install --upgrade pip
 python -m pip install -e . -r requirements-dev.txt
 ```
 
 System dependencies (`shred`) should be available -- see
 `requirements-rpm.txt` in the project root.
+
+### Key dev dependencies
+
+| Package | Purpose |
+|:-------:|---------|
+| `pytest` | Test runner |
+| `pytest-asyncio` | Async test support for Textual TUI tests (`App.run_test()`) |
+| `pytest-cov` | Coverage reporting (`--cov` flag) |
+| `pytest-textual-snapshot` | Visual regression testing for Textual apps |
+| `ruff` | Linter and formatter |
+| `pyright` | Static type checking |
+| `bandit` | Security linter |
+| `pymarkdownlnt` | Markdown linter |
+
+### Snapshot testing
+
+`pytest-textual-snapshot` provides visual regression testing for the
+Textual TUI.  To update snapshot baselines after intentional UI changes:
+
+```bash
+pytest tests/test_tui.py --snapshot-update
+```
+
+TUI tests use Textual's headless `App.run_test()` API with
+`pytest-asyncio` for async support.  No display server is required.
 
 ---
 
@@ -104,18 +130,24 @@ Module under test: `secure_password_generator.config`
 - `blank_space` key mapped to `blank`
 - `CharsetConfig` dataclass: defaults, frozen, equality, hashable
 
-### `test_crypto.py` -- 25 tests
+### `test_crypto.py` -- 44 tests
 
 Module under test: `secure_password_generator.crypto`
 
-- Encrypt/decrypt round-trip (correct key, wrong key, short blob, empty)
-- AAD: mismatched AAD raises InvalidTag, None AAD round-trip
-- `combine_keys()` XOR identity, self-XOR, length mismatch
-- Master-password complexity: too short, missing types, valid (3 and 4 types)
-- `resolve_master_password()` priority: CLI flag > env-var > file > None
-- `argon2id_hash()` return structure and unique salts
-- `set_master_password()` explicit, re-encryption, empty raises
-- `cleanup_files()` error handling (mocked secure_delete_file)
+- `TestEncryptDecrypt`: round-trip, wrong key, short blob, empty, AAD
+- `TestCombineKeys`: XOR identity, self-XOR, length mismatch
+- `TestMasterPasswordValidation`: too short, missing types, valid
+- `TestResolveMasterPassword`: CLI flag > env-var > file > None
+- `TestArgon2idHash`: return structure, unique salts
+- `TestSetMasterPassword`: explicit, re-encryption, empty raises
+- `TestCleanupFiles`: error handling, temp file removal, lock file,
+  files\_initialized reset, already-clean vault
+- `TestInitCaching`: flag set, skip on repeat call
+- `TestMasterPasswordEdgeCases`: empty, only-lower, only-two-types
+- `TestPromptMasterPassword`: non-TTY raises, empty input raises
+- `TestGetEncryptionKey`: no-master key, master required, session cache
+- `TestResolveMasterPasswordEdge`: file not found, file empty, interactive
+- `TestSetMasterTempFile`: temp cleanup on failure, change master password
 
 ### `test_generator.py` -- 35 tests
 
@@ -144,20 +176,22 @@ Module under test: `secure_password_generator.generator` (strength scoring)
 - `compute_charset_size` / `build_charset` sanity checks
 - Latin-ext scoring: 6-type beats 5-type, latin-ext-only no crash, pool inference adds 93, 5-type regression check
 
-### `test_history.py` -- 27 tests
+### `test_history.py` -- 35 tests
 
 Module under test: `secure_password_generator.history`
 
-- `save_password`: file creation, metadata round-trip, multiple entries
-- `show_password_history`: empty vault, table format, search (label,
-  category, tags), filter (strength, category, date), limit
-- `delete_entry_by_index`: authenticated delete, wrong key rejected,
-  invalid index, empty vault
-- `update_entry_metadata`: update label, preserves other fields,
-  invalid index, empty vault
-- `format_history_table`: empty input, header presence, coloured strength
-  scores, timestamp format
-- NFC save normalization: combining characters normalized before storage
+- `TestSavePassword`: file creation, metadata round-trip, multiple entries
+- `TestShowHistory`: empty vault, table format, search (label, category,
+  tags), filter (strength, category, date), limit
+- `TestDeleteEntry`: authenticated delete, wrong key rejected
+- `TestUpdateEntryMetadata`: update label, preserves other fields
+- `TestFormatHistoryTable`: empty input, header presence, coloured scores
+- `TestCorruptEntryHandling`: corrupt skipped, valid shown, all corrupt
+- `TestDeleteEntryTOCTOU`: missing vault, invalid index (inside lock)
+- `TestUpdateEntryTOCTOU`: missing vault, invalid index (inside lock)
+- `TestShowHistoryDedup`: delegates to get\_decrypted\_entries, non-table
+  mode, no vault file
+- `TestNFCSaveNormalization`: combining characters normalized
 
 ### `test_utils.py` -- 11 tests
 
@@ -167,66 +201,81 @@ Module under test: `secure_password_generator.utils`
   on correct (0600), no error on nonexistent path
 - `configure_logging()`: verbose sets DEBUG, quiet sets ERROR
 
-### `test_interactive.py` -- 71 tests
+### `test_interactive.py` -- 123 tests
 
 Module under test: `secure_password_generator.interactive`
 
-- `TestQuickCommand`: default length, custom length, regenerate prompt,
-  inline score in output
-- `TestNewCommand`: all-defaults wizard, custom length, save with label,
-  cancel without save
-- `TestBrowseCommand`: empty vault message, populated vault shows entries,
-  view entry detail
-- `TestHealthCommand`: empty vault report, populated vault with score
-  distribution
-- `TestSessionLifecycle`: quit exits, help lists commands, unknown command
-  shows error, EOF exits, clear does not crash, interactive flag accepted,
-  exit alias returns True, emptyline no-op
-- `TestGenerateCommand`: full charset, multi-count with summary, sets
-  last password, invalid flag, quick sets last password, save prompt,
-  batch save, copy prompt, regenerate prompt, no-save flag skips prompt,
-  batch display, save clears state, metadata flags
-- `TestHistoryCommand`: empty vault, populated vault, search, limit
+- `TestQuickCommand`: default length, custom length, regenerate, score
+- `TestNewCommand`: defaults wizard, custom length, save, cancel
+- `TestBrowseCommand`: empty vault, populated, view entry detail
+- `TestHealthCommand`: empty vault, populated with score distribution
+- `TestSessionLifecycle`: quit, help, unknown command, EOF, clear,
+  interactive flag, exit alias, emptyline
+- `TestGenerateCommand`: full charset, multi-count, save prompt, batch
+  save, copy, regenerate, no-save, metadata flags
+- `TestHistoryCommand`: empty, populated, search, limit
 - `TestDeleteCommand`: delete entry, missing arg, invalid index
-- `TestCleanupCommand`: confirmed, cancelled, EOF cancellation
-- `TestLabelCommand`: label updates metadata, invalid index, no args,
-  generate with metadata
-- `TestBrowseExtended`: pagination next/prev, search, invalid entry,
-  view copy back, EOF, invalid choice, view number prompt, search no
-  match, already last/first page, invalid view number
-- `TestHealthExtended`: weak password warning, duplicate labels
+- `TestCleanupCommand`: confirmed, cancelled, EOF
+- `TestLabelCommand`: update metadata, invalid index, no args
+- `TestBrowseExtended`: pagination, search, invalid entry, view copy,
+  EOF, view number prompt, last/first page
+- `TestHealthExtended`: weak warning, duplicate labels
 - `TestQuickExtended`: copy, save, EOF, invalid then quit
 - `TestGenerateExtended`: save batch EOF, batch copy multi
-- `TestQRCodeInteractive`: quick QR, generate QR, batch QR, browse
-  view QR
+- `TestQRCodeInteractive`: quick QR, generate QR, batch QR, browse QR
+- `TestPreloop`: no-master, master auth fail
+- `TestGenerateBatchPrompt`: copy batch, copy fail, regenerate, invalid,
+  EOF, no-save
+- `TestSaveBatch`: with flags, EOF
+- `TestBrowseEdge`: invalid number, NaN, previous/next page, search,
+  search no match, invalid choice, EOF, view entry copy/fail/invalid/EOF
+- `TestCleanupCommandEdge`: confirm, cancel, EOF
+- `TestClearCommand`: ANSI escape output
+- `TestLabelCommandEdge`: update, invalid index, no args
+- `TestDeleteCommandEdge`: no arg, invalid, delete entry
+- `TestHistoryCommandEdge`: search, empty
+- `TestQuickEdgeCases`: save, regenerate, copy, copy fail, invalid
+- `TestNewEdgeCases`: no charset selected
+- `TestGenerateAllowedSymbols`, `TestGenerateWithAllowedSymbols`
+- `TestViewEntryClipboardFail`, `TestBrowseKeyError`,
+  `TestHealthKeyError`, `TestQuickSaveError`, `TestNewWizardEOF`,
+  `TestViewEntryEOF`, `TestViewEntryNumberInput`,
+  `TestBrowseSearchEOF`, `TestHistoryCommandError`,
+  `TestDeleteCommandError`, `TestLabelCommandError`
 
-### `test_cli.py` -- 36 tests
+### `test_cli.py` -- 48 tests
 
 Module under test: `secure_password_generator.cli` (via `run_cli()`)
 
-- Master-password lifecycle: set, reject without, env-var auth, password-file
-  auth, wrong password shows no entries
-- Generation modes: `-F` full, `-c 3` multiple, `-P` passphrase, pattern,
-  pattern with wildcard
-- CLI plumbing: `-h` exits 0, no-args help, YAML config, JSON config, CLI
-  override beats config, `--no-save-history`
-- Cleanup: files removed, vault empty after
-- No-master-password backward compat
-- Latin-ext: `-x -l` produces non-ASCII, `-F -x` combined works
-- CLI edge cases: `--version` flag, `--delete-entry` integration,
-  passphrase save mode, history search filter
-- Config error: invalid config file, missing config file
-- Clipboard: `-X` flag success (mocked), clipboard unavailable (mocked)
-- QR code: `-q` flag (mocked), `--qr-file` file creation, multi-count
-  indexed files
+- `TestMasterPassword`: set, reject without, env-var, password-file, wrong
+- `TestGenerationModes`: `-F` full, `-c 3` multi, `-P` passphrase, pattern
+- `TestCLIPlumbing`: `-h`, no-args, YAML/JSON config, CLI override,
+  `--no-save-history`
+- `TestCleanup`: files removed, vault empty after
+- `TestNoMasterPassword`: backward compat
+- `TestLatinExtCLI`: `-x -l` non-ASCII, `-F -x` combined
+- `TestStrengthDisplay`: inline score, multi-count, meter bar
+- `TestInteractiveFlag`: `-i` flag parsed
+- `TestCLIEdgeCases`: `--version`, `--delete-entry`, passphrase save,
+  history search
+- `TestCLIConfigError`: invalid config, missing config
+- `TestCLIClipboard`: `-X` success (mocked), unavailable (mocked)
+- `TestCLIQRCode`: `-q` flag, `--qr-file`, multi-count indexed files
+- `TestCLISetMasterPassword`: set-master error
+- `TestCLIHistoryEdgeCases`: empty history, empty delete, QR mode, QR empty
+- `TestCLIPassphrase`: no-save, with tags, generation error
+- `TestCLITUIFlag`: `-t` flag parsed
+- `TestCLIAllowedSymbols`: `--allowed-symbols` enables symbols
+- `TestCLIHistoryQREdge`: QR with empty history
 
-### `test_clipboard.py` -- 3 tests
+### `test_clipboard.py` -- 7 tests
 
 Module under test: `secure_password_generator.clipboard`
 
-- `copy_to_clipboard()` success (mocked pyperclip.copy)
-- `copy_to_clipboard()` failure (mocked PyperclipException)
-- `schedule_clipboard_clear()` timer starts (mocked threading.Timer)
+- `TestCopyToClipboard`: success (mocked), failure (PyperclipException)
+- `TestScheduleClipboardClear`: timer starts, previous timer cancelled,
+  no cancel when no previous, clear callback calls pyperclip.copy(""),
+  clear callback suppresses PyperclipException
 
 ### `test_qrcode.py` -- 3 tests
 
@@ -236,11 +285,11 @@ Module under test: `secure_password_generator.qrcode`
 - `save_qr()` calls segno.make().save() with path and scale
 - `save_qr()` custom scale parameter
 
-### `test_tui.py` -- 27 tests
+### `test_tui.py` -- 74 tests
 
 Module under test: `secure_password_generator.tui`
 
-Uses Textual's headless `App.run_test()` for async testing:
+Uses Textual's headless `App.run_test()` with `pytest-asyncio`:
 
 - `TestAppStartup`: app composes, 4 tabs exist, footer visible
 - `TestGeneratePane`: generate button, count, copy, QR, save modal,
@@ -252,15 +301,33 @@ Uses Textual's headless `App.run_test()` for async testing:
 - `TestEventDrivenRefresh`: save auto-refreshes history
 - `TestStructuredSearch`: parse label, category, tags, strength,
   combined, empty, plain text
+- `TestHistoryActions`: reveal toggle, copy/qr/delete no selection,
+  search submit
+- `TestStatusReport`: weak warning output
+- `TestConfigPaneActions`: refresh, cleanup confirm/cancel, set-master
+  empty/mismatch/success
+- `TestTabSwitching`: g/h/s/c key bindings
+- `TestHelperFunctions`: \_strength\_color, \_escape\_markup
+- `TestSaveModal`: cancel preserves passwords, escape
+- `TestGenerateEdgeCases`: copy/qr/save with no password
+- `TestRequireKey`: cached key, readonly no vault
+- `TestMasterPasswordModal`: unlock, cancel, wrong password, input
+  submit, escape
+- `TestQRModal`: close button, escape
+- `TestHistoryPaneDetailed`: copy success/fail, QR, delete with confirm
+- `TestStatusPaneDetailed`: build report output
+- `TestConfigSetMasterChange`: change master, no current password
+- `TestGenerateError`: error display, default int val
+- `TestRefreshOnTabSwitch`: tab activated refreshes
 - `TestQuitBinding`: Q key exits
 
-### `test_entry_points.py` -- 3 tests
+### `test_entry_points.py` -- 4 tests
 
-Subprocess smoke tests (the only file that shells out):
+Subprocess smoke tests and module entry point:
 
-- `pwgen -F -L 12 -n` exits 0 and prints a password
-- `python -m secure_password_generator -F -L 12 -n` exits 0
-- `shred` binary is on `PATH`
+- `TestEntryPoints`: `pwgen -F -L 12 -n` exits 0, `python -m` exits 0
+- `TestDunderMain`: `__main__.py` invokes `cli.main()`
+- `TestSystemDependencies`: `shred` binary is on `PATH`
 
 ---
 
@@ -283,6 +350,7 @@ podman run --rm \
     cd /workspace
 
     dnf install -y python3 python3-pip nodejs-npm >/dev/null 2>&1
+    python -m pip install --upgrade pip >/dev/null 2>&1
     python -m pip install -e . -r requirements-dev.txt >/dev/null 2>&1
 
     echo "=== Ruff Lint ==="
@@ -303,6 +371,7 @@ podman run --rm \
     echo "=== Smoke Test ==="
     pwgen -V
     pwgen -F -L 16 -n
+    pwgen -F -x -L 20 -n
 
     echo "=== ALL CHECKS PASSED ==="
   '

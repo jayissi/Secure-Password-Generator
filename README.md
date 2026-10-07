@@ -54,7 +54,9 @@ A robust, powerful, and secure command-line utility for generating **cryptograph
 | `pymarkdownlnt`| Markdown linter (dev dependency)      |
 |   `pyright`    | Static type checking (dev dependency) |
 |    `pytest`    | Test suite (dev dependency)           |
+| `pytest-asyncio`| Async test support for TUI (dev)     |
 | `pytest-cov`   | Test coverage (dev dependency)        |
+| `pytest-textual-snapshot` | Visual regression for TUI (dev) |
 |     `ruff`     | Linter (dev dependency)               |
 
 **System/RPM dependencies** are listed in `requirements-rpm.txt`:
@@ -92,6 +94,7 @@ dnf install coreutils
     ```bash
     python -m venv .venv
     source .venv/bin/activate
+    python -m pip install --upgrade pip
     python -m pip install -e . -r requirements-dev.txt
     ```
 
@@ -316,25 +319,26 @@ The test suite runs through pytest in under 2 seconds with automatic coverage re
 |           File            | Tests | Coverage                                                   |
 |:-------------------------:|:-----:|------------------------------------------------------------|
 |     `test_config.py`      |  14   | Config loading, CharsetConfig, ConfigError                 |
-|     `test_crypto.py`      |  25   | Encrypt/decrypt, key management, master-password, argon2id |
+|     `test_crypto.py`      |  44   | Encrypt/decrypt, key mgmt, master-password, argon2id, temp file, caching |
 |    `test_generator.py`    |  35   | Charset, constraints, scoring, latin-ext, NFC, symbol-only |
 | `test_strength_pytest.py` |  43   | Entropy boundaries, consistency, edge cases                |
-|     `test_history.py`     |  27   | Vault CRUD, search/filter, delete, metadata, NFC save      |
+|     `test_history.py`     |  35   | Vault CRUD, search/filter, delete, TOCTOU, dedup, NFC      |
 |      `test_utils.py`      |  11   | File permissions, logging, vault lock, secure delete       |
-|   `test_interactive.py`   |  71   | Interactive commands, browse, health, generate, QR prompt  |
-|       `test_cli.py`       |  36   | CLI integration, config error, clipboard, QR, edge cases   |
-|   `test_clipboard.py`     |   3   | Clipboard copy, failure, auto-clear timer                  |
+|   `test_interactive.py`   | 123   | Interactive commands, browse, health, generate, QR, edge cases |
+|       `test_cli.py`       |  48   | CLI integration, master-password, clipboard, QR, edge cases |
+|   `test_clipboard.py`     |   7   | Clipboard copy, failure, timer cancel, clear callback      |
 |    `test_qrcode.py`       |   3   | QR code display, save, custom scale                        |
-|      `test_tui.py`        |  27   | TUI app, generate, history, status, config, search, quit   |
-|  `test_entry_points.py`   |   3   | Subprocess smoke tests for pwgen and python -m             |
+|      `test_tui.py`        |  74   | TUI app, modals, history actions, config, auth, tab switch |
+|  `test_entry_points.py`   |   4   | Subprocess smoke tests, `__main__` module                  |
 
 ```bash
 # Build the virtual environment
 python -m venv .venv
 source .venv/bin/activate
+python -m pip install --upgrade pip
 python -m pip install -e . -r requirements-dev.txt
 
-# Run the linters
+# Run the linters, tests, and smoke test
 bash << 'EOF'
 set -e
 
@@ -342,7 +346,7 @@ echo '=== Ruff Lint ==='
 ruff check secure_password_generator/ tests/ benchmarks/
 
 echo '=== Pyright ==='
-pyright
+pyright secure_password_generator/ tests/
 
 echo '=== Bandit ==='
 bandit -r secure_password_generator/ -c pyproject.toml
@@ -352,6 +356,13 @@ pymarkdown --config .pymarkdown.json scan '**/*.md'
 
 echo '=== Pytest ==='
 pytest tests/ -v --tb=short
+
+echo '=== Smoke Test ==='
+pwgen -V
+pwgen -F -L 16 -n
+pwgen -F -x -L 20 -n
+
+echo '=== ALL CHECKS PASSED ==='
 EOF
 
 # Exit the virtual environment
