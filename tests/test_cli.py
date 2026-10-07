@@ -167,6 +167,42 @@ class TestCLIPlumbing:
         pw = _extract_password(result.stdout)
         assert len(pw) == 18
 
+    def test_config_pattern(self, vault, tmp_path):
+        cfg = tmp_path / "pattern.yaml"
+        cfg.write_text("pattern: 'lluuddss'\nupper: true\nlower: true\n")
+        result = run_cli("-f", str(cfg), "-n")
+        assert result.exit_code == 0
+        pw = _extract_password(result.stdout)
+        assert len(pw) == 8
+
+    def test_config_pattern_blank(self, vault, tmp_path):
+        cfg = tmp_path / "blank.yaml"
+        cfg.write_text(
+            "pattern: ''\nupper: true\nlower: true\nlength: 12\n"
+        )
+        result = run_cli("-f", str(cfg), "-n")
+        assert result.exit_code == 0
+        pw = _extract_password(result.stdout)
+        assert len(pw) == 12
+
+    def test_config_count(self, vault, tmp_path):
+        cfg = tmp_path / "count.yaml"
+        cfg.write_text("count: 3\nupper: true\nlower: true\n")
+        result = run_cli("-f", str(cfg), "-n")
+        assert result.exit_code == 0
+        assert "Generated Password 3:" in result.stdout
+
+    def test_config_qr(self, vault, tmp_path):
+        from unittest.mock import patch as mock_patch
+        cfg = tmp_path / "qr.yaml"
+        cfg.write_text("qr: true\nupper: true\nlower: true\n")
+        with mock_patch(
+            "secure_password_generator.cli.display_qr",
+        ) as mock_qr:
+            result = run_cli("-f", str(cfg), "-n")
+        assert result.exit_code == 0
+        mock_qr.assert_called_once()
+
     def test_no_save_history(self, vault):
         result1 = run_cli("-F", "-L", "12", "-n")
         assert result1.exit_code == 0

@@ -92,6 +92,36 @@ class TestLoadConfig:
         result = load_config(str(cfg_path))
         assert result == {}
 
+    def test_pattern_key_accepted(self, tmp_path):
+        cfg_path = tmp_path / "pattern.yaml"
+        cfg_path.write_text(yaml.dump({"pattern": "lluuddss"}))
+        result = load_config(str(cfg_path))
+        assert result["pattern"] == "lluuddss"
+
+    def test_count_key_accepted(self, tmp_path):
+        cfg_path = tmp_path / "count.yaml"
+        cfg_path.write_text(yaml.dump({"count": 5}))
+        result = load_config(str(cfg_path))
+        assert result["count"] == 5
+
+    def test_clipboard_key_accepted(self, tmp_path):
+        cfg_path = tmp_path / "clip.yaml"
+        cfg_path.write_text(yaml.dump({"clipboard": True}))
+        result = load_config(str(cfg_path))
+        assert result["clipboard"] is True
+
+    def test_qr_key_accepted(self, tmp_path):
+        cfg_path = tmp_path / "qr.yaml"
+        cfg_path.write_text(yaml.dump({"qr": True}))
+        result = load_config(str(cfg_path))
+        assert result["qr"] is True
+
+    def test_qr_file_key_accepted(self, tmp_path):
+        cfg_path = tmp_path / "qrfile.yaml"
+        cfg_path.write_text(yaml.dump({"qr_file": "out.png"}))
+        result = load_config(str(cfg_path))
+        assert result["qr_file"] == "out.png"
+
 
 # ── CharsetConfig ────────────────────────────────────────────────────────
 

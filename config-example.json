@@ -1,5 +1,6 @@
 {
   "length": 24,
+  "count": 1,
   "upper": true,
   "lower": true,
   "digits": true,
@@ -11,6 +12,10 @@
   "blank_space": false,
   "latin_ext": false,
   "save_history": true,
+  "clipboard": false,
+  "qr": false,
+  "qr_file": "",
+  "pattern": "",
   "label": "My Default Label",
   "category": "General",
   "tags": "default,work"

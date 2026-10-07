@@ -3,6 +3,7 @@
 # CLI arguments always take precedence over config values.
 
 length: 24
+count: 1
 upper: true
 lower: true
 digits: true
@@ -14,6 +15,15 @@ allowed_symbols: "!@#$%^&*?`"
 blank_space: false
 latin_ext: false
 save_history: true
+clipboard: false
+qr: false
+
+# Pattern-based generation (overrides character type flags when set).
+# Leave blank or comment out to use normal generation.
+# pattern: "lluuddss"
+
+# QR code output file (leave blank or comment out to skip).
+# qr_file: "password_qr.png"
 
 # Optional metadata defaults
 label: "My Default Label"

@@ -341,6 +341,9 @@ def main() -> None:
             ):
                 setattr(args, cfg_key, value)
 
+    if args.pattern is not None and not args.pattern.strip():
+        args.pattern = None
+
     if args.tui:
         from secure_password_generator.tui import PwgenTUI
         app = PwgenTUI()

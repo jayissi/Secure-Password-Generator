@@ -77,6 +77,7 @@ VALID_CONFIG_KEYS = {
     "allowed_symbols", "blank_space", "latin_ext",
     "label", "category", "tags",
     "save_history",
+    "pattern", "count", "clipboard", "qr", "qr_file",
 }
 
 CONFIG_KEY_MAP = {
