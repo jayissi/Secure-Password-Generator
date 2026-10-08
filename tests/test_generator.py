@@ -111,6 +111,46 @@ class TestPatternMinLength:
         )
         assert len(password) == 20
 
+    def test_pattern_blank_first_raises(self):
+        cfg = CharsetConfig(use_lower=True)
+        with pytest.raises(ValueError, match="first or last"):
+            generate_password(length=10, cfg=cfg, pattern="bllluullll")
+
+    def test_pattern_blank_last_raises(self):
+        cfg = CharsetConfig(use_lower=True)
+        with pytest.raises(ValueError, match="first or last"):
+            generate_password(length=10, cfg=cfg, pattern="llluulllub")
+
+    def test_pattern_blank_both_raises(self):
+        cfg = CharsetConfig(use_lower=True)
+        with pytest.raises(ValueError, match="first or last"):
+            generate_password(length=10, cfg=cfg, pattern="bllbuullub")
+
+    def test_pattern_blank_interior_ok(self):
+        cfg = CharsetConfig(use_lower=True)
+        pw = generate_password(length=10, cfg=cfg, pattern="llbbuullll")
+        assert " " in pw
+        assert pw[0] != " "
+        assert pw[-1] != " "
+
+    def test_pattern_empty_raises(self):
+        from secure_password_generator.generator import (
+            generate_password_from_pattern,
+        )
+
+        cfg = CharsetConfig(use_lower=True)
+        with pytest.raises(ValueError, match="cannot be empty"):
+            generate_password_from_pattern("", cfg=cfg)
+
+    def test_pattern_min_chars_warning(self, caplog):
+        cfg = CharsetConfig(use_upper=True, use_lower=True)
+        with caplog.at_level("WARNING"):
+            generate_password(
+                length=8, cfg=cfg, pattern="lluulluu",
+                min_characters_per_type=3,
+            )
+        assert "--min-chars is ignored in pattern mode" in caplog.text
+
 
 # ── Blank-position constraints ───────────────────────────────────────────
 

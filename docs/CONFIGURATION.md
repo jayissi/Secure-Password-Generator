@@ -28,13 +28,12 @@ latin_ext: false
 save_history: true
 clipboard: false
 qr: false
+# QR code output file (leave blank or comment out to skip).
+# qr_file: "password_qr.png"
 
 # Pattern-based generation (overrides character type flags when set).
 # Leave blank or comment out to use normal generation.
-# pattern: "lluuddss"
-
-# QR code output file (leave blank or comment out to skip).
-# qr_file: "password_qr.png"
+# pattern: "llbuubddbssbxx"
 
 # Optional metadata defaults
 label: "My Default Label"

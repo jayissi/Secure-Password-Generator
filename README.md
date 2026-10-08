@@ -320,7 +320,7 @@ The test suite runs through pytest in under 2 seconds with automatic coverage re
 |:-------------------------:|:-----:|--------------------------------------------------------------------------|
 |     `test_config.py`      |  19   | Config loading, CharsetConfig, ConfigError                               |
 |     `test_crypto.py`      |  44   | Encrypt/decrypt, key mgmt, master-password, argon2id, temp file, caching |
-|    `test_generator.py`    |  35   | Charset, constraints, scoring, latin-ext, NFC, symbol-only               |
+|    `test_generator.py`    |  41   | Charset, constraints, scoring, pattern, latin-ext, NFC, symbol-only      |
 | `test_strength_pytest.py` |  43   | Entropy boundaries, consistency, edge cases                              |
 |     `test_history.py`     |  35   | Vault CRUD, search/filter, delete, TOCTOU, dedup, NFC                    |
 |      `test_utils.py`      |  11   | File permissions, logging, vault lock, secure delete                     |
@@ -332,7 +332,7 @@ The test suite runs through pytest in under 2 seconds with automatic coverage re
 |  `test_entry_points.py`   |   4   | Subprocess smoke tests, `__main__` module                                |
 
 ```bash
-# Build the virtual environment
+# Build python virtual environment
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
@@ -365,8 +365,11 @@ pwgen -F -x -L 20 -n
 echo '=== ALL CHECKS PASSED ==='
 EOF
 
-# Exit the virtual environment
+# Exit python virtual environment
 deactivate
+
+# Cleanup python virtual environment
+rm -rf .venv
 ```
 
 See [tests/README.md](tests/README.md) for the full test architecture and

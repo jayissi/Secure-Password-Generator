@@ -288,7 +288,7 @@ string:
 |  `s` | Symbol                    |
 |  `b` | Blank (space)             |
 |  `x` | Latin-1 extended          |
-|  `*` | Any (letter/digit/symbol) |
+|  `*` | Any (letter/digit/symbol; add `-x` for Latin-1) |
 
 ```bash
 pwgen -p 'lluuddss' -n         # 8-position pattern
@@ -301,12 +301,16 @@ If the pattern is shorter than 8 characters, it is padded with `*` to
 meet the minimum length.
 
 Pattern mode respects `-r` (no consecutive repeats) and `-e` (exclude
-similar characters):
+similar characters).  The `x` code always produces Latin-1 characters
+without needing `-x`.  The `*` wildcard only includes Latin-1 when
+`-x` is passed.  Blank (`b`) cannot be the first or last position.
 
 ```bash
 pwgen -p 'ssssssssssss' -a '%@!' -r -n  # symbols, no repeats
 pwgen -p 'llllllllllll' -e -n            # lowercase, no i/l/o
 pwgen -p 'lluuddss' -r -e -n            # pattern + both flags
+pwgen -p 'lluuddxx' -n                   # x = Latin-1 (no -x needed)
+pwgen -p 'lluu****' -x -n               # * includes Latin-1 with -x
 ```
 
 ---

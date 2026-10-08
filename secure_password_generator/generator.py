@@ -378,11 +378,20 @@ def generate_symbol_only_password(length: int, symbols: str) -> str:
     return "".join(password)
 
 
+_CATEGORY_TO_CODE: dict[str, str] = {
+    "upper": "u",
+    "lower": "l",
+    "digits": "d",
+    "symbols": "s",
+    "blank": "b",
+    "latin_ext": "x",
+}
+
+
 def generate_password_from_pattern(
     pattern: str,
-    allowed_symbols: str = string.punctuation,
+    cfg: CharsetConfig,
     no_repeats: bool = False,
-    exclude_similar: bool = False,
 ) -> str:
     """Generate a password based on a pattern string.
 
@@ -390,15 +399,27 @@ def generate_password_from_pattern(
     ``s`` = symbol, ``b`` = blank, ``x`` = Latin-1 extended,
     ``*`` = random from all types.  Other characters are used literally.
 
+    Character filtering (``exclude_similar``, ``allowed_symbols``) is
+    applied via :func:`build_charset` so pattern mode stays consistent
+    with normal generation.
+
     Args:
         pattern: Pattern string.
-        allowed_symbols: Symbols to use for the ``s`` code.
+        cfg: Character-set configuration.
         no_repeats: Prevent consecutive duplicate characters.
-        exclude_similar: Remove similar-looking characters.
 
     Returns:
         Generated password string.
     """
+    if not pattern:
+        raise ValueError("Pattern string cannot be empty")
+
+    if pattern[0] == "b" or pattern[-1] == "b":
+        raise ValueError(
+            "Pattern cannot have blank ('b') as the first or last "
+            "character — blanks must be in interior positions"
+        )
+
     if len(pattern) < MIN_PASSWORD_LENGTH:
         logger.warning(
             "Pattern length increased to minimum of %d characters",
@@ -406,19 +427,27 @@ def generate_password_from_pattern(
         )
         pattern = pattern + "*" * (MIN_PASSWORD_LENGTH - len(pattern))
 
-    _fs = _filter_similar_chars
-    char_sets = {
-        "l": _fs(string.ascii_lowercase, exclude_similar),
-        "u": _fs(string.ascii_uppercase, exclude_similar),
-        "d": _fs(string.digits, exclude_similar),
-        "s": _fs(allowed_symbols, exclude_similar),
-        "b": " ",
-        "x": LATIN_EXT_CHARS,
-        "*": _fs(
-            string.ascii_letters + string.digits + allowed_symbols,
-            exclude_similar,
-        ),
-    }
+    full_cfg = CharsetConfig(
+        use_upper=True,
+        use_lower=True,
+        use_digits=True,
+        use_symbols=True,
+        allowed_symbols=cfg.allowed_symbols,
+        exclude_similar=cfg.exclude_similar,
+        blank=True,
+        latin_ext=True,
+    )
+    built = build_charset(full_cfg)
+
+    char_sets: dict[str, str] = {}
+    all_chars_parts: list[str] = []
+    for name, chars in built:
+        code = _CATEGORY_TO_CODE.get(name)
+        if code:
+            char_sets[code] = chars
+        if name != "blank" and (name != "latin_ext" or cfg.latin_ext):
+            all_chars_parts.append(chars)
+    char_sets["*"] = "".join(all_chars_parts)
 
     password: list[str] = []
     for code in pattern:
@@ -469,13 +498,13 @@ def generate_password(
         ValueError: If generation fails after maximum attempts.
     """
     if pattern:
-        effective_symbols = (
-            cfg.allowed_symbols or string.punctuation
-        )
+        if min_characters_per_type and min_characters_per_type > 1:
+            logger.warning(
+                "--min-chars is ignored in pattern mode "
+                "(each position is explicitly defined by the pattern)"
+            )
         return generate_password_from_pattern(
-            pattern, effective_symbols,
-            no_repeats=no_repeats,
-            exclude_similar=cfg.exclude_similar,
+            pattern, cfg=cfg, no_repeats=no_repeats,
         )
 
     if length < MIN_PASSWORD_LENGTH:
