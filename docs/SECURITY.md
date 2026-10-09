@@ -121,7 +121,7 @@ flowchart TD
 
 ### QR Code Security
 
-- QR code images saved via `--qr-file` contain the plaintext password. Treat them with the same care as the password itself — do not leave them on shared filesystems or send them over insecure channels.
+- QR code images saved via `-Q` or `--qr-file` contain the plaintext password. Treat them with the same care as the password itself — do not leave them on shared filesystems or send them over insecure channels.
 - QR codes displayed in the terminal are visible to anyone with line-of-sight to the screen or access to terminal scrollback history.
 
 ---

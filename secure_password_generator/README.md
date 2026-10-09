@@ -337,8 +337,8 @@ copy-to-clipboard and a configurable auto-clear timer.
 
 ### `qrcode.py`
 
-**Purpose:** QR code generation for passwords via `segno`.  Provides
-terminal display and PNG file save.
+**Purpose:** QR code generation, reading, and display via `segno` and
+`pyrxing`.  Provides terminal display, PNG save, and QR image decoding.
 
 **Key exports:**
 
@@ -346,8 +346,11 @@ terminal display and PNG file save.
   blocks (`segno.make().terminal(compact=True)`).
 - `save_qr(text, path, scale)` -- saves a QR code as a PNG file with
   configurable scale (default 5).
+- `read_qr(path)` -- decodes a saved QR code PNG and returns the
+  embedded text.  Uses `pyrxing.read_barcode()` (zxing-cpp via Rust).
+  Raises `FileNotFoundError` if missing, `ValueError` if no QR found.
 
-**Dependencies:** `segno` (external)
+**Dependencies:** `segno` (external), `pyrxing` (external)
 
 **Dependents:** `cli`, `interactive`, `tui`
 

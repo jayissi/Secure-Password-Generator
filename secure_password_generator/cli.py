@@ -6,6 +6,7 @@ Command-line interface for Secure Password Generator.
 import argparse
 import os
 import sys
+from pathlib import Path
 
 import argcomplete
 from argcomplete.completers import FilesCompleter
@@ -41,7 +42,7 @@ from secure_password_generator.history import (
     save_password,
     show_password_history,
 )
-from secure_password_generator.qrcode import display_qr, save_qr
+from secure_password_generator.qrcode import display_qr, read_qr, save_qr
 from secure_password_generator.utils import configure_logging
 
 # ── Argument parser ──────────────────────────────────────────────────────
@@ -139,8 +140,11 @@ def create_argument_parser() -> argparse.ArgumentParser:
         help="Display password as QR code in the terminal",
     )
     basic_group.add_argument(
-        "--qr-file", type=str, metavar="PATH",
-        help="Save password QR code to a PNG file",
+        "-Q", "--qr-file", type=str, metavar="PATH",
+        help=(
+            "Save QR code to PNG file, or open existing file "
+            "when not generating a password"
+        ),
     )
     basic_group.add_argument(
         "-U", "--unlock", action="store_true",
@@ -436,6 +440,19 @@ def main() -> None:
         delete_entry_by_index(args.delete_entry, key=_require_key())
         sys.exit(0)
 
+    # ── QR read-and-display mode ───────────────────────────────────
+    if args.qr_file and not any([
+        args.full, args.upper, args.lower, args.digits, args.symbols,
+        args.passphrase, args.pattern, args.blank, args.latin_ext,
+    ]):
+        try:
+            text = read_qr(args.qr_file)
+            display_qr(text)
+        except (FileNotFoundError, ValueError) as exc:
+            print(f"[!] {exc}", file=sys.stderr)
+            sys.exit(1)
+        sys.exit(0)
+
     # ── Character-type flags ────────────────────────────────────────
     if args.full:
         args.upper = True
@@ -531,6 +548,21 @@ def main() -> None:
                     qr_path = f"{base}_{i + 1}{ext}"
                 else:
                     qr_path = args.qr_file
+
+                if Path(qr_path).exists():
+                    try:
+                        overwrite = input(
+                            f"[?] QR file '{qr_path}' already exists. "
+                            "Overwrite? [y/N]: "
+                        ).strip().lower()
+                    except EOFError:
+                        overwrite = "n"
+                    if overwrite != "y":
+                        print(
+                            f"[*] Keeping existing QR file: {qr_path}"
+                        )
+                        continue
+
                 save_qr(password, qr_path)
                 print(f"[+] QR code saved to {qr_path}")
 

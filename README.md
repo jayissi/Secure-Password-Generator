@@ -46,6 +46,7 @@ A robust, powerful, and secure command-line utility for generating **cryptograph
 | `argcomplete`  | Shell tab-completion                  |
 | `cryptography` | AES-GCM-SIV encryption, Argon2id KDF  |
 |  `pyperclip`   | Clipboard support                     |
+|   `pyrxing`    | QR code decoding (read saved PNGs)    |
 |    `PyYAML`    | YAML config file support              |
 |    `segno`     | QR code generation                    |
 |   `tabulate`   | Formatted history table output        |
@@ -124,8 +125,8 @@ Secure-Password-Generator/
 ├── requirements.txt                  # Runtime Python dependencies
 ├── requirements-dev.txt              # Dev Python dependencies (linters, tests)
 ├── requirements-rpm.txt              # System/RPM dependencies
-├── config-sample.yaml                # Example YAML config
-├── config-example.json               # Example JSON config
+├── config.yml                        # Example YAML config
+├── config.json                       # Example JSON config
 ├── docs/                             # Detailed documentation
 │   ├── EXAMPLES.md                   # Comprehensive usage examples
 │   ├── INTERACTIVE.md                # Interactive mode guide
@@ -147,7 +148,7 @@ Secure-Password-Generator/
 │   ├── utils.py                      # Secure deletion, file permissions, logging
 │   ├── interactive.py                # Interactive REPL (PwgenShell)
 │   └── cli.py                        # Argument parser, main()
-├── tests/
+├── tests/                            # Pytest automation unit tests
 │   ├── conftest.py                   # Shared fixtures (vault_dir, run_cli)
 │   ├── test_config.py                # Config loader tests
 │   ├── test_crypto.py                # Crypto module tests
@@ -196,7 +197,7 @@ python -m secure_password_generator -h
 |        `--config`        | `-f`  | Load defaults from YAML/JSON config file      |  None   |
 |      `--clipboard`       | `-X`  | Copy password to clipboard (auto-clears)      |  False  |
 |          `--qr`          | `-q`  | Display password as QR code in terminal       |  False  |
-|       `--qr-file`        |       | Save password QR code to a PNG file           |  None   |
+|       `--qr-file`        | `-Q`  | Save QR to PNG, or read and display existing         |  None   |
 |     `--interactive`      | `-i`  | Start interactive mode (guided prompts)       |  False  |
 |         `--tui`          | `-t`  | Start graphical terminal UI                   |  False  |
 |        `--unlock`        | `-U`  | Explicitly unlock vault with master password  |  False  |
@@ -325,9 +326,9 @@ The test suite runs through pytest in under 2 seconds with automatic coverage re
 |     `test_history.py`     |  35   | Vault CRUD, search/filter, delete, TOCTOU, dedup, NFC                    |
 |      `test_utils.py`      |  11   | File permissions, logging, vault lock, secure delete                     |
 |   `test_interactive.py`   | 123   | Interactive commands, browse, health, generate, QR, edge cases           |
-|       `test_cli.py`       |  52   | CLI integration, master-password, clipboard, QR, edge cases              |
+|       `test_cli.py`       |  57   | CLI integration, master-password, clipboard, QR, edge cases              |
 |   `test_clipboard.py`     |   7   | Clipboard copy, failure, timer cancel, clear callback                    |
-|    `test_qrcode.py`       |   3   | QR code display, save, custom scale                                      |
+|    `test_qrcode.py`       |   6   | QR code display, save, read/decode, round-trip                           |
 |      `test_tui.py`        |  74   | TUI app, modals, history actions, config, auth, tab switch               |
 |  `test_entry_points.py`   |   4   | Subprocess smoke tests, `__main__` module                                |
 

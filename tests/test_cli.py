@@ -510,16 +510,70 @@ class TestCLIQRCode:
 
     def test_qr_file_flag(self, vault_dir, tmp_path):
         qr_file = tmp_path / "test_qr.png"
-        result = run_cli("-F", "-L", "12", "-n", "--qr-file", str(qr_file))
+        result = run_cli("-F", "-L", "12", "-n", "-Q", str(qr_file))
         assert result.exit_code == 0
         assert qr_file.exists()
         assert "QR code saved to" in result.stdout
+
+    def test_qr_file_read_existing(self, vault_dir, tmp_path):
+        from unittest.mock import patch as mock_patch
+        qr_file = tmp_path / "existing.png"
+        qr_file.write_bytes(b"PNG data")
+        with (
+            mock_patch(
+                "secure_password_generator.cli.read_qr",
+                return_value="decoded_password",
+            ) as mock_read,
+            mock_patch(
+                "secure_password_generator.cli.display_qr",
+            ) as mock_display,
+        ):
+            result = run_cli("-Q", str(qr_file))
+        assert result.exit_code == 0
+        mock_read.assert_called_once_with(str(qr_file))
+        mock_display.assert_called_once_with("decoded_password")
+
+    def test_qr_file_read_not_found(self, vault_dir, tmp_path):
+        qr_file = tmp_path / "missing.png"
+        result = run_cli("-Q", str(qr_file))
+        assert result.exit_code == 1
+        assert "QR file not found" in result.stderr
+
+    def test_qr_file_read_no_code(self, vault_dir, tmp_path):
+        from unittest.mock import patch as mock_patch
+        qr_file = tmp_path / "nocode.png"
+        qr_file.write_bytes(b"PNG data")
+        with mock_patch(
+            "secure_password_generator.cli.read_qr",
+            side_effect=ValueError("No QR code found"),
+        ):
+            result = run_cli("-Q", str(qr_file))
+        assert result.exit_code == 1
+        assert "No QR code found" in result.stderr
+
+    def test_qr_file_overwrite_yes(self, vault_dir, tmp_path):
+        from unittest.mock import patch as mock_patch
+        qr_file = tmp_path / "overwrite.png"
+        qr_file.write_bytes(b"old data")
+        with mock_patch("builtins.input", return_value="y"):
+            result = run_cli("-F", "-L", "12", "-n", "-Q", str(qr_file))
+        assert result.exit_code == 0
+        assert "QR code saved to" in result.stdout
+
+    def test_qr_file_overwrite_no(self, vault_dir, tmp_path):
+        from unittest.mock import patch as mock_patch
+        qr_file = tmp_path / "keep.png"
+        qr_file.write_bytes(b"old data")
+        with mock_patch("builtins.input", return_value="n"):
+            result = run_cli("-F", "-L", "12", "-n", "-Q", str(qr_file))
+        assert result.exit_code == 0
+        assert "Keeping existing QR file" in result.stdout
 
     def test_qr_file_multi(self, vault_dir, tmp_path):
         qr_file = tmp_path / "test_qr.png"
         result = run_cli(
             "-F", "-L", "12", "-n", "-c", "3",
-            "--qr-file", str(qr_file),
+            "-Q", str(qr_file),
         )
         assert result.exit_code == 0
         assert (tmp_path / "test_qr_1.png").exists()

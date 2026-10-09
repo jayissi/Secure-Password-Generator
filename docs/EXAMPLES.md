@@ -487,7 +487,27 @@ pwgen -F -L 20 -n -q
 **Save a QR code to a PNG file:**
 
 ```bash
-pwgen -F -L 20 -n --qr-file password_qr.png
+pwgen -F -L 20 -n -Q password_qr.png
+```
+
+**Read and display a previously saved QR code:**
+
+```bash
+pwgen -Q password_qr.png
+```
+
+If the file exists and no password is being generated, `-Q` decodes the
+QR image and displays it in the terminal (same rendering as `-q`).  If
+the file does not exist or contains no readable QR code, an error is
+shown.
+
+**Overwrite an existing QR code file:**
+
+When generating a password and the QR file already exists, you are
+prompted before overwriting:
+
+```text
+[?] QR file 'password_qr.png' already exists. Overwrite? [y/N]:
 ```
 
 **View history with inline QR codes:**

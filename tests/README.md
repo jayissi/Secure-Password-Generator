@@ -17,12 +17,12 @@ to invoke separately.
 |     `test_history.py`     |   pytest (vault)    |   35    |  < 1s     |
 |      `test_utils.py`      |    pytest (unit)    |   11    |  < 1s     |
 |   `test_interactive.py`   |  pytest (unit/CLI)  |  123    |  < 1s     |
-|       `test_cli.py`       |    pytest (CLI)     |   52    |  < 1s     |
+|       `test_cli.py`       |    pytest (CLI)     |   57    |  < 1s     |
 |   `test_clipboard.py`     |    pytest (unit)    |    7    |  < 1s     |
-|    `test_qrcode.py`       |    pytest (unit)    |    3    |  < 1s     |
+|    `test_qrcode.py`       |    pytest (unit)    |    6    |  < 1s     |
 |      `test_tui.py`        |   pytest (async)    |   74    | < 30s     |
 |  `test_entry_points.py`   | pytest (subprocess) |    4    |  < 1s     |
-|         **Total**         |                     | **456** | **< 35s** |
+|         **Total**         |                     | **464** | **< 35s** |
 
 ---
 
@@ -247,7 +247,7 @@ Module under test: `secure_password_generator.interactive`
   `TestBrowseSearchEOF`, `TestHistoryCommandError`,
   `TestDeleteCommandError`, `TestLabelCommandError`
 
-### `test_cli.py` -- 52 tests
+### `test_cli.py` -- 57 tests
 
 Module under test: `secure_password_generator.cli` (via `run_cli()`)
 
@@ -265,7 +265,8 @@ Module under test: `secure_password_generator.cli` (via `run_cli()`)
   history search
 - `TestCLIConfigError`: invalid config, missing config
 - `TestCLIClipboard`: `-X` success (mocked), unavailable (mocked)
-- `TestCLIQRCode`: `-q` flag, `--qr-file`, multi-count indexed files
+- `TestCLIQRCode`: `-q` flag, `--qr-file`, multi-count indexed files,
+  read existing, read not found, read no QR code, overwrite yes/no
 - `TestCLISetMasterPassword`: set-master error
 - `TestCLIHistoryEdgeCases`: empty history, empty delete, QR mode, QR empty
 - `TestCLIPassphrase`: no-save, with tags, generation error
@@ -282,13 +283,14 @@ Module under test: `secure_password_generator.clipboard`
   no cancel when no previous, clear callback calls pyperclip.copy(""),
   clear callback suppresses PyperclipException
 
-### `test_qrcode.py` -- 3 tests
+### `test_qrcode.py` -- 6 tests
 
 Module under test: `secure_password_generator.qrcode`
 
-- `display_qr()` calls segno.make().terminal(compact=True)
-- `save_qr()` calls segno.make().save() with path and scale
-- `save_qr()` custom scale parameter
+- `TestDisplayQR`: calls segno.make().terminal(compact=True)
+- `TestSaveQR`: calls segno.make().save() with path and scale, custom scale
+- `TestReadQR`: round-trip (segno save + pyrxing read), file not found,
+  no QR code in image
 
 ### `test_tui.py` -- 74 tests
 
