@@ -1,5 +1,6 @@
 .env
 .venv
+*.png
 *.pyc
 *.pyo
 *.egg-info/
