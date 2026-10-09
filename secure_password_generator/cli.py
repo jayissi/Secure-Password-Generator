@@ -7,6 +7,7 @@ Command-line interface for Secure Password Generator.
 import argparse
 import os
 import sys
+from collections import Counter
 from pathlib import Path
 
 import argcomplete
@@ -40,11 +41,13 @@ from secure_password_generator.generator import (
 )
 from secure_password_generator.history import (
     delete_entry_by_index,
+    format_history_table,
+    get_decrypted_entries,
     save_password,
     show_password_history,
 )
 from secure_password_generator.qrcode import display_qr, read_qr, save_qr
-from secure_password_generator.utils import configure_logging
+from secure_password_generator.utils import configure_logging, parse_tags
 
 # ── Argument parser ──────────────────────────────────────────────────────
 
@@ -401,10 +404,6 @@ def main() -> None:
             sys.exit(0)
         key = _require_key()
         if args.qr:
-            from secure_password_generator.history import (
-                format_history_table,
-                get_decrypted_entries,
-            )
             entries = get_decrypted_entries(
                 key=key,
                 limit=args.limit,
@@ -465,9 +464,7 @@ def main() -> None:
     if args.allowed_symbols:
         args.symbols = True
 
-    tags: list[str] | None = None
-    if args.tags:
-        tags = [tag.strip() for tag in args.tags.split(",")]
+    tags = parse_tags(args.tags) if args.tags else None
 
     try:
         if args.passphrase:
@@ -562,10 +559,12 @@ def main() -> None:
                         print(
                             f"[*] Keeping existing QR file: {qr_path}"
                         )
-                        continue
-
-                save_qr(password, qr_path)
-                print(f"[+] QR code saved to {qr_path}")
+                    else:
+                        save_qr(password, qr_path)
+                        print(f"[+] QR code saved to {qr_path}")
+                else:
+                    save_qr(password, qr_path)
+                    print(f"[+] QR code saved to {qr_path}")
 
             if args.save_history and key is not None:
                 save_password(
@@ -578,7 +577,6 @@ def main() -> None:
                 )
 
         if args.count > 0:
-            from collections import Counter
             count_label = (
                 "password" if args.count == 1 else "passwords"
             )

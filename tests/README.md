@@ -12,17 +12,17 @@ to invoke separately.
 |:-------------------------:|:-------------------:|:-------:|:---------:|
 |     `test_config.py`      |    pytest (unit)    |   19    |  < 1s     |
 |     `test_crypto.py`      |    pytest (unit)    |   44    |  < 1s     |
-|    `test_generator.py`    |    pytest (unit)    |   41    |  < 1s     |
+|    `test_generator.py`    |    pytest (unit)    |   42    |  < 1s     |
 | `test_strength_pytest.py` |    pytest (unit)    |   43    |  < 1s     |
 |     `test_history.py`     |   pytest (vault)    |   35    |  < 1s     |
 |      `test_utils.py`      |    pytest (unit)    |   11    |  < 1s     |
 |   `test_interactive.py`   |  pytest (unit/CLI)  |  123    |  < 1s     |
-|       `test_cli.py`       |    pytest (CLI)     |   57    |  < 1s     |
+|       `test_cli.py`       |    pytest (CLI)     |   58    |  < 1s     |
 |   `test_clipboard.py`     |    pytest (unit)    |    7    |  < 1s     |
 |    `test_qrcode.py`       |    pytest (unit)    |    7    |  < 1s     |
 |      `test_tui.py`        |   pytest (async)    |   74    | < 30s     |
 |  `test_entry_points.py`   | pytest (subprocess) |    4    |  < 1s     |
-|         **Total**         |                     | **465** | **< 35s** |
+|         **Total**         |                     | **467** | **< 35s** |
 
 ---
 
@@ -150,11 +150,12 @@ Module under test: `secure_password_generator.crypto`
 - `TestResolveMasterPasswordEdge`: file not found, file empty, interactive
 - `TestSetMasterTempFile`: temp cleanup on failure, change master password
 
-### `test_generator.py` -- 41 tests
+### `test_generator.py` -- 42 tests
 
 Module under test: `secure_password_generator.generator`
 
-- `build_charset` with empty, single, all types, custom symbols, exclude similar, latin_ext
+- `build_charset` with empty, single, all types, custom symbols, exclude similar, latin_ext,
+  lru\_cache returns immutable tuple
 - `compute_charset_size` minimum and blank offset, latin_ext adds 93
 - Pattern minimum-length padding and long-pattern passthrough
 - Pattern blank position: first/last/both raises, interior OK
@@ -247,7 +248,7 @@ Module under test: `secure_password_generator.interactive`
   `TestBrowseSearchEOF`, `TestHistoryCommandError`,
   `TestDeleteCommandError`, `TestLabelCommandError`
 
-### `test_cli.py` -- 57 tests
+### `test_cli.py` -- 58 tests
 
 Module under test: `secure_password_generator.cli` (via `run_cli()`)
 
@@ -266,7 +267,8 @@ Module under test: `secure_password_generator.cli` (via `run_cli()`)
 - `TestCLIConfigError`: invalid config, missing config
 - `TestCLIClipboard`: `-X` success (mocked), unavailable (mocked)
 - `TestCLIQRCode`: `-q` flag, `--qr-file`, multi-count indexed files,
-  read existing, read not found, read no QR code, overwrite yes/no
+  read existing, read not found, read no QR code, overwrite yes/no,
+  overwrite-no still saves to vault
 - `TestCLISetMasterPassword`: set-master error
 - `TestCLIHistoryEdgeCases`: empty history, empty delete, QR mode, QR empty
 - `TestCLIPassphrase`: no-save, with tags, generation error

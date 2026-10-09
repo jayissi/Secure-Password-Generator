@@ -98,12 +98,15 @@ def secure_delete_file(
 
     shred_bin = shutil.which("shred")
     if shred_bin:
-        subprocess.run(
-            [shred_bin, "-vuxzn", str(passes), str(file_path)],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        try:
+            subprocess.run(
+                [shred_bin, "-vuxzn", str(passes), str(file_path)],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except subprocess.SubprocessError as exc:
+            raise OSError(f"shred failed: {exc}") from exc
     else:
         logger.warning(
             "shred not found; falling back to manual overwrite "
@@ -120,3 +123,16 @@ def secure_delete_file(
                 f.flush()
                 os.fsync(f.fileno())
         file_path.unlink()
+
+
+def parse_tags(raw: str) -> list[str] | None:
+    """Parse a comma-separated tag string into a list.
+
+    Returns:
+        A list of stripped, non-empty tags, or ``None`` if the input
+        is empty or contains only whitespace/commas.
+    """
+    if not raw:
+        return None
+    tags = [t.strip() for t in raw.split(",") if t.strip()]
+    return tags or None

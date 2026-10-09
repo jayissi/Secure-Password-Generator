@@ -99,7 +99,6 @@ def save_password(
     if filename is None:
         filename = _constants.PASSWORD_FILE
     try:
-        verify_file_permissions(filename)
         strength = calculate_password_strength(
             password, charset_size=charset_size
         )
@@ -119,6 +118,7 @@ def save_password(
         line = base64.b64encode(encrypted) + b"\n"
 
         with vault_lock():
+            verify_file_permissions(filename)
             with open(filename, "ab") as f:
                 f.write(line)
             filename.chmod(DEFAULT_FILE_PERMISSIONS)
@@ -296,13 +296,19 @@ def delete_entry_by_index(
 
         entries.pop(index - 1)
 
-        secure_delete_file(filename)
-
         entries.reverse()
-        with open(filename, "wb") as f:
-            f.writelines(entry + b"\n" for entry in entries)
+        temp_path = filename.with_suffix(".enc.tmp")
+        try:
+            with open(temp_path, "wb") as f:
+                f.writelines(entry + b"\n" for entry in entries)
+            temp_path.chmod(DEFAULT_FILE_PERMISSIONS)
+            secure_delete_file(filename)
+            temp_path.rename(filename)
+        except (OSError, ValueError):
+            if temp_path.exists():
+                temp_path.unlink()
+            raise
 
-        filename.chmod(DEFAULT_FILE_PERMISSIONS)
         print(f"[+] Entry {index} securely deleted")
 
 
@@ -364,11 +370,17 @@ def update_entry_metadata(
         encrypted = encrypt_data(updated_json, key, aad=VAULT_AAD)
         entries[index - 1] = base64.b64encode(encrypted)
 
-        secure_delete_file(filename)
-
         entries.reverse()
-        with open(filename, "wb") as f:
-            f.writelines(entry + b"\n" for entry in entries)
+        temp_path = filename.with_suffix(".enc.tmp")
+        try:
+            with open(temp_path, "wb") as f:
+                f.writelines(entry + b"\n" for entry in entries)
+            temp_path.chmod(DEFAULT_FILE_PERMISSIONS)
+            secure_delete_file(filename)
+            temp_path.rename(filename)
+        except (OSError, ValueError):
+            if temp_path.exists():
+                temp_path.unlink()
+            raise
 
-        filename.chmod(DEFAULT_FILE_PERMISSIONS)
         print(f"[+] Entry {index} updated")

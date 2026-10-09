@@ -94,3 +94,11 @@ ENV_MASTER_CREDENTIAL = "SPG_MASTER_CREDENTIAL"
 # Associated Authenticated Data
 # =========================
 VAULT_AAD = b"vault-entry"
+
+# =========================
+# Generation Constants
+# =========================
+MAX_PLACEMENT_TRIALS = 200
+SIMPLE_PATTERNS = ["123", "abc", "qwe", "asd", "password", "admin"]
+QUICK_DEFAULT_LENGTH = 24
+PAGE_SIZE = 5

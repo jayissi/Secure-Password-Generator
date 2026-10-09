@@ -43,10 +43,8 @@ from secure_password_generator.clipboard import (
 )
 from secure_password_generator.config import CharsetConfig
 from secure_password_generator.crypto import (
-    _FINAL_KEY_CACHE,
-    _KEY_CACHE,
-    _crypto_state,
     cleanup_files,
+    clear_crypto_caches,
     get_encryption_key,
     initialize_security_files,
     is_master_password_enabled,
@@ -56,6 +54,7 @@ from secure_password_generator.crypto import (
 from secure_password_generator.generator import (
     calculate_password_strength,
     compute_charset_size,
+    format_strength_bar,
     generate_password,
 )
 from secure_password_generator.history import (
@@ -63,6 +62,7 @@ from secure_password_generator.history import (
     get_decrypted_entries,
     save_password,
 )
+from secure_password_generator.utils import parse_tags
 
 # ---------------------------------------------------------------------------
 # Modal dialogs
@@ -350,7 +350,7 @@ class GeneratePane(Static):
             strength = calculate_password_strength(
                 pw, charset_size=pool_size,
             )
-            bar = "\u2588" * strength + "\u2591" * (10 - strength)
+            bar = format_strength_bar(strength)
             color = _strength_color(strength)
             passwords.append(pw)
             safe_pw = _escape_markup(pw)
@@ -415,16 +415,7 @@ class GeneratePane(Static):
                 return
 
             def _save_with_key(key: bytes) -> None:
-                tags_raw = result.get("tags", "")
-                tags = (
-                    [
-                        t.strip()
-                        for t in tags_raw.split(",")
-                        if t.strip()
-                    ]
-                    if tags_raw
-                    else None
-                )
+                tags = parse_tags(result.get("tags", ""))
                 for pw in self._passwords:
                     save_password(
                         pw,
@@ -743,7 +734,7 @@ class StatusPane(Static):
         dist = Counter(scores)
         lines.append("  Score distribution:")
         for score in sorted(dist, reverse=True):
-            bar = "\u2588" * score + "\u2591" * (10 - score)
+            bar = format_strength_bar(score)
             color = _strength_color(score)
             lines.append(
                 f"    [{color}]{bar} {score}/10[/{color}]"
@@ -864,9 +855,7 @@ class ConfigPane(Static):
                 return
             cleanup_files()
             app._key = None
-            _KEY_CACHE.clear()
-            _FINAL_KEY_CACHE.clear()
-            _crypto_state["session_id"] = None
+            clear_crypto_caches()
             app.notify("Vault files securely deleted")
             self._refresh_info()
             self.post_message(VaultChanged())
@@ -1093,6 +1082,4 @@ class PwgenTUI(App):
     def _cleanup(self) -> None:
         """Clear cached crypto state."""
         self._key = None
-        _KEY_CACHE.clear()
-        _FINAL_KEY_CACHE.clear()
-        _crypto_state["session_id"] = None
+        clear_crypto_caches()

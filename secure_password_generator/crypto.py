@@ -9,10 +9,9 @@ import getpass
 import logging
 import os
 import secrets
-import subprocess
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCMSIV
 from cryptography.hazmat.primitives.kdf.argon2 import Argon2id
@@ -49,10 +48,28 @@ logger = logging.getLogger("secure_password_generator")
 # ---------------------------------------------------------------------------
 _KEY_CACHE: dict[str, tuple[bytes, float]] = {}
 _FINAL_KEY_CACHE: dict[str, bytes] = {}
-_crypto_state: dict[str, str | bool | None] = {
+
+
+class _CryptoState(TypedDict):
+    session_id: str | None
+    files_initialized: bool
+
+
+_crypto_state: _CryptoState = {
     "session_id": None,
     "files_initialized": False,
 }
+
+
+def clear_crypto_caches() -> None:
+    """Clear all cached crypto state (keys, session, init flag).
+
+    Call this after vault cleanup, master password change, or session end.
+    """
+    _KEY_CACHE.clear()
+    _FINAL_KEY_CACHE.clear()
+    _crypto_state["session_id"] = None
+    _crypto_state["files_initialized"] = False
 
 
 # ---------------------------------------------------------------------------
@@ -62,9 +79,8 @@ def initialize_security_files() -> None:
     """Ensure secure directory and encryption/pepper key files exist."""
     if _crypto_state["files_initialized"]:
         return
-    if not PASSWORD_DIR.exists():
-        PASSWORD_DIR.mkdir(mode=DEFAULT_DIR_PERMISSIONS)
-        PASSWORD_DIR.chmod(DEFAULT_DIR_PERMISSIONS)
+    PASSWORD_DIR.mkdir(mode=DEFAULT_DIR_PERMISSIONS, exist_ok=True)
+    PASSWORD_DIR.chmod(DEFAULT_DIR_PERMISSIONS)
 
     if not KEY_FILE.exists():
         KEY_FILE.write_bytes(secrets.token_bytes(32))
@@ -318,8 +334,8 @@ def resolve_master_password(args: Any) -> str | None:
         )
         return args.master_password
 
-    # 2. Environment variable (consumed on first read)
-    env_pw = os.environ.pop(ENV_MASTER_CREDENTIAL, None)
+    # 2. Environment variable (consumed after successful use)
+    env_pw = os.environ.get(ENV_MASTER_CREDENTIAL)
     if env_pw:
         logger.warning(
             "%s is set. Environment variables may be visible via "
@@ -327,6 +343,7 @@ def resolve_master_password(args: Any) -> str | None:
             "--master-password-file for better security.",
             ENV_MASTER_CREDENTIAL,
         )
+        os.environ.pop(ENV_MASTER_CREDENTIAL, None)
         return env_pw
 
     # 3. Password file
@@ -336,7 +353,12 @@ def resolve_master_password(args: Any) -> str | None:
         if not path.exists():
             raise ValueError(f"Master password file not found: {pw_file}")
         verify_file_permissions(path)
-        password = path.read_text().splitlines()[0].strip()
+        lines = path.read_text().splitlines()
+        if not lines:
+            raise ValueError(
+                f"Master password file is empty: {pw_file}"
+            )
+        password = lines[0].strip()
         if not password:
             raise ValueError(
                 f"Master password file is empty: {pw_file}"
@@ -400,16 +422,8 @@ def set_master_password(
                 blob = base64.b64decode(line, validate=True)
                 plaintext_entries.append(decrypt_data(blob, old_key, aad=VAULT_AAD))
 
-        # Create fresh salt and derive new combined key
+        # Derive new key from fresh salt (salt not written to disk yet)
         salt = secrets.token_bytes(32)
-        MASTER_SALT_FILE.write_bytes(salt)
-        MASTER_SALT_FILE.chmod(DEFAULT_FILE_PERMISSIONS)
-
-        # Invalidate cached keys so new salt is used
-        _KEY_CACHE.clear()
-        _FINAL_KEY_CACHE.clear()
-        _crypto_state["session_id"] = None
-
         derived = derive_master_key(new_password, salt=salt)
         file_key = get_file_encryption_key()
         new_key = combine_keys(derived, file_key)
@@ -434,6 +448,11 @@ def set_master_password(
                     temp_path.unlink()
                 raise
 
+        # Write salt and clear caches only after vault is safely written
+        MASTER_SALT_FILE.write_bytes(salt)
+        MASTER_SALT_FILE.chmod(DEFAULT_FILE_PERMISSIONS)
+        clear_crypto_caches()
+
     print(f"[+] Master password configured. Salt stored at {MASTER_SALT_FILE}")
     print(
         "[+] Vault re-encrypted with two-factor key "
@@ -455,7 +474,7 @@ def cleanup_files() -> None:
                 secure_delete_file(file)
                 print(f"[+] Securely removed: {file}")
                 removed_any = True
-            except (OSError, subprocess.SubprocessError) as exc:
+            except OSError as exc:
                 logger.error("Failed to securely remove %s: %s", file, exc)
 
     temp_file = PASSWORD_FILE.with_suffix(".enc.tmp")
@@ -474,7 +493,7 @@ def cleanup_files() -> None:
         except OSError:
             logger.warning("Directory not empty, keeping: %s", PASSWORD_DIR)
 
-    _crypto_state["files_initialized"] = False
+    clear_crypto_caches()
 
     if not removed_any:
         print("[*] Vault is already clean. No files to remove.")

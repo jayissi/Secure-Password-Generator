@@ -125,6 +125,14 @@ flowchart TD
 - QR codes displayed in the terminal are visible to anyone with line-of-sight to the screen or access to terminal scrollback history.
 - Only raster image formats (PNG, BMP, JPEG, GIF, TIFF, WebP) can be read back with `-Q`. Vector formats (SVG, EPS, PDF) can be saved but not decoded. Use PNG for full save/read round-trip. See [EXAMPLES.md](EXAMPLES.md) for the full format compatibility matrix.
 
+### Concurrency Model
+
+The vault is designed for **single-user** access. Vault writes are
+serialized with `fcntl.flock`, but reads do not acquire the lock.
+Running multiple `pwgen` processes simultaneously against the same
+vault may produce corrupt reads.  Do not run concurrent vault
+operations.
+
 ---
 
 > [!CAUTION]

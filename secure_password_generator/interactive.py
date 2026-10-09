@@ -9,29 +9,25 @@ the same flags as the non-interactive CLI.
 """
 
 import argparse
-import base64
-import binascii
 import cmd
-import json
 import logging
 import shlex
 from collections import Counter
 from types import SimpleNamespace
+from typing import Any
 
-from cryptography.exceptions import InvalidTag
-
-import secure_password_generator.constants as _constants
 from secure_password_generator.clipboard import (
     copy_to_clipboard,
     schedule_clipboard_clear,
 )
 from secure_password_generator.config import CharsetConfig
-from secure_password_generator.constants import VAULT_AAD
+from secure_password_generator.constants import (
+    PAGE_SIZE,
+    QUICK_DEFAULT_LENGTH,
+)
 from secure_password_generator.crypto import (
-    _FINAL_KEY_CACHE,
-    _KEY_CACHE,
     cleanup_files,
-    decrypt_data,
+    clear_crypto_caches,
     get_encryption_key,
     is_master_password_enabled,
     prompt_master_password,
@@ -46,11 +42,13 @@ from secure_password_generator.generator import (
 )
 from secure_password_generator.history import (
     delete_entry_by_index,
+    get_decrypted_entries,
     save_password,
     show_password_history,
     update_entry_metadata,
 )
 from secure_password_generator.qrcode import display_qr
+from secure_password_generator.utils import parse_tags
 
 logger = logging.getLogger("secure_password_generator")
 
@@ -61,7 +59,6 @@ FULL_CFG = CharsetConfig(
     use_symbols=True,
 )
 
-PAGE_SIZE = 5
 
 
 # ── Argument parsers for CLI-style commands ──────────────────────────────
@@ -141,28 +138,6 @@ def _label_parser() -> argparse.ArgumentParser:
     return p
 
 
-def _decrypt_vault(key: bytes) -> list[dict]:
-    """Decrypt every vault entry and return as a list of dicts."""
-    filename = _constants.PASSWORD_FILE
-    if not filename.exists():
-        return []
-    with open(filename, "rb") as fh:
-        lines = [line.strip() for line in fh if line.strip()]
-    lines.reverse()
-    entries: list[dict] = []
-    for line in lines:
-        try:
-            blob = base64.b64decode(line, validate=True)
-            rec = json.loads(decrypt_data(blob, key, aad=VAULT_AAD))
-            entries.append(rec)
-        except (
-            ValueError, binascii.Error, InvalidTag, json.JSONDecodeError,
-        ) as exc:
-            logger.debug("Skipping unreadable vault entry: %s", exc)
-            continue
-    return entries
-
-
 class PwgenShell(cmd.Cmd):
     """Interactive REPL for guided password generation."""
 
@@ -206,7 +181,7 @@ class PwgenShell(cmd.Cmd):
 
     def do_quick(self, arg: str) -> None:
         """Generate a password with all character types.  Usage: quick [LENGTH]"""
-        length = 24
+        length = QUICK_DEFAULT_LENGTH
         if arg.strip():
             try:
                 length = int(arg.strip())
@@ -257,11 +232,7 @@ class PwgenShell(cmd.Cmd):
                     label = input("Label [Unnamed]: ").strip() or None
                     category = input("Category [General]: ").strip() or None
                     tags_raw = input("Tags (comma-separated) []: ").strip()
-                    tags = (
-                        [t.strip() for t in tags_raw.split(",") if t.strip()]
-                        if tags_raw
-                        else None
-                    )
+                    tags = parse_tags(tags_raw)
                     key = self._require_key()
                     save_password(
                         password, key=key, label=label,
@@ -316,7 +287,7 @@ class PwgenShell(cmd.Cmd):
             print(f"[!] {exc}")
             return
 
-        entries = _decrypt_vault(key)
+        entries = get_decrypted_entries(key)
         if not entries:
             print("Vault is empty.")
             return
@@ -398,7 +369,7 @@ class PwgenShell(cmd.Cmd):
             else:
                 print("Please choose n, p, v, s, or q.")
 
-    def _view_entry(self, entry: dict) -> None:
+    def _view_entry(self, entry: dict[str, Any]) -> None:
         """Display full details for a single vault entry."""
         print(f"\n  Label:    {entry.get('label', 'N/A')}")
         print(f"  Password: {entry.get('password', '?')}")
@@ -441,7 +412,7 @@ class PwgenShell(cmd.Cmd):
             print(f"[!] {exc}")
             return
 
-        entries = _decrypt_vault(key)
+        entries = get_decrypted_entries(key)
         if not entries:
             print("Vault is empty — nothing to report.")
             return
@@ -633,11 +604,7 @@ class PwgenShell(cmd.Cmd):
             label = input("Label [Unnamed]: ").strip() or None
             category = input("Category [General]: ").strip() or None
             tags_raw = input("Tags (comma-separated) []: ").strip()
-            tags = (
-                [t.strip() for t in tags_raw.split(",") if t.strip()]
-                if tags_raw
-                else None
-            )
+            tags = parse_tags(tags_raw)
         except EOFError:
             print("\nSave cancelled.")
             return
@@ -647,7 +614,7 @@ class PwgenShell(cmd.Cmd):
         if opts.category:
             category = opts.category
         if opts.tags:
-            tags = [t.strip() for t in opts.tags.split(",") if t.strip()]
+            tags = parse_tags(opts.tags)
 
         try:
             key = self._require_key()
@@ -732,11 +699,7 @@ class PwgenShell(cmd.Cmd):
                 print(f"label: {exc}")
             return
 
-        tags = (
-            [t.strip() for t in opts.tags.split(",") if t.strip()]
-            if opts.tags
-            else None
-        )
+        tags = parse_tags(opts.tags) if opts.tags else None
 
         try:
             key = self._require_key()
@@ -769,10 +732,7 @@ class PwgenShell(cmd.Cmd):
 
         cleanup_files()
         self._key = None
-        _KEY_CACHE.clear()
-        _FINAL_KEY_CACHE.clear()
-        import secure_password_generator.crypto as _crypto
-        _crypto._crypto_state["session_id"] = None
+        clear_crypto_caches()
         print("[+] Session key cleared")
 
     # ── clear ────────────────────────────────────────────────────────
@@ -802,10 +762,7 @@ class PwgenShell(cmd.Cmd):
     def _cleanup(self) -> None:
         """Clear cached crypto state."""
         self._key = None
-        _KEY_CACHE.clear()
-        _FINAL_KEY_CACHE.clear()
-        import secure_password_generator.crypto as _crypto
-        _crypto._crypto_state["session_id"] = None
+        clear_crypto_caches()
 
     # ── error handling ───────────────────────────────────────────────
 

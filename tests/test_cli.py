@@ -86,10 +86,8 @@ class TestMasterPassword:
         )
         # Clear crypto caches to simulate a fresh process (as a real
         # attacker would have).
-        import secure_password_generator.crypto as _crypto
-        _crypto._KEY_CACHE.clear()
-        _crypto._FINAL_KEY_CACHE.clear()
-        _crypto._crypto_state["session_id"] = None
+        from secure_password_generator.crypto import clear_crypto_caches
+        clear_crypto_caches()
 
         result = run_cli("-H", "--master-password", "WrongPassw0rd!")
         assert "Secret" not in result.stdout
@@ -568,6 +566,24 @@ class TestCLIQRCode:
             result = run_cli("-F", "-L", "12", "-n", "-Q", str(qr_file))
         assert result.exit_code == 0
         assert "Keeping existing QR file" in result.stdout
+
+    def test_qr_file_overwrite_no_still_saves(self, vault, tmp_path):
+        """Declining QR overwrite must NOT skip saving the password."""
+        from unittest.mock import patch as mock_patch
+
+        qr_file = tmp_path / "existing.png"
+        qr_file.write_bytes(b"old data")
+        with mock_patch("builtins.input", return_value="n"):
+            result = run_cli(
+                "-F", "-L", "12", "--label", "QRDecline",
+                "-Q", str(qr_file),
+            )
+        assert result.exit_code == 0
+        assert "Keeping existing QR file" in result.stdout
+        assert "Passwords securely saved" in result.stdout
+
+        result2 = run_cli("-H")
+        assert "QRDecline" in result2.stdout
 
     def test_qr_file_multi(self, vault_dir, tmp_path):
         qr_file = tmp_path / "test_qr.png"

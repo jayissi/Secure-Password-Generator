@@ -321,12 +321,12 @@ The test suite runs through pytest in under 2 seconds with automatic coverage re
 |:-------------------------:|:-----:|--------------------------------------------------------------------------|
 |     `test_config.py`      |  19   | Config loading, CharsetConfig, ConfigError                               |
 |     `test_crypto.py`      |  44   | Encrypt/decrypt, key mgmt, master-password, argon2id, temp file, caching |
-|    `test_generator.py`    |  41   | Charset, constraints, scoring, pattern, latin-ext, NFC, symbol-only      |
+|    `test_generator.py`    |  42   | Charset, constraints, scoring, pattern, latin-ext, NFC, symbol-only      |
 | `test_strength_pytest.py` |  43   | Entropy boundaries, consistency, edge cases                              |
 |     `test_history.py`     |  35   | Vault CRUD, search/filter, delete, TOCTOU, dedup, NFC                    |
 |      `test_utils.py`      |  11   | File permissions, logging, vault lock, secure delete                     |
 |   `test_interactive.py`   | 123   | Interactive commands, browse, health, generate, QR, edge cases           |
-|       `test_cli.py`       |  57   | CLI integration, master-password, clipboard, QR, edge cases              |
+|       `test_cli.py`       |  58   | CLI integration, master-password, clipboard, QR, edge cases              |
 |   `test_clipboard.py`     |   7   | Clipboard copy, failure, timer cancel, clear callback                    |
 |    `test_qrcode.py`       |   7   | QR code display, save, read/decode, format validation                    |
 |      `test_tui.py`        |  74   | TUI app, modals, history actions, config, auth, tab switch               |

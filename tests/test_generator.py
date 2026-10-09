@@ -36,7 +36,12 @@ class TestBuildCharset:
 
     def test_empty_config_returns_empty(self):
         cfg = CharsetConfig()
-        assert build_charset(cfg) == []
+        assert build_charset(cfg) == ()
+
+    def test_cache_returns_tuple(self):
+        cfg = CharsetConfig(use_upper=True)
+        result = build_charset(cfg)
+        assert isinstance(result, tuple)
 
     def test_upper_only(self):
         cfg = CharsetConfig(use_upper=True)

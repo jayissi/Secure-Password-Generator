@@ -74,26 +74,16 @@ def vault_dir(tmp_path):
         p.start()
 
     # Clear crypto caches so the fresh paths take effect
-    from secure_password_generator.crypto import (
-        _FINAL_KEY_CACHE,
-        _KEY_CACHE,
-    )
-    _KEY_CACHE.clear()
-    _FINAL_KEY_CACHE.clear()
+    from secure_password_generator.crypto import clear_crypto_caches
 
-    import secure_password_generator.crypto as _crypto
-    _crypto._crypto_state["session_id"] = None
-    _crypto._crypto_state["files_initialized"] = False
+    clear_crypto_caches()
 
     yield tmp_path
 
     for p in patches:
         p.stop()
 
-    _KEY_CACHE.clear()
-    _FINAL_KEY_CACHE.clear()
-    _crypto._crypto_state["session_id"] = None
-    _crypto._crypto_state["files_initialized"] = False
+    clear_crypto_caches()
 
 
 # ---------------------------------------------------------------------------

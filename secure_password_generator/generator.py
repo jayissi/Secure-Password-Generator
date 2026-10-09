@@ -9,6 +9,7 @@ import math
 import secrets
 import string
 import unicodedata
+from collections.abc import Sequence
 from typing import cast
 
 from secure_password_generator.config import CharsetConfig
@@ -21,8 +22,10 @@ from secure_password_generator.constants import (
     COLOR_YELLOW,
     LATIN_EXT_CHARS,
     MAX_GENERATION_ATTEMPTS,
+    MAX_PLACEMENT_TRIALS,
     MIN_PASSWORD_LENGTH,
     SIMILAR_CHARS,
+    SIMPLE_PATTERNS,
 )
 
 logger = logging.getLogger("secure_password_generator")
@@ -40,14 +43,18 @@ def _filter_similar_chars(chars: str, exclude_similar: bool) -> str:
     return "".join(c for c in chars if c not in SIMILAR_CHARS)
 
 
-def build_charset(cfg: CharsetConfig) -> list[tuple[str, str]]:
-    """Build the list of ``(name, filtered_chars)`` tuples for generation.
+@functools.lru_cache(maxsize=16)
+def build_charset(cfg: CharsetConfig) -> tuple[tuple[str, str], ...]:
+    """Build the tuple of ``(name, filtered_chars)`` pairs for generation.
+
+    Results are cached because ``CharsetConfig`` is frozen (hashable).
+    Returns an immutable tuple so the cache cannot be corrupted by callers.
 
     Args:
         cfg: Character-set configuration.
 
     Returns:
-        Ordered list of ``(category_name, characters)`` pairs.
+        Immutable tuple of ``(category_name, characters)`` pairs.
     """
     charset_tuples: list[tuple[str, str]] = []
 
@@ -78,7 +85,7 @@ def build_charset(cfg: CharsetConfig) -> list[tuple[str, str]]:
     if cfg.latin_ext:
         charset_tuples.append(("latin_ext", LATIN_EXT_CHARS))
 
-    return charset_tuples
+    return tuple(charset_tuples)
 
 
 def compute_charset_size(cfg: CharsetConfig) -> int:
@@ -130,39 +137,7 @@ def calculate_password_strength(
 
     length = len(password)
 
-    # -- Infer charset_size when not provided ---------------------------------
-    if charset_size is None:
-        pool = 0
-        _has_upper = _has_lower = _has_digit = _has_symbol = False
-        _has_blank = _has_ext = False
-        for c in password:
-            if ord(c) > 127:
-                _has_ext = True
-            elif c.isupper():
-                _has_upper = True
-            elif c.islower():
-                _has_lower = True
-            elif c.isdigit():
-                _has_digit = True
-            elif c == " ":
-                _has_blank = True
-            elif not c.isalnum():
-                _has_symbol = True
-        if _has_upper:
-            pool += 26
-        if _has_lower:
-            pool += 26
-        if _has_digit:
-            pool += 10
-        if _has_symbol:
-            pool += 32
-        if _has_blank:
-            pool += 1
-        if _has_ext:
-            pool += 94
-        charset_size = max(pool, 1)
-
-    # -- Single-pass character-type detection ---------------------------------
+    # -- Single-pass character-type detection (also infers charset_size) ------
     has_upper = has_lower = has_digit = has_symbol = has_blank = False
     has_latin_ext = False
     for c in password:
@@ -178,6 +153,22 @@ def calculate_password_strength(
             has_blank = True
         elif not c.isalnum():
             has_symbol = True
+
+    if charset_size is None:
+        pool = 0
+        if has_upper:
+            pool += 26
+        if has_lower:
+            pool += 26
+        if has_digit:
+            pool += 10
+        if has_symbol:
+            pool += 32
+        if has_blank:
+            pool += 1
+        if has_latin_ext:
+            pool += 94
+        charset_size = max(pool, 1)
 
     char_types = sum([
         has_upper, has_lower, has_digit, has_symbol, has_blank, has_latin_ext,
@@ -245,8 +236,7 @@ def calculate_password_strength(
 
     # -- Pattern penalty (-1 per match, capped at -2) -------------------------
     pattern_penalty = 0
-    simple_patterns = ["123", "abc", "qwe", "asd", "password", "admin"]
-    for pat in simple_patterns:
+    for pat in SIMPLE_PATTERNS:
         if pat in password.lower():
             pattern_penalty += 1
 
@@ -269,11 +259,15 @@ def get_strength_color(score: int) -> str:
         return COLOR_RED
 
 
+def format_strength_bar(score: int) -> str:
+    """Return a Unicode bar for *score* (0-10): ``████████░░``."""
+    return "\u2588" * score + "\u2591" * (10 - score)
+
+
 def format_strength_meter(score: int) -> str:
     """Format *score* as a coloured bar ``████░░░░ 8/10``."""
     color = get_strength_color(score)
-    bars = "\u2588" * score + "\u2591" * (10 - score)
-    return f"{color}{bars} {score}/10{COLOR_RESET}"
+    return f"{color}{format_strength_bar(score)} {score}/10{COLOR_RESET}"
 
 
 def format_strength_inline(score: int) -> str:
@@ -301,7 +295,7 @@ def _violates_no_repeats(
 
 def _validate_generation_feasibility(
     length: int,
-    charset_tuples: list[tuple[str, str]],
+    charset_tuples: Sequence[tuple[str, str]],
     min_chars: int | None,
     no_repeats: bool,
     blank: bool,
@@ -553,12 +547,7 @@ def generate_password(
             if min_characters_per_type:
                 available_positions = set(range(length))
                 for name, chars in charset_tuples:
-                    if not chars:
-                        continue
-
-                    needed = max(0, min_characters_per_type)
-                    if needed == 0:
-                        continue
+                    needed = min_characters_per_type
 
                     candidates = [
                         p for p in range(length) if p in available_positions
@@ -580,7 +569,7 @@ def generate_password(
                     for pos in chosen_positions:
                         placed = False
                         trials = 0
-                        while trials < 200 and not placed:
+                        while trials < MAX_PLACEMENT_TRIALS and not placed:
                             ch = secrets.choice(chars)
                             if _violates_no_repeats(
                                 slots, ch, pos, length, no_repeats
@@ -660,6 +649,7 @@ def generate_password(
                 ) from exc
             continue
 
-    raise ValueError(
-        f"Failed to generate password after {MAX_GENERATION_ATTEMPTS} attempts"
-    )
+    # Unreachable: the loop always returns or raises on the last attempt.
+    # This satisfies type checkers that require all paths to return.
+    msg = f"Failed to generate password after {MAX_GENERATION_ATTEMPTS} attempts"
+    raise ValueError(msg)  # pragma: no cover
