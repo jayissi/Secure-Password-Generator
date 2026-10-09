@@ -42,16 +42,16 @@ System dependencies (`shred`) should be available -- see
 
 ### Key dev dependencies
 
-| Package | Purpose |
-|:-------:|---------|
-| `pytest` | Test runner |
-| `pytest-asyncio` | Async test support for Textual TUI tests (`App.run_test()`) |
-| `pytest-cov` | Coverage reporting (`--cov` flag) |
-| `pytest-textual-snapshot` | Visual regression testing for Textual apps |
-| `ruff` | Linter and formatter |
-| `pyright` | Static type checking |
-| `bandit` | Security linter |
-| `pymarkdownlnt` | Markdown linter |
+|          Package          | Purpose                                                     |
+|:-------------------------:|-------------------------------------------------------------|
+|         `pytest`          | Test runner                                                 |
+|     `pytest-asyncio`      | Async test support for Textual TUI tests (`App.run_test()`) |
+|       `pytest-cov`        | Coverage reporting (`--cov` flag)                           |
+| `pytest-textual-snapshot` | Visual regression testing for Textual apps                  |
+|          `ruff`           | Linter and formatter                                        |
+|        `pyright`          | Static type checking                                        |
+|         `bandit`          | Security linter                                             |
+|      `pymarkdownlnt`      | Markdown linter                                             |
 
 ### Snapshot testing
 

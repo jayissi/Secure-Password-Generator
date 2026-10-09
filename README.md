@@ -41,24 +41,24 @@ A robust, powerful, and secure command-line utility for generating **cryptograph
 
 **Python dependencies** are installed automatically by `pip` (see `pyproject.toml`):
 
-|    Package     | Purpose                               |
-|:--------------:|---------------------------------------|
-| `argcomplete`  | Shell tab-completion                  |
-| `cryptography` | AES-GCM-SIV encryption, Argon2id KDF  |
-|  `pyperclip`   | Clipboard support                     |
-|   `pyrxing`    | QR code decoding (read saved PNGs)    |
-|    `PyYAML`    | YAML config file support              |
-|    `segno`     | QR code generation                    |
-|   `tabulate`   | Formatted history table output        |
-|   `textual`    | Graphical terminal UI (TUI)           |
-|    `bandit`    | Security linter (dev dependency)      |
-| `pymarkdownlnt`| Markdown linter (dev dependency)      |
-|   `pyright`    | Static type checking (dev dependency) |
-|    `pytest`    | Test suite (dev dependency)           |
-| `pytest-asyncio`| Async test support for TUI (dev)     |
-| `pytest-cov`   | Test coverage (dev dependency)        |
-| `pytest-textual-snapshot` | Visual regression for TUI (dev) |
-|     `ruff`     | Linter (dev dependency)               |
+|          Package          | Purpose                               |
+|:-------------------------:|---------------------------------------|
+|       `argcomplete`       | Shell tab-completion                  |
+|      `cryptography`       | AES-GCM-SIV encryption, Argon2id KDF  |
+|       `pyperclip`         | Clipboard support                     |
+|        `pyrxing`          | QR code decoding (read saved PNGs)    |
+|        `PyYAML`           | YAML config file support              |
+|         `segno`           | QR code generation                    |
+|       `tabulate`          | Formatted history table output        |
+|        `textual`          | Graphical terminal UI (TUI)           |
+|        `bandit`           | Security linter (dev dependency)      |
+|     `pymarkdownlnt`       | Markdown linter (dev dependency)      |
+|        `pyright`          | Static type checking (dev dependency) |
+|        `pytest`           | Test suite (dev dependency)           |
+|     `pytest-asyncio`      | Async test support for TUI (dev)      |
+|       `pytest-cov`        | Test coverage (dev dependency)        |
+| `pytest-textual-snapshot` | Visual regression for TUI (dev)       |
+|         `ruff`            | Linter (dev dependency)               |
 
 **System/RPM dependencies** are listed in `requirements-rpm.txt`:
 
@@ -189,25 +189,25 @@ python -m secure_password_generator -h
 
 #### Basic Options
 
-|         Argument         | Short | Description                                   | Default |
-|:------------------------:|:-----:|-----------------------------------------------|:-------:|
-|        `--length`        | `-L`  | Password length (min: 8)                      |   12    |
-|        `--count`         | `-c`  | Number of passwords to generate               |    1    |
-|      `--passphrase`      | `-P`  | Custom passphrase (supersedes other options)  |  None   |
-|        `--config`        | `-f`  | Load defaults from YAML/JSON config file      |  None   |
-|      `--clipboard`       | `-X`  | Copy password to clipboard (auto-clears)      |  False  |
-|          `--qr`          | `-q`  | Display password as QR code in terminal       |  False  |
-|       `--qr-file`        | `-Q`  | Save QR to PNG, or read and display existing         |  None   |
-|     `--interactive`      | `-i`  | Start interactive mode (guided prompts)       |  False  |
-|         `--tui`          | `-t`  | Start graphical terminal UI                   |  False  |
-|        `--unlock`        | `-U`  | Explicitly unlock vault with master password  |  False  |
-|   `--master-password`    |       | Master password for scripting/CI              |  None   |
-| `--master-password-file` |       | Read master password from file (first line)   |  None   |
-| `--set-master-password`  |       | Configure/change master password + re-encrypt |  False  |
-|       `--verbose`        | `-v`  | Enable debug output                           |  False  |
-|        `--quiet`         |       | Suppress warnings                             |  False  |
-|         `--help`         | `-h`  | Show help message                             |   N/A   |
-|       `--version`        | `-V`  | Show version and exit                         |   N/A   |
+|         Argument         | Short | Description                                     | Default |
+|:------------------------:|:-----:|-------------------------------------------------|:-------:|
+|        `--length`        | `-L`  | Password length (min: 8)                        |   12    |
+|        `--count`         | `-c`  | Number of passwords to generate                 |    1    |
+|      `--passphrase`      | `-P`  | Custom passphrase (supersedes other options)    |  None   |
+|        `--config`        | `-f`  | Load defaults from YAML/JSON config file        |  None   |
+|      `--clipboard`       | `-X`  | Copy password to clipboard (auto-clears)        |  False  |
+|          `--qr`          | `-q`  | Display password as QR code in terminal         |  False  |
+|       `--qr-file`        | `-Q`  | Save QR to PNG, or read and display existing    |  None   |
+|     `--interactive`      | `-i`  | Start interactive mode (guided prompts)         |  False  |
+|         `--tui`          | `-t`  | Start graphical terminal UI                     |  False  |
+|        `--unlock`        | `-U`  | Explicitly unlock vault with master password    |  False  |
+|   `--master-password`    |       | Master password for scripting/CI                |  None   |
+| `--master-password-file` |       | Read master password from file (first line)     |  None   |
+| `--set-master-password`  |       | Configure/change master password + re-encrypt   |  False  |
+|       `--verbose`        | `-v`  | Enable debug output                             |  False  |
+|        `--quiet`         |       | Suppress warnings                               |  False  |
+|         `--help`         | `-h`  | Show help message                               |   N/A   |
+|       `--version`        | `-V`  | Show version and exit                           |   N/A   |
 
 #### Character Type Options
 

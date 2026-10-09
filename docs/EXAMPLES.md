@@ -280,15 +280,15 @@ remaining slots randomly.
 Define the exact character type for every position using a pattern
 string:
 
-| Code | Character Type            |
-|:----:|---------------------------|
-|  `l` | Lowercase letter          |
-|  `u` | Uppercase letter          |
-|  `d` | Digit                     |
-|  `s` | Symbol                    |
-|  `b` | Blank (space)             |
-|  `x` | Latin-1 extended          |
-|  `*` | Any (letter/digit/symbol; add `-x` for Latin-1) |
+| Code | Character Type                                   |
+|:----:|--------------------------------------------------|
+|  `l` | Lowercase letter                                 |
+|  `u` | Uppercase letter                                 |
+|  `d` | Digit                                            |
+|  `s` | Symbol                                           |
+|  `b` | Blank (space)                                    |
+|  `x` | Latin-1 extended                                 |
+|  `*` | Any (letter/digit/symbol; add `-x` for Latin-1)  |
 
 ```bash
 pwgen -p 'lluuddss' -n         # 8-position pattern

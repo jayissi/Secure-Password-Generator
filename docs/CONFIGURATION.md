@@ -74,28 +74,28 @@ tags: "default,work"
 
 ## Field Reference
 
-|       Field       |  Type  | Description                           |   Default   |
-|:-----------------:|:------:|---------------------------------------|:-----------:|
-|     `length`      |  int   | Password length (minimum: 8)          |     12      |
-|      `count`      |  int   | Number of passwords to generate       |      1      |
-|      `upper`      |  bool  | Include uppercase letters             |    false    |
-|      `lower`      |  bool  | Include lowercase letters             |    false    |
-|     `digits`      |  bool  | Include digits                        |    false    |
-|     `symbols`     |  bool  | Include symbols                       |    false    |
-|   `no_repeats`    |  bool  | Prevent consecutive duplicates        |    false    |
-| `exclude_similar` |  bool  | Exclude similar-looking characters    |    false    |
-|    `min_chars`    |  int   | Minimum characters per selected type  |      1      |
-| `allowed_symbols` | string | Custom symbol set                     | All symbols |
-|   `blank_space`   |  bool  | Include space character               |    false    |
-|    `latin_ext`    |  bool  | Include Latin-1 Supplement characters |    false    |
-|    `pattern`      | string | Pattern string (blank = normal mode)  |    None     |
-|  `save_history`   |  bool  | Save password to encrypted history    |    true     |
-|   `clipboard`     |  bool  | Copy password to clipboard            |    false    |
-|       `qr`        |  bool  | Display QR code in terminal           |    false    |
-|    `qr_file`      | string | Save QR code to PNG file              |    None     |
-|      `label`      | string | Default label for passwords           |  "Unnamed"  |
-|    `category`     | string | Default category for passwords        |  "General"  |
-|      `tags`       | string | Comma-separated default tags          |    None     |
+|       Field        |  Type  | Description                           |   Default   |
+|:------------------:|:------:|---------------------------------------|:-----------:|
+|      `length`      |  int   | Password length (minimum: 8)          |     12      |
+|      `count`       |  int   | Number of passwords to generate       |      1      |
+|      `upper`       |  bool  | Include uppercase letters             |    false    |
+|      `lower`       |  bool  | Include lowercase letters             |    false    |
+|      `digits`      |  bool  | Include digits                        |    false    |
+|     `symbols`      |  bool  | Include symbols                       |    false    |
+|    `no_repeats`    |  bool  | Prevent consecutive duplicates        |    false    |
+| `exclude_similar`  |  bool  | Exclude similar-looking characters    |    false    |
+|    `min_chars`     |  int   | Minimum characters per selected type  |      1      |
+| `allowed_symbols`  | string | Custom symbol set                     | All symbols |
+|   `blank_space`    |  bool  | Include space character               |    false    |
+|    `latin_ext`     |  bool  | Include Latin-1 Supplement characters |    false    |
+|     `pattern`      | string | Pattern string (blank = normal mode)  |    None     |
+|   `save_history`   |  bool  | Save password to encrypted history    |    true     |
+|    `clipboard`     |  bool  | Copy password to clipboard            |    false    |
+|        `qr`        |  bool  | Display QR code in terminal           |    false    |
+|     `qr_file`      | string | Save QR code to PNG file              |    None     |
+|      `label`       | string | Default label for passwords           |  "Unnamed"  |
+|    `category`      | string | Default category for passwords        |  "General"  |
+|       `tags`       | string | Comma-separated default tags          |    None     |
 
 ---
 
