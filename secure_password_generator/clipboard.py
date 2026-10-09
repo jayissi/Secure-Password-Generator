@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Clipboard operations: copy via pyperclip, auto-clear timer.
 """

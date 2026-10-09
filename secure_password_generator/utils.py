@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Utility functions: secure file deletion, file permission checks, logging setup.
 """

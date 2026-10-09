@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Cryptographic operations: AES-GCM-SIV encryption, Argon2id hashing,
 key management, and master-password handling.

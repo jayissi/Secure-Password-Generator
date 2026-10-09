@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 QR code generation, reading, and display via segno and pyrxing.
 """

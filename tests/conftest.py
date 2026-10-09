@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Shared pytest fixtures and helpers for the Secure Password Generator test suite.
 """

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Centralized constants and defaults for Secure Password Generator.
 """

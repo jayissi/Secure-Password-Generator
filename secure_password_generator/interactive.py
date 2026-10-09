@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Interactive REPL for Secure Password Generator.
 

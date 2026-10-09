@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Secure Password Generator — cryptographically strong passwords with
 AES-GCM-SIV encrypted vault storage.

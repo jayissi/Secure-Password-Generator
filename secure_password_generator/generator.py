@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Password generation, charset construction, and strength scoring.
 """

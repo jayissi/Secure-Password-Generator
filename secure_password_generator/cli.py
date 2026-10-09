@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
 """
 Command-line interface for Secure Password Generator.

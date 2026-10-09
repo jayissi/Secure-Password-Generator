@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Configuration: CharsetConfig dataclass, YAML/JSON config file loader, ConfigError.
 """
