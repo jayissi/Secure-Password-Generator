@@ -7,6 +7,10 @@ from pathlib import Path
 import segno
 from pyrxing import read_barcode
 
+READABLE_QR_EXTENSIONS = {
+    ".png", ".bmp", ".jpg", ".jpeg", ".gif", ".tiff", ".webp",
+}
+
 
 def display_qr(text: str) -> None:
     """Print a QR code to the terminal using Unicode blocks."""
@@ -39,6 +43,14 @@ def read_qr(path: str) -> str:
     resolved = Path(path).resolve()
     if not resolved.exists():
         raise FileNotFoundError(f"QR file not found: {path}")
+    ext = resolved.suffix.lower()
+    if ext not in READABLE_QR_EXTENSIONS:
+        raise ValueError(
+            f"Cannot read QR code from '{ext}' format. "
+            f"Supported formats for reading: "
+            f"{', '.join(sorted(READABLE_QR_EXTENSIONS))}. "
+            f"Use PNG for full save/read round-trip."
+        )
     result = read_barcode(str(resolved), formats=["QRCode"])
     if result is None:
         raise ValueError(f"No QR code found in: {path}")

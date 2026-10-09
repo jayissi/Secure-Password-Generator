@@ -19,10 +19,10 @@ to invoke separately.
 |   `test_interactive.py`   |  pytest (unit/CLI)  |  123    |  < 1s     |
 |       `test_cli.py`       |    pytest (CLI)     |   57    |  < 1s     |
 |   `test_clipboard.py`     |    pytest (unit)    |    7    |  < 1s     |
-|    `test_qrcode.py`       |    pytest (unit)    |    6    |  < 1s     |
+|    `test_qrcode.py`       |    pytest (unit)    |    7    |  < 1s     |
 |      `test_tui.py`        |   pytest (async)    |   74    | < 30s     |
 |  `test_entry_points.py`   | pytest (subprocess) |    4    |  < 1s     |
-|         **Total**         |                     | **464** | **< 35s** |
+|         **Total**         |                     | **465** | **< 35s** |
 
 ---
 
@@ -283,14 +283,14 @@ Module under test: `secure_password_generator.clipboard`
   no cancel when no previous, clear callback calls pyperclip.copy(""),
   clear callback suppresses PyperclipException
 
-### `test_qrcode.py` -- 6 tests
+### `test_qrcode.py` -- 7 tests
 
 Module under test: `secure_password_generator.qrcode`
 
 - `TestDisplayQR`: calls segno.make().terminal(compact=True)
 - `TestSaveQR`: calls segno.make().save() with path and scale, custom scale
 - `TestReadQR`: round-trip (segno save + pyrxing read), file not found,
-  no QR code in image
+  no QR code in image, unsupported format (.svg) raises ValueError
 
 ### `test_tui.py` -- 74 tests
 

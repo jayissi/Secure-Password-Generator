@@ -72,3 +72,14 @@ class TestReadQR:
 
         with pytest.raises((ValueError, Exception)):
             read_qr(str(img_file))
+
+    def test_read_qr_unsupported_format(self, tmp_path):
+        """An SVG file raises ValueError with format message."""
+        import segno
+
+        svg_file = tmp_path / "qr.svg"
+        qr = segno.make("test")
+        qr.save(str(svg_file))
+
+        with pytest.raises(ValueError, match="Cannot read QR code from"):
+            read_qr(str(svg_file))

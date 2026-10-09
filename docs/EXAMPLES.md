@@ -510,6 +510,42 @@ prompted before overwriting:
 [?] QR file 'password_qr.png' already exists. Overwrite? [y/N]:
 ```
 
+### QR Code File Formats
+
+Saving uses `segno` which supports multiple output formats.
+Reading uses `pyrxing` which only supports raster image formats.
+
+| Format | Extension |  Save  |  Read  | Round-trip | Notes                             |
+|:------:|:---------:|:------:|:------:|:----------:|-----------------------------------|
+|  PNG   |  `.png`   |  Yes   |  Yes   |    Yes     | Recommended for full round-trip   |
+|  SVG   |  `.svg`   |  Yes   |   No   |     No     | Vector, scalable, good for print  |
+|  EPS   |  `.eps`   |  Yes   |   No   |     No     | Vector, print-ready               |
+|  PDF   |  `.pdf`   |  Yes   |   No   |     No     | Vector, portable documents        |
+|  TXT   |  `.txt`   |  Yes   |   No   |     No     | Terminal-style text output        |
+|  PBM   |  `.pbm`   |  Yes   |   No   |     No     | Portable bitmap                   |
+|  PAM   |  `.pam`   |  Yes   |   No   |     No     | Portable arbitrary map            |
+|  PPM   |  `.ppm`   |  Yes   |   No   |     No     | Portable pixmap                   |
+|  XBM   |  `.xbm`   |  Yes   |   No   |     No     | X bitmap                          |
+|  XPM   |  `.xpm`   |  Yes   |   No   |     No     | X pixmap                          |
+| LaTeX  |  `.tex`   |  Yes   |   No   |     No     | PGF/TikZ for documents            |
+|  BMP   |  `.bmp`   |   No   |  Yes   |     No     | Raster, read from external source |
+|  JPEG  |  `.jpg`   |   No   |  Yes   |     No     | Raster, read from external source |
+|  GIF   |  `.gif`   |   No   |  Yes   |     No     | Raster, read from external source |
+|  TIFF  | `.tiff`   |   No   |  Yes   |     No     | Raster, read from external source |
+|  WebP  | `.webp`   |   No   |  Yes   |     No     | Raster, read from external source |
+
+**PNG** is the only format that supports the full save-and-read
+round-trip.  Other formats can be saved for printing or embedding
+(SVG, PDF, EPS) or read from externally created QR images (BMP,
+JPEG, GIF, TIFF, WebP).
+
+```bash
+pwgen -F -L 20 -n -Q password.svg   # save as SVG for printing
+pwgen -F -L 20 -n -Q password.png   # save as PNG for round-trip
+```
+
+---
+
 **View history with inline QR codes:**
 
 ```bash

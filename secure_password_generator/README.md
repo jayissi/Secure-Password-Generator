@@ -346,9 +346,12 @@ copy-to-clipboard and a configurable auto-clear timer.
   blocks (`segno.make().terminal(compact=True)`).
 - `save_qr(text, path, scale)` -- saves a QR code as a PNG file with
   configurable scale (default 5).
-- `read_qr(path)` -- decodes a saved QR code PNG and returns the
+- `read_qr(path)` -- decodes a saved QR code image and returns the
   embedded text.  Uses `pyrxing.read_barcode()` (zxing-cpp via Rust).
-  Raises `FileNotFoundError` if missing, `ValueError` if no QR found.
+  Only raster formats are supported (PNG, BMP, JPEG, GIF, TIFF, WebP);
+  vector formats (SVG, EPS, PDF) raise `ValueError`.  Raises
+  `FileNotFoundError` if missing, `ValueError` if no QR found or
+  unsupported format.
 
 **Dependencies:** `segno` (external), `pyrxing` (external)
 

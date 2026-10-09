@@ -1,6 +1,14 @@
 .env
 .venv
 *.png
+*.bmp
+*.jpg
+*.jpeg
+*.gif
+*.tiff
+*.webp
+*.svg
+*.eps
 *.pyc
 *.pyo
 *.egg-info/

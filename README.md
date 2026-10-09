@@ -197,7 +197,7 @@ python -m secure_password_generator -h
 |        `--config`        | `-f`  | Load defaults from YAML/JSON config file        |  None   |
 |      `--clipboard`       | `-X`  | Copy password to clipboard (auto-clears)        |  False  |
 |          `--qr`          | `-q`  | Display password as QR code in terminal         |  False  |
-|       `--qr-file`        | `-Q`  | Save QR to PNG, or read and display existing    |  None   |
+|       `--qr-file`        | `-Q`  | Save QR to file, or read and display (PNG rec.) |  None   |
 |     `--interactive`      | `-i`  | Start interactive mode (guided prompts)         |  False  |
 |         `--tui`          | `-t`  | Start graphical terminal UI                     |  False  |
 |        `--unlock`        | `-U`  | Explicitly unlock vault with master password    |  False  |
@@ -328,7 +328,7 @@ The test suite runs through pytest in under 2 seconds with automatic coverage re
 |   `test_interactive.py`   | 123   | Interactive commands, browse, health, generate, QR, edge cases           |
 |       `test_cli.py`       |  57   | CLI integration, master-password, clipboard, QR, edge cases              |
 |   `test_clipboard.py`     |   7   | Clipboard copy, failure, timer cancel, clear callback                    |
-|    `test_qrcode.py`       |   6   | QR code display, save, read/decode, round-trip                           |
+|    `test_qrcode.py`       |   7   | QR code display, save, read/decode, format validation                    |
 |      `test_tui.py`        |  74   | TUI app, modals, history actions, config, auth, tab switch               |
 |  `test_entry_points.py`   |   4   | Subprocess smoke tests, `__main__` module                                |
 
