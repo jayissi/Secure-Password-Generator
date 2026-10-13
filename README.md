@@ -315,66 +315,14 @@ For a full tutorial and recipes, see [docs/EXAMPLES.md](docs/EXAMPLES.md).
 
 ## 🧪 Testing
 
-The test suite runs through pytest in under 2 seconds with automatic coverage reporting. A test-mode Argon2id profile is applied automatically by `conftest.py`. Static type checking (pyright), security scanning (bandit), and markdown linting (pymarkdownlnt) run alongside ruff.
+The test suite includes **467 tests** at **95% coverage**, running through
+pytest with automatic coverage reporting.  A test-mode Argon2id profile is
+applied automatically by `conftest.py`.
 
-|           File            | Tests | Coverage                                                                 |
-|:-------------------------:|:-----:|--------------------------------------------------------------------------|
-|     `test_config.py`      |  19   | Config loading, CharsetConfig, ConfigError                               |
-|     `test_crypto.py`      |  44   | Encrypt/decrypt, key mgmt, master-password, argon2id, temp file, caching |
-|    `test_generator.py`    |  42   | Charset, constraints, scoring, pattern, latin-ext, NFC, symbol-only      |
-| `test_strength_pytest.py` |  43   | Entropy boundaries, consistency, edge cases                              |
-|     `test_history.py`     |  35   | Vault CRUD, search/filter, delete, TOCTOU, dedup, NFC                    |
-|      `test_utils.py`      |  11   | File permissions, logging, vault lock, secure delete                     |
-|   `test_interactive.py`   | 123   | Interactive commands, browse, health, generate, QR, edge cases           |
-|       `test_cli.py`       |  58   | CLI integration, master-password, clipboard, QR, edge cases              |
-|   `test_clipboard.py`     |   7   | Clipboard copy, failure, timer cancel, clear callback                    |
-|    `test_qrcode.py`       |   7   | QR code display, save, read/decode, format validation                    |
-|      `test_tui.py`        |  74   | TUI app, modals, history actions, config, auth, tab switch               |
-|  `test_entry_points.py`   |   4   | Subprocess smoke tests, `__main__` module                                |
-
-```bash
-# Build python virtual environment
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -e . -r requirements-dev.txt
-
-# Run the linters, tests, and smoke test
-bash << 'EOF'
-set -e
-
-echo '=== Ruff Lint ==='
-ruff check secure_password_generator/ tests/ benchmarks/
-
-echo '=== Pyright ==='
-pyright secure_password_generator/ tests/
-
-echo '=== Bandit ==='
-bandit -r secure_password_generator/ -c pyproject.toml
-
-echo '=== Markdown Lint ==='
-pymarkdown --config .pymarkdown.json scan '**/*.md'
-
-echo '=== Pytest ==='
-pytest tests/ -v --tb=short
-
-echo '=== Smoke Test ==='
-pwgen -V
-pwgen -F -L 16 -n
-pwgen -F -x -L 20 -n
-
-echo '=== ALL CHECKS PASSED ==='
-EOF
-
-# Exit python virtual environment
-deactivate
-
-# Cleanup python virtual environment
-rm -rf .venv
-```
-
-See [tests/README.md](tests/README.md) for the full test architecture and
-[benchmarks/README.md](benchmarks/README.md) for performance diagnostics.
+See [tests/README.md](tests/README.md) for the full test suite reference,
+setup instructions, lint commands, and CI dry-run guide.
+See [benchmarks/README.md](benchmarks/README.md) for performance
+diagnostics.
 
 ---
 

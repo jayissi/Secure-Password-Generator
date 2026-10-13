@@ -28,17 +28,18 @@ to invoke separately.
 
 ## Prerequisites
 
-Set up a virtual environment with development dependencies:
+Set up a Python virtual environment and install all dependencies:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -e . -r requirements-dev.txt
+python -m venv .venv                                # Create an isolated virtual environment
+source .venv/bin/activate                           # Activate it (bash/zsh)
+python -m pip install --upgrade pip                 # Ensure pip is up to date
+python -m pip install -e . -r requirements-dev.txt  # Install package + dev tools
 ```
 
-System dependencies (`shred`) should be available -- see
-`requirements-rpm.txt` in the project root.
+Runtime dependencies are defined in `pyproject.toml` under `[project]
+dependencies`, mirrored in `requirements.txt`.  Dev dependencies (linters, test runners) are in
+`[dependency-groups] dev` and mirrored in `requirements-dev.txt`.
 
 ### Key dev dependencies
 
@@ -84,11 +85,63 @@ root -- see [benchmarks/README.md](../benchmarks/README.md).
 
 ---
 
+## Local Lint + Test (venv)
+
+```bash
+# Build python virtual environment
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e . -r requirements-dev.txt
+
+# Run the linters, tests, and smoke test
+bash << 'EOF'
+set -e
+
+echo '=== Ruff Lint ==='
+ruff check secure_password_generator/ tests/ benchmarks/
+
+echo '=== Pyright ==='
+pyright secure_password_generator/ tests/
+
+echo '=== Bandit ==='
+bandit -r secure_password_generator/ -c pyproject.toml
+
+echo '=== Markdown Lint ==='
+pymarkdown --config .pymarkdown.json scan '**/*.md'
+
+echo '=== Pytest ==='
+pytest tests/ -v --tb=short
+
+echo '=== Smoke Test ==='
+pwgen -V
+pwgen -F -L 16 -n
+pwgen -F -x -L 20 -n
+
+echo '=== ALL CHECKS PASSED ==='
+EOF
+
+# Exit python virtual environment
+deactivate
+
+# Cleanup python virtual environment
+rm -rf .venv
+```
+
+> [!IMPORTANT]
+> System dependencies (`shred`) must be available for secure file
+> deletion.  See `requirements-rpm.txt` in the project root.
+> `nodejs-npm` is required for `pyright` in Fedora/RHEL containers.
+
+---
+
 ## Test Architecture
 
 ### Speed
 
-The suite runs in under 1 second.  Two optimisations make this possible:
+The full suite runs in under 35 seconds (most of that is TUI async
+tests).  Non-TUI tests complete in under 3 seconds.  Two optimisations
+make this possible:
 
 1. **Test-mode Argon2id** -- a module-level `os.environ` call in
    `conftest.py` sets `SPG_TEST_KDF=1` before any package import, which
@@ -98,8 +151,8 @@ The suite runs in under 1 second.  Two optimisations make this possible:
 
 2. **In-process CLI calls** -- `test_cli.py` invokes `cli.main()` directly
    via the `run_cli()` helper in `conftest.py`, avoiding subprocess cold
-   starts.  Only `test_entry_points.py` (3 tests) shells out to the real
-   `pwgen` binary.
+   starts.  Only `test_entry_points.py` (3 of its 4 tests) shells out to
+   the real `pwgen` binary.
 
 ### Isolation
 
