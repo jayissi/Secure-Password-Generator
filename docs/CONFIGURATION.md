@@ -10,7 +10,7 @@ CLI arguments **always** override config file values.
 
 ---
 
-## Example `config.yaml`
+## Example `config.yml`
 
 ```yaml
 length: 24
@@ -103,13 +103,13 @@ tags: "default,work"
 
 ```bash
 # Use YAML config
-pwgen -f config.yaml
+pwgen -f config.yml
 
 # Use JSON config with CLI override
 pwgen -f config.json -L 32
 
 # Config + additional flags (CLI always wins)
-pwgen -f config.yaml --label "Override" -c 5
+pwgen -f config.yml --label "Override" -c 5
 ```
 
 > **Note:** Clipboard auto-clear timeout is controlled by the code-level
